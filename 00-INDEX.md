@@ -41,7 +41,7 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 
 | Topic | File | Covers |
 |---|---|---|
-| Kafka Internals | [kafka-deep-dive.md](kafka-deep-dive.md) | 18-lesson deep dive on Kafka mechanics — topics/partitions/partition-key choice, offsets, consumer groups, replication/ACKs/ISR/leader election, KRaft, producer/consumer internals, log segments, page cache, zero copy, batching, compression. Goes well beyond Stage 1's Kafka overview; read it alongside or after Stage 1 Phase 3 if Kafka is likely to come up in depth (e.g. PayPal-style interviews). |
+| Kafka Deep Dive | [kafka-deep-dive.md](kafka-deep-dive.md) | Full 35-lesson Kafka curriculum (~36,700 words). Fundamentals (topics/partitions/partition-key choice, offsets, consumer groups) → Internals (replication/ACKs/ISR/leader election, KRaft, producer/consumer internals, log segments, page cache, zero copy, batching, compression) → Enterprise/reliability patterns (idempotent producer, transactions/exactly-once, Kafka Connect, Schema Registry, Kafka Streams, ksqlDB, DLQ, retry topics, Kafka-specific Outbox/Saga, event sourcing, CDC/Debezium, MirrorMaker 2) → running it at scale (multi-region, security, monitoring, production case studies). Goes far beyond Stage 1's Kafka overview; read it alongside or after Stage 1 Phase 3 if Kafka is likely to come up in depth (e.g. PayPal-style interviews). |
 
 ## Suggested reading order
 
