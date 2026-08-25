@@ -170,6 +170,20 @@ Record types that matter for system design: `A`/`AAAA` (IPv4/IPv6), `CNAME` (ali
 
 **What it is.** Refers to which OSI layer the load balancer operates at and therefore what it can see and decide on.
 
+**The full OSI stack, for context.** System design vocabulary only ever names L4 and L7 directly, but they sit inside a 7-layer stack where each layer wraps the one above it in a header as data moves down toward the wire:
+
+| Layer | Name | What it does | Examples |
+|---|---|---|---|
+| L7 | Application | The actual protocol your app speaks | HTTP, HTTPS, DNS, gRPC, WebSocket, FTP, SMTP |
+| L6 | Presentation | Data format/encoding, encryption, compression | TLS/SSL encryption, character encoding, JSON/XML/Protobuf serialization |
+| L5 | Session | Establishes/manages/tears down a session between two hosts | TLS handshake session state, session tokens (mostly folded into L4/L7 in practice) |
+| L4 | Transport | End-to-end delivery between processes — ports, reliability | TCP, UDP |
+| L3 | Network | Routing between different networks — logical addressing | IP, ICMP, routers |
+| L2 | Data Link | Node-to-node delivery on the same physical network | Ethernet, MAC addresses, switches, ARP |
+| L1 | Physical | Raw bits over the wire/air | Cables, fiber, radio, NICs, hubs |
+
+Only three of these come up in system design in practice. **L3 (Network)** matters implicitly — IP routing, VPC/subnet design, BGP for anycast/CDN — but you rarely name it directly in an interview. **L4 (Transport)** is where a load balancer reads only IP:port and forwards TCP/UDP packets, with no idea what HTTP path or header is inside. **L7 (Application)** is where a load balancer/proxy terminates the connection and reads the actual HTTP request: path, headers, cookies, method. L1, L2, L5, and L6 aren't things an architect designs around directly — they're handled by the OS/NIC/network hardware or bundled invisibly into "TCP" and "TLS" when discussed at the system design level, which is why the vocabulary jumps straight from L4 to L7 and skips the rest.
+
 | Aspect | L4 (Transport) | L7 (Application) |
 |---|---|---|
 | Sees | IP + TCP/UDP port only | Full HTTP request: headers, path, cookies, body |
