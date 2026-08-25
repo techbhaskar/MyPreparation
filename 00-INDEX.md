@@ -37,6 +37,12 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 | 8 — Staff/Principal Architecture | [08-staff-principal-architecture.md](08-staff-principal-architecture.md) | Trade-off thinking, scale-tier evolution (1K→100M), migration strategy, multi-region, governance/ADRs, security architecture, cost & ops |
 | 9 — Interview Mastery | [09-interview-mastery.md](09-interview-mastery.md) | Opening/whiteboarding technique, stock challenge questions with model answers, recovery tactics, company-style mocks, full mock structure + scoring rubric |
 
+## Supplementary Deep Dives
+
+| Topic | File | Covers |
+|---|---|---|
+| Kafka Internals | [kafka-deep-dive.md](kafka-deep-dive.md) | 18-lesson deep dive on Kafka mechanics — topics/partitions/partition-key choice, offsets, consumer groups, replication/ACKs/ISR/leader election, KRaft, producer/consumer internals, log segments, page cache, zero copy, batching, compression. Goes well beyond Stage 1's Kafka overview; read it alongside or after Stage 1 Phase 3 if Kafka is likely to come up in depth (e.g. PayPal-style interviews). |
+
 ## Suggested reading order
 
 Read top-to-bottom in the table order above — each stage is written to build on the one before it (Stage 4 assumes Stages 1–3; Stage 5's designs assume Stage 4's checklist; Stage 7 assumes Stage 6's OOP/SOLID grounding; Stage 9 assumes everything else).
