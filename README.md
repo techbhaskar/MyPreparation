@@ -1,10 +1,18 @@
 # MyPreparation
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 # Senior/Staff System Design — Study Guide Index
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 Target: Group-1 companies (PayPal, Oracle, TCS, and similar enterprise-scale interviews).
 
-This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5 and 7 were each split into multiple files so every topic could get full depth without one file becoming unmanageable — the stage numbering and content coverage still match the original plan exactly.
+This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5 and 7 were each
+split into multiple files so every topic could get full depth without one file becoming unmanageable
+— the stage numbering and content coverage still match the original plan exactly.
 
 ## Foundation
 
@@ -47,6 +55,9 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 
 ## Suggested reading order
 
-Read top-to-bottom in the table order above — each stage is written to build on the one before it (Stage 4 assumes Stages 1–3; Stage 5's designs assume Stage 4's checklist; Stage 7 assumes Stage 6's OOP/SOLID grounding; Stage 9 assumes everything else).
+Read top-to-bottom in the table order above — each stage is written to build on the one before it
+(Stage 4 assumes Stages 1–3; Stage 5's designs assume Stage 4's checklist; Stage 7 assumes Stage 6's
+OOP/SOLID grounding; Stage 9 assumes everything else).
 
-For PayPal/Visa-style interviews specifically, treat **05c** and **08's trade-off section** as the highest-leverage material, then run the PayPal-style mock prompt at the end of **09**.
+For PayPal/Visa-style interviews specifically, treat **05c** and **08's trade-off section** as the
+highest-leverage material, then run the PayPal-style mock prompt at the end of **09**.

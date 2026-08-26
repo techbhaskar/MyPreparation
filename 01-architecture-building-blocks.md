@@ -1,8 +1,15 @@
 # Stage 1 — Architecture Building Blocks
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 > **Framing question: "What architectural tool solves this problem?"**
 >
-> **Goal:** Know the components available to an architect, what problems they solve, and what problems they introduce. Every senior/staff system design interview is really a sequence of "given this constraint, which tool do you reach for, and what do you give up by choosing it" decisions. This document builds the vocabulary and mechanical understanding needed to answer those decisions with confidence, at PayPal/Oracle/enterprise scale.
+> **Goal:** Know the components available to an architect, what problems they solve, and what
+problems they introduce. Every senior/staff system design interview is really a sequence of "given
+this constraint, which tool do you reach for, and what do you give up by choosing it" decisions.
+This document builds the vocabulary and mechanical understanding needed to answer those decisions
+with confidence, at PayPal/Oracle/enterprise scale.
 
 ## Table of Contents
 
@@ -44,7 +51,11 @@
 4. The authoritative server returns the actual record — commonly an `A`/`AAAA` record (IP) or a `CNAME` (alias to another name).
 5. The result is cached at every hop according to its **TTL** (time-to-live), so subsequent lookups avoid the round trip.
 
-Record types that matter for system design: `A`/`AAAA` (IPv4/IPv6), `CNAME` (alias), `NS` (delegation), `MX` (mail), `TXT` (verification/SPF), and specialized ones like `SRV`. **GeoDNS** and **latency-based routing** (Route 53 latency records) let the authoritative server return *different* IPs depending on the resolver's geographic location — this is the first layer of global load balancing, before a single request even reaches a data center.
+Record types that matter for system design: `A`/`AAAA` (IPv4/IPv6), `CNAME` (alias), `NS`
+(delegation), `MX` (mail), `TXT` (verification/SPF), and specialized ones like `SRV`. **GeoDNS** and
+**latency-based routing** (Route 53 latency records) let the authoritative server return *different*
+IPs depending on the resolver's geographic location — this is the first layer of global load
+balancing, before a single request even reaches a data center.
 
 **Trade-offs / failure modes.**
 - **TTL tuning is a trade-off between propagation speed and load.** Low TTL (e.g. 30s) lets you fail over or repoint traffic fast, but multiplies query volume on your authoritative servers and increases latency variance. High TTL (e.g. 24h) is cheap and fast for clients but means a bad record propagates slowly to fix — this is why "just repoint DNS" is a slow failover lever, not an instant one, and many outages are prolonged by stale client-side or resolver-side caches ignoring TTLs.
@@ -182,7 +193,14 @@ Record types that matter for system design: `A`/`AAAA` (IPv4/IPv6), `CNAME` (ali
 | L2 | Data Link | Node-to-node delivery on the same physical network | Ethernet, MAC addresses, switches, ARP |
 | L1 | Physical | Raw bits over the wire/air | Cables, fiber, radio, NICs, hubs |
 
-Only three of these come up in system design in practice. **L3 (Network)** matters implicitly — IP routing, VPC/subnet design, BGP for anycast/CDN — but you rarely name it directly in an interview. **L4 (Transport)** is where a load balancer reads only IP:port and forwards TCP/UDP packets, with no idea what HTTP path or header is inside. **L7 (Application)** is where a load balancer/proxy terminates the connection and reads the actual HTTP request: path, headers, cookies, method. L1, L2, L5, and L6 aren't things an architect designs around directly — they're handled by the OS/NIC/network hardware or bundled invisibly into "TCP" and "TLS" when discussed at the system design level, which is why the vocabulary jumps straight from L4 to L7 and skips the rest.
+Only three of these come up in system design in practice. **L3 (Network)** matters implicitly — IP
+routing, VPC/subnet design, BGP for anycast/CDN — but you rarely name it directly in an interview.
+**L4 (Transport)** is where a load balancer reads only IP:port and forwards TCP/UDP packets, with no
+idea what HTTP path or header is inside. **L7 (Application)** is where a load balancer/proxy
+terminates the connection and reads the actual HTTP request: path, headers, cookies, method. L1, L2,
+L5, and L6 aren't things an architect designs around directly — they're handled by the
+OS/NIC/network hardware or bundled invisibly into "TCP" and "TLS" when discussed at the system
+design level, which is why the vocabulary jumps straight from L4 to L7 and skips the rest.
 
 | Aspect | L4 (Transport) | L7 (Application) |
 |---|---|---|
@@ -292,7 +310,9 @@ Only three of these come up in system design in practice. **L3 (Network)** matte
 
 ### API Gateway vs Load Balancer vs Reverse Proxy
 
-This trio is one of the most commonly confused/probed distinctions in interviews because they overlap heavily in implementation (often literally the same software, e.g., Envoy or Nginx, configured differently).
+This trio is one of the most commonly confused/probed distinctions in interviews because they
+overlap heavily in implementation (often literally the same software, e.g., Envoy or Nginx,
+configured differently).
 
 | Aspect | Reverse Proxy | Load Balancer | API Gateway |
 |---|---|---|---|
@@ -308,7 +328,9 @@ This trio is one of the most commonly confused/probed distinctions in interviews
 - A **load balancer** is a reverse proxy specialized in *distributing load across replicas of the same service*.
 - An **API gateway** is a reverse proxy specialized in *managing the API contract and cross-cutting concerns across many different services*.
 
-In practice, these are layered, not mutually exclusive: Client → CDN → L4 LB → API Gateway (L7, does auth/routing) → per-service Load Balancer → service instance. The same physical software (e.g., Envoy) can implement multiple of these roles simultaneously.
+In practice, these are layered, not mutually exclusive: Client → CDN → L4 LB → API Gateway (L7, does
+auth/routing) → per-service Load Balancer → service instance. The same physical software (e.g.,
+Envoy) can implement multiple of these roles simultaneously.
 
 **Interviewer gotcha.** *"If Envoy can do all three, why have separate layers instead of one big Envoy cluster doing everything?"* Model answer: separation of concerns and blast-radius isolation — a bug/overload in gateway-level business logic (auth, composition) shouldn't take down the raw load-balancing layer that every service depends on for basic availability; teams also iterate on gateway routing rules far more often than on core LB config, so keeping them as separately deployable/scalable layers reduces risk and lets each layer be owned/scaled independently.
 
@@ -364,7 +386,9 @@ In practice, these are layered, not mutually exclusive: Client → CDN → L4 LB
 
 ### End-to-End Request Lifecycle
 
-Tracing one request through every component above, from browser to database and back — this is the synthesis interviewers look for at the senior/staff level: can you narrate the *whole* path, not just individual pieces.
+Tracing one request through every component above, from browser to database and back — this is the
+synthesis interviewers look for at the senior/staff level: can you narrate the *whole* path, not
+just individual pieces.
 
 **Scenario:** A logged-in user clicks "Pay Now" on `checkout.paypal.com`, which calls `POST https://api.paypal.com/v2/payments`.
 
@@ -510,7 +534,14 @@ Tracing one request through every component above, from browser to database and 
 
 ### CDN Caching
 
-Covered mechanically in Phase 1 (CDN); the caching-specific angle worth restating here in the data/caching context: CDN caching is **HTTP cache-control-driven** (headers like `Cache-Control: max-age=3600, public`, `ETag`, `Vary`) and operates at the **edge**, closest to the user, as the outermost cache tier before any request reaches your origin's own cache-aside/distributed-cache layers. It's the first line of defense for read-heavy, non-personalized, or semi-static content (product catalogs, images, public API responses), and every layer behind it (distributed cache, DB) only ever sees the *miss* traffic that gets past it — meaning a well-tuned CDN cache-hit-ratio (often targeted at 90%+ for static content) can reduce origin load by an order of magnitude.
+Covered mechanically in Phase 1 (CDN); the caching-specific angle worth restating here in the
+data/caching context: CDN caching is **HTTP cache-control-driven** (headers like `Cache-Control:
+max-age=3600, public`, `ETag`, `Vary`) and operates at the **edge**, closest to the user, as the
+outermost cache tier before any request reaches your origin's own cache-aside/distributed-cache
+layers. It's the first line of defense for read-heavy, non-personalized, or semi-static content
+(product catalogs, images, public API responses), and every layer behind it (distributed cache, DB)
+only ever sees the *miss* traffic that gets past it — meaning a well-tuned CDN cache-hit-ratio
+(often targeted at 90%+ for static content) can reduce origin load by an order of magnitude.
 
 ---
 
@@ -619,7 +650,10 @@ def update_user(user_id, data):
 | **Random** | Evicts a random entry | Very cheap to implement, avoids adversarial worst-case patterns some deterministic policies have | No optimality guarantee at all |
 | **TTL-based (not a "true" eviction policy)** | Removes purely on expiry, not memory pressure | Predictable staleness bound | Can still run out of memory if TTLs are too long or volume grows |
 
-Redis specifically supports several `maxmemory-policy` options combining these ideas: `allkeys-lru`, `volatile-lru` (LRU only among keys with a TTL set), `allkeys-lfu`, `volatile-ttl` (evict the one closest to expiring), `noeviction` (reject writes once full — used when eviction would be a correctness bug, not an optimization).
+Redis specifically supports several `maxmemory-policy` options combining these ideas: `allkeys-lru`,
+`volatile-lru` (LRU only among keys with a TTL set), `allkeys-lfu`, `volatile-ttl` (evict the one
+closest to expiring), `noeviction` (reject writes once full — used when eviction would be a
+correctness bug, not an optimization).
 
 **Interviewer gotcha.** *"Your LRU cache's hit rate crashes to near-zero for 10 minutes every night at 2am — why?"* Model answer: classic **scan pollution** — a nightly batch job (backup, ETL, analytics scan) sequentially reads a huge volume of cold data once, and because LRU only tracks recency (not frequency), each of those one-off reads evicts a genuinely hot item, destroying the cache's working set. Fix: use LFU instead (frequency-aware, resistant to one-off scans), or use a segmented/windowed LRU (e.g., "TinyLFU," used by Caffeine) that requires sustained frequency before admission, so a one-time scan can't evict long-term hot data.
 
@@ -847,7 +881,8 @@ def get_with_lock(key):
 
 **Worked numeric example.**
 
-Assume a hash ring of size 0–100 (simplified from the real 2³²/2⁶⁴ space for illustration) and 3 nodes, each with 1 virtual point for simplicity:
+Assume a hash ring of size 0–100 (simplified from the real 2³²/2⁶⁴ space for illustration) and 3
+nodes, each with 1 virtual point for simplicity:
 - Node A → hash position 10
 - Node B → hash position 40
 - Node C → hash position 75
@@ -862,7 +897,10 @@ Now **add Node D** at position 60:
 - Recheck `k2` (hash 50): next node clockwise is now D (60) instead of C (75) → **k2 moves from C to D**.
 - `k1` (15→B), `k3` (90→A), `k4` (5→A) are **completely unaffected** — only keys in the arc between B (40) and new D (60) move to D.
 
-Compare to naive `hash(key) mod N`: going from N=3 to N=4 changes the modulus for almost every key (`hash mod 3` vs `hash mod 4` agree only coincidentally), causing a near-total remap. Consistent hashing moved only the keys in one arc (~1/4 of the ring in this balanced case) — this is the entire point.
+Compare to naive `hash(key) mod N`: going from N=3 to N=4 changes the modulus for almost every key
+(`hash mod 3` vs `hash mod 4` agree only coincidentally), causing a near-total remap. Consistent
+hashing moved only the keys in one arc (~1/4 of the ring in this balanced case) — this is the entire
+point.
 
 **With virtual nodes**, instead of Node D owning one contiguous arc taken entirely from Node B, Node D's 100+ virtual points are scattered across the ring, so it takes a small slice from *every* existing node roughly proportionally, both improving balance and spreading the rebalancing cost.
 
@@ -1013,7 +1051,14 @@ Compare to naive `hash(key) mod N`: going from N=3 to N=4 changes the modulus fo
 
 ### Ordering
 
-Covered above per-technology, but as a cross-cutting design principle: **ordering guarantees are almost always local (per-key, per-partition, per-queue), never global**, in any horizontally-scaled messaging system — global total ordering across a fully parallel, distributed system fundamentally conflicts with horizontal scalability (enforcing one global order requires serializing through a single point). The practical design pattern is: identify what actually needs relative ordering (usually "all events for the same entity, e.g., one order's state transitions"), and key/partition specifically so those related events land in the same ordered unit (partition/queue), while accepting no ordering guarantee *across* different entities' events, since none is usually needed.
+Covered above per-technology, but as a cross-cutting design principle: **ordering guarantees are
+almost always local (per-key, per-partition, per-queue), never global**, in any horizontally-scaled
+messaging system — global total ordering across a fully parallel, distributed system fundamentally
+conflicts with horizontal scalability (enforcing one global order requires serializing through a
+single point). The practical design pattern is: identify what actually needs relative ordering
+(usually "all events for the same entity, e.g., one order's state transitions"), and key/partition
+specifically so those related events land in the same ordered unit (partition/queue), while
+accepting no ordering guarantee *across* different entities' events, since none is usually needed.
 
 ---
 
@@ -1334,7 +1379,8 @@ def allow_request(client_id, limit, window_seconds):
         return True
     return False
 ```
-Perfectly accurate (exact count within any true rolling window), but memory cost grows with request volume (one entry per request, not one counter) — expensive at very high QPS per client.
+Perfectly accurate (exact count within any true rolling window), but memory cost grows with request
+volume (one entry per request, not one counter) — expensive at very high QPS per client.
 
 **Sliding Window Counter (approximation):** combine the current fixed window's count with a *weighted portion* of the previous window's count, based on how far into the current window we are — approximates a true sliding window with only two counters (current + previous window), not a full log.
 
@@ -1350,7 +1396,12 @@ def allow_request(client_id, limit, window_seconds):
         return True
     return False
 ```
-Much cheaper than the log variant (constant memory per client — just two counters) while eliminating the worst of the fixed-window boundary burst problem — the estimate is an approximation (assumes uniform request distribution within the previous window, which isn't always true), but is accurate enough for the overwhelming majority of real rate-limiting needs, which is why it's the most common production choice (e.g., Cloudflare's public rate-limiting documentation describes exactly this approach).
+Much cheaper than the log variant (constant memory per client — just two counters) while eliminating
+the worst of the fixed-window boundary burst problem — the estimate is an approximation (assumes
+uniform request distribution within the previous window, which isn't always true), but is accurate
+enough for the overwhelming majority of real rate-limiting needs, which is why it's the most common
+production choice (e.g., Cloudflare's public rate-limiting documentation describes exactly this
+approach).
 
 **Full comparison table:**
 
@@ -1419,7 +1470,15 @@ Much cheaper than the log variant (constant memory per client — just two count
 
 ### Search Indexes (General Concept)
 
-Beyond Elasticsearch specifically, "search index" as a general architectural component means: a denormalized, purpose-built read-optimized structure derived from one or more source-of-truth stores, kept eventually consistent via a sync pipeline (CDC, dual-write, or event-driven update), and queried with capabilities the primary store doesn't efficiently offer (full-text relevance ranking, faceted filtering across many attributes, geo-spatial search). The core architectural principle to articulate in an interview: **never make the search index the source of truth** — always keep it rebuildable from the authoritative store, since search indexes are optimized for query flexibility/speed, not for transactional integrity, and treating them as authoritative risks silent data loss/corruption being undetectable and unrecoverable.
+Beyond Elasticsearch specifically, "search index" as a general architectural component means: a
+denormalized, purpose-built read-optimized structure derived from one or more source-of-truth
+stores, kept eventually consistent via a sync pipeline (CDC, dual-write, or event-driven update),
+and queried with capabilities the primary store doesn't efficiently offer (full-text relevance
+ranking, faceted filtering across many attributes, geo-spatial search). The core architectural
+principle to articulate in an interview: **never make the search index the source of truth** —
+always keep it rebuildable from the authoritative store, since search indexes are optimized for
+query flexibility/speed, not for transactional integrity, and treating them as authoritative risks
+silent data loss/corruption being undetectable and unrecoverable.
 
 ---
 
@@ -1655,6 +1714,19 @@ Beyond Elasticsearch specifically, "search index" as a general architectural com
 
 **"What architectural tool solves this problem?"**
 
-Every component in this document exists because it solves a specific, nameable problem — and every component introduces new problems of its own that the *next* component in an architect's toolkit exists to solve. A load balancer solves "one server can't handle all the traffic," and introduces "now I need health checks so it doesn't route to a dead server." A distributed cache solves "the database is too slow for read-heavy traffic," and introduces "now I need cache invalidation, stampede protection, and hot-key mitigation." Kafka solves "services need to be decoupled and events need to be durable and replayable," and introduces "now I need to reason about per-partition ordering, consumer lag, and idempotent consumers." A distributed lock solves "only one instance should do this," and introduces "now I need to reason about fencing tokens because TTLs and clocks aren't perfectly trustworthy."
+Every component in this document exists because it solves a specific, nameable problem — and every
+component introduces new problems of its own that the *next* component in an architect's toolkit
+exists to solve. A load balancer solves "one server can't handle all the traffic," and introduces
+"now I need health checks so it doesn't route to a dead server." A distributed cache solves "the
+database is too slow for read-heavy traffic," and introduces "now I need cache invalidation,
+stampede protection, and hot-key mitigation." Kafka solves "services need to be decoupled and events
+need to be durable and replayable," and introduces "now I need to reason about per-partition
+ordering, consumer lag, and idempotent consumers." A distributed lock solves "only one instance
+should do this," and introduces "now I need to reason about fencing tokens because TTLs and clocks
+aren't perfectly trustworthy."
 
-At the senior/staff level, the interview is never really "do you know what Redis is" — it's "when a requirement appears, can you name the tool that solves it, explain mechanically how it solves it, and — just as importantly — immediately volunteer the new problem it creates, before the interviewer has to ask." That reflex, built topic by topic across every phase above, is the actual skill this stage of the curriculum is built to install.
+At the senior/staff level, the interview is never really "do you know what Redis is" — it's "when a
+requirement appears, can you name the tool that solves it, explain mechanically how it solves it,
+and — just as importantly — immediately volunteer the new problem it creates, before the interviewer
+has to ask." That reflex, built topic by topic across every phase above, is the actual skill this
+stage of the curriculum is built to install.

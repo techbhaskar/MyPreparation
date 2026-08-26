@@ -1,4 +1,7 @@
 # Stage 7 (Part A) — LLD Mastery: Design Patterns
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 > **Framing question: Can I create software that remains clean when requirements change?**
 
@@ -55,6 +58,9 @@ know about it.* Say the pattern's name only after you've named the change.
 ---
 
 # Creational Patterns
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 Creational patterns exist because **object construction is itself a place
 requirements change**: which concrete class to instantiate, how many steps
@@ -726,6 +732,9 @@ careful about deep copy") signals awareness without over-investing in it.
 ---
 
 # Structural Patterns
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 Structural patterns exist because **the interfaces you're handed don't match
 the interface you need**, or because you need to add capability/control
@@ -1271,6 +1280,9 @@ control vs. added responsibility) if asked to compare.
 ---
 
 # Behavioral Patterns
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 Behavioral patterns exist because **how objects communicate, or how an
 object's *behavior* varies over time or by algorithm**, is the thing under

@@ -1,4 +1,7 @@
 # Spring Boot Microservices Deep Dive
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 *Companion to [kafka-deep-dive.md](kafka-deep-dive.md) in this study set. Where a topic overlaps with Kafka mechanics already covered there (retry topics, exactly-once, the Outbox pattern, DLQs), this document cross-references those lessons by name rather than repeating them — its job is the Spring-specific plumbing and the broader Spring Boot / Spring Cloud microservices picture: dependency injection, REST APIs, Spring Data JPA, service discovery, API gateways, resilience patterns, observability, security, and deployment.*
 
@@ -36,13 +39,65 @@ This document is organized as 17 topics across three arcs:
 
 ## Topic 1 — Spring Boot Fundamentals
 
-Spring Boot is not a new framework sitting beside Spring — it is an opinionated packaging of the Spring Framework that eliminates the two things that made pre-2014 Spring projects painful: manual bean wiring via XML (or verbose `@Configuration` classes) and the requirement to build a WAR file, hand it to an operations team, and deploy it into an externally managed Tomcat or WebLogic instance. If you worked on a payments platform a decade ago, the deployment story looked like this: a `web.xml`, a `DispatcherServlet` entry, a hand-assembled `applicationContext.xml` wiring together your `DataSource`, your `TransactionManager`, your `PaymentGatewayClient`, and a WAR that got copied into `$CATALINA_HOME/webapps` on a shared app server that also hosted three other teams' services. A misconfigured library version on that shared Tomcat could take down unrelated services. Spring Boot's core insight is that the JVM ecosystem had matured to the point where embedding the servlet container inside the application — rather than deploying the application into the container — was both simpler and more aligned with how you actually want to run microservices: one process, one port, one deployable artifact, `java -jar payment-service.jar` and it's up. This is what "fat jar" or "über jar" packaging via `spring-boot-maven-plugin` or the Gradle equivalent gives you: your compiled classes, all your transitive dependencies, and an embedded Tomcat (default), Jetty, or Undertow, all bundled into a single executable JAR with its own `main()` method that calls `SpringApplication.run()`.
+Spring Boot is not a new framework sitting beside Spring — it is an opinionated packaging of the
+Spring Framework that eliminates the two things that made pre-2014 Spring projects painful: manual
+bean wiring via XML (or verbose `@Configuration` classes) and the requirement to build a WAR file,
+hand it to an operations team, and deploy it into an externally managed Tomcat or WebLogic instance.
+If you worked on a payments platform a decade ago, the deployment story looked like this: a
+`web.xml`, a `DispatcherServlet` entry, a hand-assembled `applicationContext.xml` wiring together
+your `DataSource`, your `TransactionManager`, your `PaymentGatewayClient`, and a WAR that got copied
+into `$CATALINA_HOME/webapps` on a shared app server that also hosted three other teams' services. A
+misconfigured library version on that shared Tomcat could take down unrelated services. Spring
+Boot's core insight is that the JVM ecosystem had matured to the point where embedding the servlet
+container inside the application — rather than deploying the application into the container — was
+both simpler and more aligned with how you actually want to run microservices: one process, one
+port, one deployable artifact, `java -jar payment-service.jar` and it's up. This is what "fat jar"
+or "über jar" packaging via `spring-boot-maven-plugin` or the Gradle equivalent gives you: your
+compiled classes, all your transitive dependencies, and an embedded Tomcat (default), Jetty, or
+Undertow, all bundled into a single executable JAR with its own `main()` method that calls
+`SpringApplication.run()`.
 
-The second pillar, alongside embedded servers, is auto-configuration, and this is the part candidates can describe at a surface level but rarely explain mechanically — which is exactly what a staff-level interviewer will probe. When you add `spring-boot-starter-data-jpa` to your `pom.xml`, you get Hibernate, a `DataSource` bean, a `JpaTransactionManager`, and an `EntityManagerFactory`, all configured and wired for you, without you writing a single `@Bean` method. The mechanism is `@EnableAutoConfiguration`, which is itself pulled in transitively by the `@SpringBootApplication` meta-annotation (which is really `@SpringBootConfiguration` + `@EnableAutoConfiguration` + `@ComponentScan` bundled together). Historically, `@EnableAutoConfiguration` worked by reading `META-INF/spring.factories` from every JAR on the classpath, looking for the key `org.springframework.boot.autoconfigure.EnableAutoConfiguration`, and loading every class listed there as a candidate configuration class. As of Spring Boot 2.7+ (and mandatory from 3.0), this moved to a dedicated file, `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, which is functionally the same idea — a plain list of fully qualified `@Configuration` class names — but scoped to auto-configuration specifically instead of sharing the `spring.factories` file with other extension points (listeners, failure analyzers, etc.), which made classpath scanning faster and the mechanism easier to reason about.
+The second pillar, alongside embedded servers, is auto-configuration, and this is the part
+candidates can describe at a surface level but rarely explain mechanically — which is exactly what a
+staff-level interviewer will probe. When you add `spring-boot-starter-data-jpa` to your `pom.xml`,
+you get Hibernate, a `DataSource` bean, a `JpaTransactionManager`, and an `EntityManagerFactory`,
+all configured and wired for you, without you writing a single `@Bean` method. The mechanism is
+`@EnableAutoConfiguration`, which is itself pulled in transitively by the `@SpringBootApplication`
+meta-annotation (which is really `@SpringBootConfiguration` + `@EnableAutoConfiguration` +
+`@ComponentScan` bundled together). Historically, `@EnableAutoConfiguration` worked by reading
+`META-INF/spring.factories` from every JAR on the classpath, looking for the key
+`org.springframework.boot.autoconfigure.EnableAutoConfiguration`, and loading every class listed
+there as a candidate configuration class. As of Spring Boot 2.7+ (and mandatory from 3.0), this
+moved to a dedicated file, `META-
+INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, which is functionally
+the same idea — a plain list of fully qualified `@Configuration` class names — but scoped to auto-
+configuration specifically instead of sharing the `spring.factories` file with other extension
+points (listeners, failure analyzers, etc.), which made classpath scanning faster and the mechanism
+easier to reason about.
 
-Here is the part that actually matters for the "why did my bean not get created" debugging session: every one of those auto-configuration classes is guarded by conditional annotations, most commonly `@ConditionalOnClass`, `@ConditionalOnMissingBean`, `@ConditionalOnProperty`, and `@ConditionalOnBean`. `DataSourceAutoConfiguration` is annotated `@ConditionalOnClass({ DataSource.class, EmbeddedDatabaseType.class })` — it only activates if a JDBC `DataSource` class is actually present on the classpath, which is why adding `spring-boot-starter-data-jpa` (which transitively pulls in `spring-boot-starter-jdbc` and a JDBC driver) is what triggers datasource auto-configuration, not some hardcoded special case for JPA. Critically, almost every auto-configured bean is also annotated `@ConditionalOnMissingBean`, meaning: "only create this bean if the application hasn't already defined one of this type." This is the entire mechanism by which you can override Spring Boot's defaults — define your own `DataSource` `@Bean` in a `@Configuration` class, and Spring Boot's auto-configured one backs off silently. There's no override syntax, no priority annotation you need to remember; it's just ordinary bean definition plus a conditional that checks "does one already exist." This is also why bean definition order and `@AutoConfigureOrder`/`@AutoConfigureAfter` matter in edge cases — if your custom `DataSource` bean is defined in a configuration class that hasn't been processed yet when the conditional check runs, you can end up with two datasources or a startup failure, which is a real bug class in large, multi-module Spring Boot codebases with dozens of custom auto-configurations.
+Here is the part that actually matters for the "why did my bean not get created" debugging session:
+every one of those auto-configuration classes is guarded by conditional annotations, most commonly
+`@ConditionalOnClass`, `@ConditionalOnMissingBean`, `@ConditionalOnProperty`, and
+`@ConditionalOnBean`. `DataSourceAutoConfiguration` is annotated `@ConditionalOnClass({
+DataSource.class, EmbeddedDatabaseType.class })` — it only activates if a JDBC `DataSource` class is
+actually present on the classpath, which is why adding `spring-boot-starter-data-jpa` (which
+transitively pulls in `spring-boot-starter-jdbc` and a JDBC driver) is what triggers datasource
+auto-configuration, not some hardcoded special case for JPA. Critically, almost every auto-
+configured bean is also annotated `@ConditionalOnMissingBean`, meaning: "only create this bean if
+the application hasn't already defined one of this type." This is the entire mechanism by which you
+can override Spring Boot's defaults — define your own `DataSource` `@Bean` in a `@Configuration`
+class, and Spring Boot's auto-configured one backs off silently. There's no override syntax, no
+priority annotation you need to remember; it's just ordinary bean definition plus a conditional that
+checks "does one already exist." This is also why bean definition order and
+`@AutoConfigureOrder`/`@AutoConfigureAfter` matter in edge cases — if your custom `DataSource` bean
+is defined in a configuration class that hasn't been processed yet when the conditional check runs,
+you can end up with two datasources or a startup failure, which is a real bug class in large, multi-
+module Spring Boot codebases with dozens of custom auto-configurations.
 
-Configuration itself is externalized through `application.yml` or `application.properties`, and Spring Boot resolves properties through a well-defined precedence chain — this is the single most useful piece of knowledge for debugging "why isn't my config taking effect," and every senior engineer should be able to recite it without hesitation:
+Configuration itself is externalized through `application.yml` or `application.properties`, and
+Spring Boot resolves properties through a well-defined precedence chain — this is the single most
+useful piece of knowledge for debugging "why isn't my config taking effect," and every senior
+engineer should be able to recite it without hesitation:
 
 1. Command-line arguments (`--server.port=8443`)
 2. `SPRING_APPLICATION_JSON` (inline JSON embedded in an env var or system property)
@@ -57,9 +112,25 @@ Configuration itself is externalized through `application.yml` or `application.p
 11. `@PropertySource`-annotated sources
 12. Default properties set via `SpringApplication.setDefaultProperties`
 
-The practical rule of thumb that survives the detail: command-line args beat environment variables beat profile-specific config beat base config beat hardcoded defaults, and anything external to the jar beats anything packaged inside it. This is exactly what makes "same jar, different environment" work for microservices: you build `payment-service-1.4.2.jar` exactly once in your CI pipeline, and every environment — dev, staging, prod — runs that identical artifact with different environment variables or a different mounted `application-prod.yml`, activated via `SPRING_PROFILES_ACTIVE=prod`. You never rebuild for an environment, which is a hard requirement in regulated fintech environments where the artifact that passed security scanning and QA sign-off in staging must be bit-for-bit the same artifact promoted to production — rebuilding per environment breaks that chain of custody.
+The practical rule of thumb that survives the detail: command-line args beat environment variables
+beat profile-specific config beat base config beat hardcoded defaults, and anything external to the
+jar beats anything packaged inside it. This is exactly what makes "same jar, different environment"
+work for microservices: you build `payment-service-1.4.2.jar` exactly once in your CI pipeline, and
+every environment — dev, staging, prod — runs that identical artifact with different environment
+variables or a different mounted `application-prod.yml`, activated via
+`SPRING_PROFILES_ACTIVE=prod`. You never rebuild for an environment, which is a hard requirement in
+regulated fintech environments where the artifact that passed security scanning and QA sign-off in
+staging must be bit-for-bit the same artifact promoted to production — rebuilding per environment
+breaks that chain of custody.
 
-Spring Profiles are the mechanism for varying that configuration and even bean composition per environment. `@Profile("prod")` on a `@Bean` method or `@Component` class means that bean is only registered when `prod` is among the active profiles (`spring.profiles.active=prod`, settable via any of the property sources above). A common pattern is a `LocalStackS3Config` bean annotated `@Profile("!prod")` for local development against a fake S3, and a `AwsS3Config` bean annotated `@Profile("prod")` wiring the real SDK client against real credentials — Spring resolves exactly one of them per environment, and your application code that depends on `S3Client` never knows or cares which implementation it got.
+Spring Profiles are the mechanism for varying that configuration and even bean composition per
+environment. `@Profile("prod")` on a `@Bean` method or `@Component` class means that bean is only
+registered when `prod` is among the active profiles (`spring.profiles.active=prod`, settable via any
+of the property sources above). A common pattern is a `LocalStackS3Config` bean annotated
+`@Profile("!prod")` for local development against a fake S3, and a `AwsS3Config` bean annotated
+`@Profile("prod")` wiring the real SDK client against real credentials — Spring resolves exactly one
+of them per environment, and your application code that depends on `S3Client` never knows or cares
+which implementation it got.
 
 ```yaml
 # application.yml (base — shared defaults across all environments)
@@ -126,9 +197,19 @@ public class PaymentServiceApplication {
 # java -jar payment-service.jar --spring.profiles.active=prod --server.port=8443
 ```
 
-Note that `ddl-auto: update` shows up in the dev profile only — it is convenient for local iteration but is a production incident waiting to happen, a point covered in depth in Topic 4. The profile split above is precisely how you keep that convenience without ever letting it near a real database.
+Note that `ddl-auto: update` shows up in the dev profile only — it is convenient for local iteration
+but is a production incident waiting to happen, a point covered in depth in Topic 4. The profile
+split above is precisely how you keep that convenience without ever letting it near a real database.
 
-The microservices angle is worth stating explicitly because it's the "so what" an interviewer wants to hear: in a monolith, configuration change historically meant a redeploy of the one application. In a microservices fleet of forty independently owned services, each service needs to be independently configurable — different connection pool sizes, different feature flags, different downstream endpoint URLs — without any service depending on another's deployment cycle. Spring Boot's externalized, layered configuration model, combined with Spring Cloud Config or a platform-native secrets/config store (Kubernetes ConfigMaps and Secrets mounted as environment variables or files, AWS Parameter Store, Vault), is what makes "one artifact, N environments, independently tunable" actually achievable at organizational scale rather than just architecturally desirable.
+The microservices angle is worth stating explicitly because it's the "so what" an interviewer wants
+to hear: in a monolith, configuration change historically meant a redeploy of the one application.
+In a microservices fleet of forty independently owned services, each service needs to be
+independently configurable — different connection pool sizes, different feature flags, different
+downstream endpoint URLs — without any service depending on another's deployment cycle. Spring
+Boot's externalized, layered configuration model, combined with Spring Cloud Config or a platform-
+native secrets/config store (Kubernetes ConfigMaps and Secrets mounted as environment variables or
+files, AWS Parameter Store, Vault), is what makes "one artifact, N environments, independently
+tunable" actually achievable at organizational scale rather than just architecturally desirable.
 
 ### Interview Questions
 
@@ -146,9 +227,38 @@ The microservices angle is worth stating explicitly because it's the "so what" a
 
 ## Topic 2 — Dependency Injection & the IoC Container
 
-The Inversion of Control container is Spring's runtime object graph — it owns the responsibility of instantiating your `@Service`, `@Repository`, `@Component`, and `@Configuration`-declared beans, resolving what each one depends on, and wiring them together, so that your `PaymentService` class never calls `new StripeGateway()` itself. It just declares "I need a `PaymentGateway`," and the container decides which concrete implementation to hand it and when to construct it. The word "inversion" is literal: in plain Java, the calling code controls when and how a dependency is created; with IoC, that control moves out of your code and into the framework, which is what makes your business logic testable in isolation (swap in a mock) and swappable at the implementation level (swap `StripeGateway` for `RazorpayGateway`) without touching the consuming class at all.
+The Inversion of Control container is Spring's runtime object graph — it owns the responsibility of
+instantiating your `@Service`, `@Repository`, `@Component`, and `@Configuration`-declared beans,
+resolving what each one depends on, and wiring them together, so that your `PaymentService` class
+never calls `new StripeGateway()` itself. It just declares "I need a `PaymentGateway`," and the
+container decides which concrete implementation to hand it and when to construct it. The word
+"inversion" is literal: in plain Java, the calling code controls when and how a dependency is
+created; with IoC, that control moves out of your code and into the framework, which is what makes
+your business logic testable in isolation (swap in a mock) and swappable at the implementation level
+(swap `StripeGateway` for `RazorpayGateway`) without touching the consuming class at all.
 
-There are three mechanical ways to get a dependency into a bean — constructor injection, field injection, and setter injection — and while all three work, they are not equivalent, and a staff-level engineer should be able to justify constructor injection as the default without hesitation. Field injection (`@Autowired` directly on a field) is the most common pattern in tutorials and legacy codebases because it's the least code to type, but it has real costs: the field can't be `final`, so the class is mutable in a way it doesn't need to be; the dependency is invisible from the class's public surface, so anyone constructing this object manually (most obviously, in a unit test without a Spring context) gets an object in a broken, half-initialized state with silent `NullPointerException`s waiting to happen at first use rather than a compile-time signal; and it relies on reflection to set the field after construction, which sidesteps Java's own initialization guarantees. Setter injection is a middle ground, historically used for optional dependencies, but it has the same problem of leaving the object in a partially constructed state between instantiation and the setter call, and it's rare in modern Spring Boot code outside of specific reconfiguration scenarios. Constructor injection is the recommended default for a concrete set of reasons: dependencies become `final` fields, so the class is genuinely immutable after construction and thread-safety reasoning is simpler; every required dependency is visible in one place — the constructor signature — making the class's actual contract obvious without reading annotations scattered across fields; a class becomes constructible and testable with plain `new PaymentService(mockGateway, mockLedger)` in a unit test with zero Spring context and zero reflection tricks; and, critically, it's the only injection style where Spring can detect a circular dependency at application startup, failing fast with a clear `BeanCurrentlyInCreationException` rather than letting a half-wired object escape into production.
+There are three mechanical ways to get a dependency into a bean — constructor injection, field
+injection, and setter injection — and while all three work, they are not equivalent, and a staff-
+level engineer should be able to justify constructor injection as the default without hesitation.
+Field injection (`@Autowired` directly on a field) is the most common pattern in tutorials and
+legacy codebases because it's the least code to type, but it has real costs: the field can't be
+`final`, so the class is mutable in a way it doesn't need to be; the dependency is invisible from
+the class's public surface, so anyone constructing this object manually (most obviously, in a unit
+test without a Spring context) gets an object in a broken, half-initialized state with silent
+`NullPointerException`s waiting to happen at first use rather than a compile-time signal; and it
+relies on reflection to set the field after construction, which sidesteps Java's own initialization
+guarantees. Setter injection is a middle ground, historically used for optional dependencies, but it
+has the same problem of leaving the object in a partially constructed state between instantiation
+and the setter call, and it's rare in modern Spring Boot code outside of specific reconfiguration
+scenarios. Constructor injection is the recommended default for a concrete set of reasons:
+dependencies become `final` fields, so the class is genuinely immutable after construction and
+thread-safety reasoning is simpler; every required dependency is visible in one place — the
+constructor signature — making the class's actual contract obvious without reading annotations
+scattered across fields; a class becomes constructible and testable with plain `new
+PaymentService(mockGateway, mockLedger)` in a unit test with zero Spring context and zero reflection
+tricks; and, critically, it's the only injection style where Spring can detect a circular dependency
+at application startup, failing fast with a clear `BeanCurrentlyInCreationException` rather than
+letting a half-wired object escape into production.
 
 ```java
 @Service
@@ -176,9 +286,27 @@ public class PaymentService {
 }
 ```
 
-Bean scope determines how many instances of a bean the container actually creates and hands out. `singleton` — one shared instance per Spring container, reused for every injection point — is the default and covers the overwhelming majority of Spring Boot beans: your `PaymentService`, your `JdbcTemplate`, your `RestTemplate`. This works because well-designed services are stateless — all the request-specific data flows through method parameters, not instance fields — so sharing one instance across every concurrent request is both safe and far cheaper than constructing a new object graph per request. `prototype` scope creates a brand-new instance every time the bean is requested from the container, which is appropriate for genuinely stateful, short-lived objects — think a builder-style object accumulating state across several calls that shouldn't be shared across threads. Web-specific scopes exist for a reason tied directly to the servlet model: `request` scope creates one bean instance per HTTP request and is useful for something like a `PaymentContext` object that accumulates trace IDs and request-specific metadata for logging correlation across the request's lifetime; `session` scope creates one instance per HTTP session, historically used for shopping-cart-style state in stateful web apps, though it's rare in stateless REST APIs and essentially absent in a properly designed microservice, where session affinity working against horizontal scalability is exactly the problem stateless services are designed to avoid.
+Bean scope determines how many instances of a bean the container actually creates and hands out.
+`singleton` — one shared instance per Spring container, reused for every injection point — is the
+default and covers the overwhelming majority of Spring Boot beans: your `PaymentService`, your
+`JdbcTemplate`, your `RestTemplate`. This works because well-designed services are stateless — all
+the request-specific data flows through method parameters, not instance fields — so sharing one
+instance across every concurrent request is both safe and far cheaper than constructing a new object
+graph per request. `prototype` scope creates a brand-new instance every time the bean is requested
+from the container, which is appropriate for genuinely stateful, short-lived objects — think a
+builder-style object accumulating state across several calls that shouldn't be shared across
+threads. Web-specific scopes exist for a reason tied directly to the servlet model: `request` scope
+creates one bean instance per HTTP request and is useful for something like a `PaymentContext`
+object that accumulates trace IDs and request-specific metadata for logging correlation across the
+request's lifetime; `session` scope creates one instance per HTTP session, historically used for
+shopping-cart-style state in stateful web apps, though it's rare in stateless REST APIs and
+essentially absent in a properly designed microservice, where session affinity working against
+horizontal scalability is exactly the problem stateless services are designed to avoid.
 
-When more than one bean satisfies the same type — the textbook payments example being two implementations of a `PaymentGateway` interface, `StripeGateway` and `RazorpayGateway` — Spring can't autowire by type alone anymore, and you need either `@Qualifier` to pick a specific bean by name or `@Primary` to declare a default among candidates.
+When more than one bean satisfies the same type — the textbook payments example being two
+implementations of a `PaymentGateway` interface, `StripeGateway` and `RazorpayGateway` — Spring
+can't autowire by type alone anymore, and you need either `@Qualifier` to pick a specific bean by
+name or `@Primary` to declare a default among candidates.
 
 ```java
 public interface PaymentGateway {
@@ -218,7 +346,10 @@ public class CheckoutService {
 }
 ```
 
-A more production-realistic version routes by a runtime signal rather than hardcoding a qualifier per call site — a `Map<String, PaymentGateway>` injected by Spring (keyed by bean name automatically) lets you select the gateway based on merchant configuration or currency without an `if/else` chain of qualifiers scattered through the codebase:
+A more production-realistic version routes by a runtime signal rather than hardcoding a qualifier
+per call site — a `Map<String, PaymentGateway>` injected by Spring (keyed by bean name
+automatically) lets you select the gateway based on merchant configuration or currency without an
+`if/else` chain of qualifiers scattered through the codebase:
 
 ```java
 @Service
@@ -240,9 +371,45 @@ public class GatewayRouter {
 }
 ```
 
-Bean lifecycle callbacks give you hooks into construction and teardown beyond the constructor itself. `@PostConstruct` (from `jakarta.annotation`) runs once, after all dependencies have been injected, which is where you put initialization logic that depends on those dependencies being present — validating that a configured API key is non-blank, warming a cache, opening a connection pool that couldn't be built purely in the constructor. `@PreDestroy` runs during graceful shutdown, before the bean is removed from the container, and is where you release resources — closing a thread pool, flushing a buffered metrics client. The older `InitializingBean`/`DisposableBean` interfaces (`afterPropertiesSet()`/`destroy()`) achieve the same thing but couple your class directly to a Spring interface, which `@PostConstruct`/`@PreDestroy` avoid since they're standard Jakarta annotations, not Spring-specific — this is why annotation-based lifecycle hooks are generally preferred for your own classes. For beans defined via `@Bean` factory methods in a `@Configuration` class — typically third-party classes you don't own and can't annotate — `@Bean(initMethod = "start", destroyMethod = "close")` lets you wire the same lifecycle behavior externally, which is the standard pattern for things like a Kafka producer client or a connection pool from a library that exposes its own `start()`/`close()` methods rather than implementing Spring's interfaces.
+Bean lifecycle callbacks give you hooks into construction and teardown beyond the constructor
+itself. `@PostConstruct` (from `jakarta.annotation`) runs once, after all dependencies have been
+injected, which is where you put initialization logic that depends on those dependencies being
+present — validating that a configured API key is non-blank, warming a cache, opening a connection
+pool that couldn't be built purely in the constructor. `@PreDestroy` runs during graceful shutdown,
+before the bean is removed from the container, and is where you release resources — closing a thread
+pool, flushing a buffered metrics client. The older `InitializingBean`/`DisposableBean` interfaces
+(`afterPropertiesSet()`/`destroy()`) achieve the same thing but couple your class directly to a
+Spring interface, which `@PostConstruct`/`@PreDestroy` avoid since they're standard Jakarta
+annotations, not Spring-specific — this is why annotation-based lifecycle hooks are generally
+preferred for your own classes. For beans defined via `@Bean` factory methods in a `@Configuration`
+class — typically third-party classes you don't own and can't annotate — `@Bean(initMethod =
+"start", destroyMethod = "close")` lets you wire the same lifecycle behavior externally, which is
+the standard pattern for things like a Kafka producer client or a connection pool from a library
+that exposes its own `start()`/`close()` methods rather than implementing Spring's interfaces.
 
-The circular dependency problem is one of the most concrete, checkable pieces of Spring knowledge an interviewer can probe, because the "correct" answer changed materially with Spring Boot 2.6. Picture two services: `OrderService` needs `PaymentService` to charge the customer, and `PaymentService` needs `OrderService` to look up order details for fraud checks — each declares the other as a constructor dependency. With field injection this used to "work" via Spring's early bean reference mechanism (constructing one bean partially, injecting the still-incomplete reference into the other, then finishing construction), but with constructor injection it's fundamentally unsolvable: to construct `OrderService` you need a fully-built `PaymentService`, and to construct that you need a fully-built `OrderService` — there is no valid order of operations. As of Spring Boot 2.6, circular references are disallowed by default even for the cases that previously "worked" via early references (`spring.main.allow-circular-references` defaults to `false`), and the container fails fast at startup with a clear error rather than allowing it. This is correct behavior, not an inconvenience to route around: a circular dependency between two services is almost always a sign that they share responsibility that belongs in a third place, or that one direction of the dependency is unnecessary and should be inverted. The common junior fix — slap `@Lazy` on one side so Spring injects a proxy that defers real construction until first use — makes the code compile and run, but it papers over the design smell instead of fixing it; the two services are still tightly coupled, the proxy adds indirection and a subtle behavior difference (the first method call now does extra work resolving the real bean), and the next engineer who touches this code inherits a landmine. The actual fix is almost always to extract the shared logic — in this example, order lookup logic used for fraud checking — into a third bean, say `OrderLookupService`, that both `OrderService` and `PaymentService` depend on one-directionally, breaking the cycle by restructuring the dependency graph rather than hiding it behind lazy initialization.
+The circular dependency problem is one of the most concrete, checkable pieces of Spring knowledge an
+interviewer can probe, because the "correct" answer changed materially with Spring Boot 2.6. Picture
+two services: `OrderService` needs `PaymentService` to charge the customer, and `PaymentService`
+needs `OrderService` to look up order details for fraud checks — each declares the other as a
+constructor dependency. With field injection this used to "work" via Spring's early bean reference
+mechanism (constructing one bean partially, injecting the still-incomplete reference into the other,
+then finishing construction), but with constructor injection it's fundamentally unsolvable: to
+construct `OrderService` you need a fully-built `PaymentService`, and to construct that you need a
+fully-built `OrderService` — there is no valid order of operations. As of Spring Boot 2.6, circular
+references are disallowed by default even for the cases that previously "worked" via early
+references (`spring.main.allow-circular-references` defaults to `false`), and the container fails
+fast at startup with a clear error rather than allowing it. This is correct behavior, not an
+inconvenience to route around: a circular dependency between two services is almost always a sign
+that they share responsibility that belongs in a third place, or that one direction of the
+dependency is unnecessary and should be inverted. The common junior fix — slap `@Lazy` on one side
+so Spring injects a proxy that defers real construction until first use — makes the code compile and
+run, but it papers over the design smell instead of fixing it; the two services are still tightly
+coupled, the proxy adds indirection and a subtle behavior difference (the first method call now does
+extra work resolving the real bean), and the next engineer who touches this code inherits a
+landmine. The actual fix is almost always to extract the shared logic — in this example, order
+lookup logic used for fraud checking — into a third bean, say `OrderLookupService`, that both
+`OrderService` and `PaymentService` depend on one-directionally, breaking the cycle by restructuring
+the dependency graph rather than hiding it behind lazy initialization.
 
 | Injection Style | Immutability | Testability without Spring context | Circular dependency detection | Recommended default |
 |---|---|---|---|---|
@@ -266,9 +433,45 @@ The circular dependency problem is one of the most concrete, checkable pieces of
 
 ## Topic 3 — Building REST APIs with Spring Boot
 
-Spring MVC's request handling starts at a single front controller, `DispatcherServlet`, which every incoming HTTP request passes through first. It consults a `HandlerMapping` to figure out which controller method matches the request's path, HTTP method, headers, and content type, invokes that method through a `HandlerAdapter`, and then hands the return value to a `HandlerMethodReturnValueHandler` — for a `@RestController`, this ultimately routes through Jackson's `HttpMessageConverter` to serialize your returned object to JSON and write it to the response body. `@RestController` is `@Controller` plus `@ResponseBody` applied to every method, meaning return values are treated as the actual HTTP response body rather than a view name to be resolved by a template engine — this is the whole distinction between building a server-rendered MVC application and building a JSON REST API, and it's why you'll never see a `@RestController` method returning a `String` that resolves to a Thymeleaf template. `@RequestMapping` is the base annotation for binding a method to a route, and `@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, `@PatchMapping` are HTTP-method-specific shorthand for it — functionally `@GetMapping("/payments/{id}")` is just `@RequestMapping(path = "/payments/{id}", method = RequestMethod.GET)`, but the shorthand form makes the controller's route table scannable at a glance, which matters a great deal once a controller has a dozen endpoints.
+Spring MVC's request handling starts at a single front controller, `DispatcherServlet`, which every
+incoming HTTP request passes through first. It consults a `HandlerMapping` to figure out which
+controller method matches the request's path, HTTP method, headers, and content type, invokes that
+method through a `HandlerAdapter`, and then hands the return value to a
+`HandlerMethodReturnValueHandler` — for a `@RestController`, this ultimately routes through
+Jackson's `HttpMessageConverter` to serialize your returned object to JSON and write it to the
+response body. `@RestController` is `@Controller` plus `@ResponseBody` applied to every method,
+meaning return values are treated as the actual HTTP response body rather than a view name to be
+resolved by a template engine — this is the whole distinction between building a server-rendered MVC
+application and building a JSON REST API, and it's why you'll never see a `@RestController` method
+returning a `String` that resolves to a Thymeleaf template. `@RequestMapping` is the base annotation
+for binding a method to a route, and `@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`,
+`@PatchMapping` are HTTP-method-specific shorthand for it — functionally
+`@GetMapping("/payments/{id}")` is just `@RequestMapping(path = "/payments/{id}", method =
+RequestMethod.GET)`, but the shorthand form makes the controller's route table scannable at a
+glance, which matters a great deal once a controller has a dozen endpoints.
 
-The DTO-versus-entity distinction is one of those things that looks like ceremony to a junior engineer and looks like a load-bearing wall to anyone who has been paged because of it. Returning a `@Entity`-annotated JPA class directly from a `@RestController` method is a genuine anti-pattern for three concrete, independent reasons, not just "it's not clean." First, it leaks persistence-layer structure into your public API contract — if `Payment` has an internal `retryCount` field or a `partitionKey` used purely for database sharding, serializing the entity directly exposes that to every API consumer, and now removing or renaming an internal implementation detail is a breaking API change for external clients who never should have seen it. Second, it tightly couples your API's shape to your database schema — adding a database column, or changing a JPA mapping strategy, now directly and immediately changes what your API returns, when in a well-designed system those should be two independently evolvable concerns with a DTO mapping layer absorbing the difference. Third, and most concretely dangerous in practice: lazy-loaded associations. If `Payment` has a `@ManyToOne(fetch = FetchType.LAZY) private Merchant merchant`, and you return the entity directly from a controller method outside of an open Hibernate session (which, in a typical layered architecture, the transaction has already closed by the time Jackson serializes the response), accessing `merchant` during serialization throws a `LazyInitializationException` — or, if you have Hibernate5Module configured to silently null out unfetched lazy associations to avoid that crash, you get a response that just silently omits the merchant data with no error, which is arguably worse because it fails silently in production rather than loudly in testing. A DTO — a plain class with exactly the fields the API contract promises, mapped explicitly from the entity inside the service layer, where you're still inside the transaction and lazy associations are safe to touch — sidesteps all three problems at once.
+The DTO-versus-entity distinction is one of those things that looks like ceremony to a junior
+engineer and looks like a load-bearing wall to anyone who has been paged because of it. Returning a
+`@Entity`-annotated JPA class directly from a `@RestController` method is a genuine anti-pattern for
+three concrete, independent reasons, not just "it's not clean." First, it leaks persistence-layer
+structure into your public API contract — if `Payment` has an internal `retryCount` field or a
+`partitionKey` used purely for database sharding, serializing the entity directly exposes that to
+every API consumer, and now removing or renaming an internal implementation detail is a breaking API
+change for external clients who never should have seen it. Second, it tightly couples your API's
+shape to your database schema — adding a database column, or changing a JPA mapping strategy, now
+directly and immediately changes what your API returns, when in a well-designed system those should
+be two independently evolvable concerns with a DTO mapping layer absorbing the difference. Third,
+and most concretely dangerous in practice: lazy-loaded associations. If `Payment` has a
+`@ManyToOne(fetch = FetchType.LAZY) private Merchant merchant`, and you return the entity directly
+from a controller method outside of an open Hibernate session (which, in a typical layered
+architecture, the transaction has already closed by the time Jackson serializes the response),
+accessing `merchant` during serialization throws a `LazyInitializationException` — or, if you have
+Hibernate5Module configured to silently null out unfetched lazy associations to avoid that crash,
+you get a response that just silently omits the merchant data with no error, which is arguably worse
+because it fails silently in production rather than loudly in testing. A DTO — a plain class with
+exactly the fields the API contract promises, mapped explicitly from the entity inside the service
+layer, where you're still inside the transaction and lazy associations are safe to touch — sidesteps
+all three problems at once.
 
 ```java
 public record CreatePaymentRequest(
@@ -343,9 +546,23 @@ public class PaymentController {
 }
 ```
 
-Note the `POST` handler returns `201 Created` with a `Location` header pointing at the newly created resource (`/api/v1/payments/{id}`), via `ResponseEntity.created(location)`, rather than a bare `200 OK`. This isn't pedantry — it's what REST clients and API gateways expect for resource creation, and enough tooling (client SDK generators, some API gateway caching rules) assumes this convention that deviating from it causes friction downstream that's hard to trace back to "we return 200 instead of 201."
+Note the `POST` handler returns `201 Created` with a `Location` header pointing at the newly created
+resource (`/api/v1/payments/{id}`), via `ResponseEntity.created(location)`, rather than a bare `200
+OK`. This isn't pedantry — it's what REST clients and API gateways expect for resource creation, and
+enough tooling (client SDK generators, some API gateway caching rules) assumes this convention that
+deviating from it causes friction downstream that's hard to trace back to "we return 200 instead of
+201."
 
-`@Valid` triggers Jakarta Bean Validation on the annotated `@RequestBody` parameter, evaluating constraint annotations like `@NotNull`, `@Positive`, `@NotBlank`, `@Pattern`, `@Size`, and any custom `@Constraint`-annotated validator you've written, and if any constraint fails, Spring throws a `MethodArgumentNotValidException` before your controller method body even executes — validation failures never reach your business logic, which is exactly where you want that boundary. The critical piece that turns this into a good API rather than a broken one is catching that exception centrally rather than letting Spring's default error handling produce its generic (and, depending on configuration, potentially stack-trace-leaking) response. `@ControllerAdvice` combined with `@ExceptionHandler` gives you a single place, applied globally across every controller, to translate exceptions into a consistent, structured error response shape.
+`@Valid` triggers Jakarta Bean Validation on the annotated `@RequestBody` parameter, evaluating
+constraint annotations like `@NotNull`, `@Positive`, `@NotBlank`, `@Pattern`, `@Size`, and any
+custom `@Constraint`-annotated validator you've written, and if any constraint fails, Spring throws
+a `MethodArgumentNotValidException` before your controller method body even executes — validation
+failures never reach your business logic, which is exactly where you want that boundary. The
+critical piece that turns this into a good API rather than a broken one is catching that exception
+centrally rather than letting Spring's default error handling produce its generic (and, depending on
+configuration, potentially stack-trace-leaking) response. `@ControllerAdvice` combined with
+`@ExceptionHandler` gives you a single place, applied globally across every controller, to translate
+exceptions into a consistent, structured error response shape.
 
 ```java
 public class PaymentNotFoundException extends RuntimeException {
@@ -384,9 +601,16 @@ public class GlobalExceptionHandler {
 }
 ```
 
-The last handler in that example matters as much as the specific ones — a catch-all for `Exception.class` that returns a generic, non-leaky message is what stands between "our NullPointerException with a stack trace mentioning our internal class names and table structure" and "a clean structured error," and in a PCI-DSS-adjacent environment, leaking internal implementation details in error responses is a real finding in a security review, not a theoretical concern.
+The last handler in that example matters as much as the specific ones — a catch-all for
+`Exception.class` that returns a generic, non-leaky message is what stands between "our
+NullPointerException with a stack trace mentioning our internal class names and table structure" and
+"a clean structured error," and in a PCI-DSS-adjacent environment, leaking internal implementation
+details in error responses is a real finding in a security review, not a theoretical concern.
 
-API versioning is the last piece, and it matters disproportionately in payments because backward compatibility isn't optional — a merchant's integration hitting your API might not get updated for years, and breaking it breaks their revenue, which breaks your relationship with them. There are three common strategies, each with real trade-offs:
+API versioning is the last piece, and it matters disproportionately in payments because backward
+compatibility isn't optional — a merchant's integration hitting your API might not get updated for
+years, and breaking it breaks their revenue, which breaks your relationship with them. There are
+three common strategies, each with real trade-offs:
 
 | Strategy | Example | Pros | Cons |
 |---|---|---|---|
@@ -394,7 +618,15 @@ API versioning is the last piece, and it matters disproportionately in payments 
 | Header-based versioning | `Accept-Version: 2` or a custom header | Keeps URIs clean and stable as the canonical resource identifier | Less visible/discoverable — easy to miss in casual API exploration or basic curl testing; harder to route at some gateway/CDN layers that don't inspect custom headers by default |
 | Content-negotiation versioning | `Accept: application/vnd.payments.v2+json` | "Correct" REST purism — versioning is part of content type negotiation, which is what `Accept` exists for | Most complex to implement and document; poor tooling support and discoverability; very few real-world API consumers expect or handle this correctly |
 
-For a payment platform specifically, URI versioning is the pragmatic recommendation, and it's what essentially every major payments API in the industry actually ships (Stripe, for instance, versions primarily via a date-based header for finer-grained control, but keeps URIs stable — a hybrid worth mentioning, but URI versioning remains the simplest, most universally supported default). The reasoning: it's trivially routable at an API gateway or load balancer without custom header inspection logic, it's immediately visible in access logs and monitoring dashboards which version a given caller is on (crucial for planning a deprecation timeline), and merchants integrating against your API can literally see and pin the version in the URL they wrote down, with zero ambiguity about what they're calling.
+For a payment platform specifically, URI versioning is the pragmatic recommendation, and it's what
+essentially every major payments API in the industry actually ships (Stripe, for instance, versions
+primarily via a date-based header for finer-grained control, but keeps URIs stable — a hybrid worth
+mentioning, but URI versioning remains the simplest, most universally supported default). The
+reasoning: it's trivially routable at an API gateway or load balancer without custom header
+inspection logic, it's immediately visible in access logs and monitoring dashboards which version a
+given caller is on (crucial for planning a deprecation timeline), and merchants integrating against
+your API can literally see and pin the version in the URL they wrote down, with zero ambiguity about
+what they're calling.
 
 ### Interview Questions
 
@@ -412,7 +644,21 @@ For a payment platform specifically, URI versioning is the pragmatic recommendat
 
 ## Topic 4 — Spring Data JPA & Transactions
 
-Spring Data JPA's repository abstraction removes almost all of the DAO boilerplate that used to dominate persistence-layer code — no hand-written `EntityManager.createQuery()` calls for the common cases, no manual `try/finally` around `EntityManager` lifecycle. You declare an interface extending `JpaRepository<Payment, UUID>`, and Spring generates a runtime proxy implementation with `save()`, `findById()`, `findAll()`, `delete()`, and pagination/sorting support already built in, with zero implementation code from you. Derived query methods extend this further through method name parsing: `findByCustomerIdAndStatus(UUID customerId, PaymentStatus status)` is parsed at startup into a JPQL query matching both conditions, purely from the method signature — no annotation, no manual query string, though this convenience has a real ceiling: derived method names beyond three or four conditions become unreadable (`findByCustomerIdAndStatusAndCreatedAtBetweenAndMerchantIdIn(...)` is a real signature you'll see in production codebases, and it's a code smell once you're past two or three conditions). Past that point, `@Query` with explicit JPQL or native SQL is the better tool — it's more verbose but far more readable and debuggable, and it's required anyway for anything involving aggregation, subqueries, or database-specific functions that don't map cleanly to a method name.
+Spring Data JPA's repository abstraction removes almost all of the DAO boilerplate that used to
+dominate persistence-layer code — no hand-written `EntityManager.createQuery()` calls for the common
+cases, no manual `try/finally` around `EntityManager` lifecycle. You declare an interface extending
+`JpaRepository<Payment, UUID>`, and Spring generates a runtime proxy implementation with `save()`,
+`findById()`, `findAll()`, `delete()`, and pagination/sorting support already built in, with zero
+implementation code from you. Derived query methods extend this further through method name parsing:
+`findByCustomerIdAndStatus(UUID customerId, PaymentStatus status)` is parsed at startup into a JPQL
+query matching both conditions, purely from the method signature — no annotation, no manual query
+string, though this convenience has a real ceiling: derived method names beyond three or four
+conditions become unreadable (`findByCustomerIdAndStatusAndCreatedAtBetweenAndMerchantIdIn(...)` is
+a real signature you'll see in production codebases, and it's a code smell once you're past two or
+three conditions). Past that point, `@Query` with explicit JPQL or native SQL is the better tool —
+it's more verbose but far more readable and debuggable, and it's required anyway for anything
+involving aggregation, subqueries, or database-specific functions that don't map cleanly to a method
+name.
 
 ```java
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
@@ -428,9 +674,22 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 }
 ```
 
-The N+1 query problem is the single most common performance bug in JPA-based services, and every senior engineer should be able to explain it precisely, not just name-drop it. Take a `Payment` entity with `@ManyToOne(fetch = FetchType.LAZY) private Merchant merchant`. Fetching 100 payments via `paymentRepository.findAll()` issues exactly one query. But if your code then iterates over those 100 payments and calls `payment.getMerchant().getName()` on each — say, to build a report — Hibernate lazily fires a separate `SELECT * FROM merchants WHERE id = ?` for every single payment whose merchant hasn't already been loaded into the persistence context, because lazy loading fetches on first access, one at a time, with no batching by default. That's 1 query to get the payments plus 100 queries to get their merchants — 101 total where 2 (or even 1) would suffice, and this scales linearly with result size, meaning it's invisible in a local test with 3 rows of seed data and a genuine production incident at 10,000 rows under load.
+The N+1 query problem is the single most common performance bug in JPA-based services, and every
+senior engineer should be able to explain it precisely, not just name-drop it. Take a `Payment`
+entity with `@ManyToOne(fetch = FetchType.LAZY) private Merchant merchant`. Fetching 100 payments
+via `paymentRepository.findAll()` issues exactly one query. But if your code then iterates over
+those 100 payments and calls `payment.getMerchant().getName()` on each — say, to build a report —
+Hibernate lazily fires a separate `SELECT * FROM merchants WHERE id = ?` for every single payment
+whose merchant hasn't already been loaded into the persistence context, because lazy loading fetches
+on first access, one at a time, with no batching by default. That's 1 query to get the payments plus
+100 queries to get their merchants — 101 total where 2 (or even 1) would suffice, and this scales
+linearly with result size, meaning it's invisible in a local test with 3 rows of seed data and a
+genuine production incident at 10,000 rows under load.
 
-There are three real fixes, each suited to a different situation. `@EntityGraph` lets you declare, at the repository method level, which associations should be eagerly fetched for that specific query without changing the entity's default `FetchType` globally (which would affect every other query using that entity, potentially over-fetching where you didn't need the association at all):
+There are three real fixes, each suited to a different situation. `@EntityGraph` lets you declare,
+at the repository method level, which associations should be eagerly fetched for that specific query
+without changing the entity's default `FetchType` globally (which would affect every other query
+using that entity, potentially over-fetching where you didn't need the association at all):
 
 ```java
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
@@ -440,14 +699,19 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 }
 ```
 
-`JOIN FETCH` in explicit JPQL achieves the same result with more visibility into exactly what SQL gets generated, which is preferable when the query is already custom:
+`JOIN FETCH` in explicit JPQL achieves the same result with more visibility into exactly what SQL
+gets generated, which is preferable when the query is already custom:
 
 ```java
 @Query("SELECT p FROM Payment p JOIN FETCH p.merchant WHERE p.status = :status")
 List<Payment> findByStatusWithMerchant(@Param("status") PaymentStatus status);
 ```
 
-And DTO projections sidestep the problem at its root by never loading the full entity graph in the first place — if the report only needs the merchant's name, not the full `Merchant` entity, a projection query selects exactly those columns in a single SQL query with a join, with no entity hydration overhead and no possibility of a lazy-loading trap because there's no lazy association in a DTO at all:
+And DTO projections sidestep the problem at its root by never loading the full entity graph in the
+first place — if the report only needs the merchant's name, not the full `Merchant` entity, a
+projection query selects exactly those columns in a single SQL query with a join, with no entity
+hydration overhead and no possibility of a lazy-loading trap because there's no lazy association in
+a DTO at all:
 
 ```java
 public record MerchantPaymentSummary(UUID paymentId, BigDecimal amount, String merchantName) {}
@@ -465,11 +729,57 @@ List<MerchantPaymentSummary> findSummariesByStatus(@Param("status") PaymentStatu
 | `JOIN FETCH` (JPQL) | Same as above, when you want explicit control over the generated query | Slightly more verbose; risk of duplicate rows in the result if fetching a collection association without `DISTINCT` |
 | DTO projection | You only need a subset of fields, especially for reporting/list views | Not a managed entity — no dirty checking, can't be used for updates; requires an explicit constructor-expression query per shape needed |
 
-Pagination via `Pageable`/`Page<T>` is built into every `JpaRepository` method for free — `paymentRepository.findByStatus(PaymentStatus.FAILED, PageRequest.of(0, 20, Sort.by("createdAt").descending()))` returns a `Page<Payment>` carrying both the page content and metadata (total elements, total pages). Under the hood this is offset-based pagination — `LIMIT 20 OFFSET 400` for page 20 — and it has a well-known scaling problem: the database still has to scan and discard the first 400 rows before it can return rows 401–420, so query cost grows with how deep into the result set you page, not just with the page size. For a merchant dashboard paging through the first few pages of recent transactions this is invisible, but for a system that needs to page deep into millions of historical payment records — an export job, a reconciliation sweep — offset pagination degrades badly and can time out entirely at scale. Keyset (cursor) pagination fixes this by paging on an indexed column's value rather than a row offset — instead of "skip 400 rows," the query becomes `WHERE created_at < :lastSeenCreatedAt ORDER BY created_at DESC LIMIT 20`, which uses the index to jump directly to the right starting point regardless of how deep you are, at the cost of losing the ability to jump to an arbitrary page number (you can only page forward/backward from a cursor, not request "page 47" directly) — a trade-off that's almost always worth it for genuinely large, sequentially-consumed datasets like transaction history exports.
+Pagination via `Pageable`/`Page<T>` is built into every `JpaRepository` method for free —
+`paymentRepository.findByStatus(PaymentStatus.FAILED, PageRequest.of(0, 20,
+Sort.by("createdAt").descending()))` returns a `Page<Payment>` carrying both the page content and
+metadata (total elements, total pages). Under the hood this is offset-based pagination — `LIMIT 20
+OFFSET 400` for page 20 — and it has a well-known scaling problem: the database still has to scan
+and discard the first 400 rows before it can return rows 401–420, so query cost grows with how deep
+into the result set you page, not just with the page size. For a merchant dashboard paging through
+the first few pages of recent transactions this is invisible, but for a system that needs to page
+deep into millions of historical payment records — an export job, a reconciliation sweep — offset
+pagination degrades badly and can time out entirely at scale. Keyset (cursor) pagination fixes this
+by paging on an indexed column's value rather than a row offset — instead of "skip 400 rows," the
+query becomes `WHERE created_at < :lastSeenCreatedAt ORDER BY created_at DESC LIMIT 20`, which uses
+the index to jump directly to the right starting point regardless of how deep you are, at the cost
+of losing the ability to jump to an arbitrary page number (you can only page forward/backward from a
+cursor, not request "page 47" directly) — a trade-off that's almost always worth it for genuinely
+large, sequentially-consumed datasets like transaction history exports.
 
-`@Transactional` is where interview conversations separate engineers who've memorized the annotation from engineers who've actually debugged a broken one in production. Propagation controls how a transactional method behaves when called from within an already-active transaction. `REQUIRED`, the default, joins the existing transaction if one is active, or starts a new one if not — this covers the overwhelming majority of real cases, where you want a natural business operation (say, "process a payment") to be one atomic unit regardless of how many service methods it internally calls. `REQUIRES_NEW` always suspends any existing transaction and starts a fresh, independent one — the audit-log example from Topic 3 is the canonical case: you want the audit write to commit (or fail) completely independently of whatever transaction is calling it, so a later rollback in the outer transaction doesn't erase the audit trail. `NESTED` creates a savepoint within the existing transaction rather than a fully independent one — the outer transaction and the nested one share the same underlying database transaction and connection, but a rollback inside the nested scope only rolls back to the savepoint, not the entire outer transaction; a realistic case is attempting several optional enrichment steps (fraud-score lookup, currency-conversion rate lookup) where a failure in one shouldn't abort the whole payment, but you still want that step's partial writes cleanly undone if it does fail. Isolation levels — `READ_COMMITTED` (the typical database default and usually the right choice), `REPEATABLE_READ`, `SERIALIZABLE` — control what concurrent transactions can see of each other's uncommitted or concurrently-changing data; for most payment operations, `READ_COMMITTED` combined with explicit row locking (`SELECT ... FOR UPDATE`, which the native query example above uses via `FOR UPDATE SKIP LOCKED` for safe concurrent retry-worker processing) is the pragmatic choice, reserving `SERIALIZABLE` for the rare case where you genuinely cannot tolerate any concurrent-modification anomaly and are willing to pay its throughput cost.
+`@Transactional` is where interview conversations separate engineers who've memorized the annotation
+from engineers who've actually debugged a broken one in production. Propagation controls how a
+transactional method behaves when called from within an already-active transaction. `REQUIRED`, the
+default, joins the existing transaction if one is active, or starts a new one if not — this covers
+the overwhelming majority of real cases, where you want a natural business operation (say, "process
+a payment") to be one atomic unit regardless of how many service methods it internally calls.
+`REQUIRES_NEW` always suspends any existing transaction and starts a fresh, independent one — the
+audit-log example from Topic 3 is the canonical case: you want the audit write to commit (or fail)
+completely independently of whatever transaction is calling it, so a later rollback in the outer
+transaction doesn't erase the audit trail. `NESTED` creates a savepoint within the existing
+transaction rather than a fully independent one — the outer transaction and the nested one share the
+same underlying database transaction and connection, but a rollback inside the nested scope only
+rolls back to the savepoint, not the entire outer transaction; a realistic case is attempting
+several optional enrichment steps (fraud-score lookup, currency-conversion rate lookup) where a
+failure in one shouldn't abort the whole payment, but you still want that step's partial writes
+cleanly undone if it does fail. Isolation levels — `READ_COMMITTED` (the typical database default
+and usually the right choice), `REPEATABLE_READ`, `SERIALIZABLE` — control what concurrent
+transactions can see of each other's uncommitted or concurrently-changing data; for most payment
+operations, `READ_COMMITTED` combined with explicit row locking (`SELECT ... FOR UPDATE`, which the
+native query example above uses via `FOR UPDATE SKIP LOCKED` for safe concurrent retry-worker
+processing) is the pragmatic choice, reserving `SERIALIZABLE` for the rare case where you genuinely
+cannot tolerate any concurrent-modification anomaly and are willing to pay its throughput cost.
 
-The self-invocation pitfall is, without exaggeration, one of the most common real Spring bugs in production codebases, and it's a favorite interview trap precisely because it's invisible until you understand the mechanism. `@Transactional` works through a Spring-generated proxy wrapping your bean — when another bean calls `paymentService.processPayment(...)`, it's actually calling the proxy, which opens a transaction, then delegates to the real method. But if `processPayment()` internally calls `this.recordAuditEntry(...)` — another `@Transactional` method in the *same class* — that call goes directly to the real object's method via a plain Java method call, completely bypassing the proxy, because `this` inside the class refers to the raw object, not the proxy wrapping it. The transactional advice on `recordAuditEntry` is simply never applied — the method runs, but with no transaction boundary at all, which is silent: no exception, no warning, just data that isn't atomically committed the way the annotation implies it should be.
+The self-invocation pitfall is, without exaggeration, one of the most common real Spring bugs in
+production codebases, and it's a favorite interview trap precisely because it's invisible until you
+understand the mechanism. `@Transactional` works through a Spring-generated proxy wrapping your bean
+— when another bean calls `paymentService.processPayment(...)`, it's actually calling the proxy,
+which opens a transaction, then delegates to the real method. But if `processPayment()` internally
+calls `this.recordAuditEntry(...)` — another `@Transactional` method in the *same class* — that call
+goes directly to the real object's method via a plain Java method call, completely bypassing the
+proxy, because `this` inside the class refers to the raw object, not the proxy wrapping it. The
+transactional advice on `recordAuditEntry` is simply never applied — the method runs, but with no
+transaction boundary at all, which is silent: no exception, no warning, just data that isn't
+atomically committed the way the annotation implies it should be.
 
 ```java
 @Service
@@ -488,7 +798,9 @@ public class PaymentService {
 }
 ```
 
-The fix is structural, not a workaround: move `recordAuditEntry` into a separate `@Service` bean and inject it, so the call goes through the container-managed proxy the way every other cross-bean call does:
+The fix is structural, not a workaround: move `recordAuditEntry` into a separate `@Service` bean and
+inject it, so the call goes through the container-managed proxy the way every other cross-bean call
+does:
 
 ```java
 @Service
@@ -516,7 +828,17 @@ public class AuditService {
 }
 ```
 
-Finally, schema migrations: `spring.jpa.hibernate.ddl-auto=update` is convenient for local development (it's exactly what the dev profile in Topic 1 uses) but is unequivocally the wrong tool for production. It infers schema changes from your entity annotations and applies them automatically at startup, with no review step, no rollback plan, and behavior that has genuinely surprised experienced teams — Hibernate's inference doesn't always do what you'd expect for column type changes, renames (which it can't detect at all — a rename looks like "add a new column, leave the old one," silently losing data continuity), or index management. The standard, production-safe practice is Flyway or Liquibase: versioned, explicit, hand-reviewed SQL migration scripts, checked into version control alongside the code, applied in a controlled, ordered, auditable way, with the schema's evolution history preserved as a literal sequence of files rather than inferred and reapplied fresh on every deploy.
+Finally, schema migrations: `spring.jpa.hibernate.ddl-auto=update` is convenient for local
+development (it's exactly what the dev profile in Topic 1 uses) but is unequivocally the wrong tool
+for production. It infers schema changes from your entity annotations and applies them automatically
+at startup, with no review step, no rollback plan, and behavior that has genuinely surprised
+experienced teams — Hibernate's inference doesn't always do what you'd expect for column type
+changes, renames (which it can't detect at all — a rename looks like "add a new column, leave the
+old one," silently losing data continuity), or index management. The standard, production-safe
+practice is Flyway or Liquibase: versioned, explicit, hand-reviewed SQL migration scripts, checked
+into version control alongside the code, applied in a controlled, ordered, auditable way, with the
+schema's evolution history preserved as a literal sequence of files rather than inferred and
+reapplied fresh on every deploy.
 
 ```sql
 -- src/main/resources/db/migration/V12__add_retry_count_to_payments.sql
@@ -538,7 +860,9 @@ spring:
     locations: classpath:db/migration
 ```
 
-With `ddl-auto: validate`, Hibernate becomes a safety net rather than a schema owner — it fails startup loudly if your entity mappings don't match what Flyway actually applied, catching drift between code and schema at deploy time rather than at first query in production.
+With `ddl-auto: validate`, Hibernate becomes a safety net rather than a schema owner — it fails
+startup loudly if your entity mappings don't match what Flyway actually applied, catching drift
+between code and schema at deploy time rather than at first query in production.
 
 ### Interview Questions
 
@@ -556,7 +880,17 @@ With `ddl-auto: validate`, Hibernate becomes a safety net rather than a schema o
 
 ## Topic 5 — Testing Spring Boot Applications
 
-The testing pyramid isn't an abstract principle in a Spring Boot codebase — it maps directly onto specific, named testing annotations, each with a real, measurable startup cost, and knowing which one to reach for is a genuine day-to-day engineering decision, not just interview trivia. At the base, plain unit tests using Mockito with zero Spring context involved are the fastest tests you can write — milliseconds each, no application context to start, no classpath scanning, no bean wiring — and should make up the large majority of your test suite. A `PaymentService` with its dependencies mocked via `@Mock` and injected via `@InjectMocks` (or manually through its constructor, which, notably, is trivial specifically because the class uses constructor injection, tying directly back to Topic 2) lets you test business logic — fee calculation, status transition rules, validation logic — in complete isolation from Spring, from the database, from HTTP, from everything except the class under test and its immediate collaborators.
+The testing pyramid isn't an abstract principle in a Spring Boot codebase — it maps directly onto
+specific, named testing annotations, each with a real, measurable startup cost, and knowing which
+one to reach for is a genuine day-to-day engineering decision, not just interview trivia. At the
+base, plain unit tests using Mockito with zero Spring context involved are the fastest tests you can
+write — milliseconds each, no application context to start, no classpath scanning, no bean wiring —
+and should make up the large majority of your test suite. A `PaymentService` with its dependencies
+mocked via `@Mock` and injected via `@InjectMocks` (or manually through its constructor, which,
+notably, is trivial specifically because the class uses constructor injection, tying directly back
+to Topic 2) lets you test business logic — fee calculation, status transition rules, validation
+logic — in complete isolation from Spring, from the database, from HTTP, from everything except the
+class under test and its immediate collaborators.
 
 ```java
 @ExtendWith(MockitoExtension.class)
@@ -587,7 +921,14 @@ class PaymentServiceTest {
 }
 ```
 
-Above the unit layer, Spring Boot provides "slice" tests — test annotations that boot only a narrow, relevant slice of the application context rather than the whole thing, which is a deliberate middle ground: more realistic than a pure Mockito unit test, dramatically cheaper than a full context startup. `@WebMvcTest(PaymentController.class)` boots only the web layer — the controller under test, Spring MVC infrastructure, `@ControllerAdvice` exception handlers, Jackson serialization — while `@MockBean`-ing the service layer, so you're verifying HTTP-facing behavior specifically: status codes, JSON response shape, validation error handling, without a real database anywhere in the picture.
+Above the unit layer, Spring Boot provides "slice" tests — test annotations that boot only a narrow,
+relevant slice of the application context rather than the whole thing, which is a deliberate middle
+ground: more realistic than a pure Mockito unit test, dramatically cheaper than a full context
+startup. `@WebMvcTest(PaymentController.class)` boots only the web layer — the controller under
+test, Spring MVC infrastructure, `@ControllerAdvice` exception handlers, Jackson serialization —
+while `@MockBean`-ing the service layer, so you're verifying HTTP-facing behavior specifically:
+status codes, JSON response shape, validation error handling, without a real database anywhere in
+the picture.
 
 ```java
 @WebMvcTest(PaymentController.class)
@@ -624,9 +965,35 @@ class PaymentControllerTest {
 }
 ```
 
-`@DataJpaTest` is the analogous slice for the persistence layer — it boots only JPA infrastructure (entity manager, repositories, an embedded or configured test database) and, by default, wraps each test in a transaction that's rolled back afterward, giving you fast, isolated repository tests: verifying that `findByCustomerIdAndStatus` actually returns the right rows given seeded data, or that a `@Query` you hand-wrote is syntactically correct and returns what you expect, without needing to boot the web layer or any unrelated service beans at all. `@SpringBootTest` is the top of the pyramid — it boots the entire application context, every bean, exactly as it would run in production (optionally with a real embedded web server via `webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT` for genuine end-to-end HTTP tests) — and it should be a deliberately small fraction of your suite specifically because of the cost: full context startup can easily take several seconds per test class even in a moderately sized service, and that cost compounds linearly across a CI pipeline running hundreds of test classes, turning what should be a fast feedback loop into a ten-minute wait before you know if your change broke anything.
+`@DataJpaTest` is the analogous slice for the persistence layer — it boots only JPA infrastructure
+(entity manager, repositories, an embedded or configured test database) and, by default, wraps each
+test in a transaction that's rolled back afterward, giving you fast, isolated repository tests:
+verifying that `findByCustomerIdAndStatus` actually returns the right rows given seeded data, or
+that a `@Query` you hand-wrote is syntactically correct and returns what you expect, without needing
+to boot the web layer or any unrelated service beans at all. `@SpringBootTest` is the top of the
+pyramid — it boots the entire application context, every bean, exactly as it would run in production
+(optionally with a real embedded web server via `webEnvironment =
+SpringBootTest.WebEnvironment.RANDOM_PORT` for genuine end-to-end HTTP tests) — and it should be a
+deliberately small fraction of your suite specifically because of the cost: full context startup can
+easily take several seconds per test class even in a moderately sized service, and that cost
+compounds linearly across a CI pipeline running hundreds of test classes, turning what should be a
+fast feedback loop into a ten-minute wait before you know if your change broke anything.
 
-The historically common way to make `@DataJpaTest` "fast" was pairing it with an in-memory H2 database configured to run in a Postgres-compatibility mode, and this is exactly the practice Testcontainers has largely replaced, for a very concrete reason: H2 emulating Postgres is still H2, not Postgres, and the gaps between them are real and have burned real teams — Postgres-specific features like `JSONB` columns, partial indexes, `FOR UPDATE SKIP LOCKED` row-locking semantics used in the retry-worker query earlier in this document, window functions, or subtle differences in how each database handles case-sensitivity, date/time precision, or constraint violation error codes. A query that works perfectly against H2 in your test suite can fail, behave differently, or silently produce different results against real Postgres in production — "worked in tests, broke in prod" is close to the canonical failure mode this gap produces, and it's exactly why testing against the real database engine, not a compatible-ish stand-in, is worth the setup cost. Testcontainers solves this by spinning up an actual, disposable Postgres (or Kafka, or Redis) instance inside a Docker container for the duration of the test run — genuinely the same database engine, same version, same behavior as production, torn down automatically afterward, with zero persistent test-environment infrastructure to maintain.
+The historically common way to make `@DataJpaTest` "fast" was pairing it with an in-memory H2
+database configured to run in a Postgres-compatibility mode, and this is exactly the practice
+Testcontainers has largely replaced, for a very concrete reason: H2 emulating Postgres is still H2,
+not Postgres, and the gaps between them are real and have burned real teams — Postgres-specific
+features like `JSONB` columns, partial indexes, `FOR UPDATE SKIP LOCKED` row-locking semantics used
+in the retry-worker query earlier in this document, window functions, or subtle differences in how
+each database handles case-sensitivity, date/time precision, or constraint violation error codes. A
+query that works perfectly against H2 in your test suite can fail, behave differently, or silently
+produce different results against real Postgres in production — "worked in tests, broke in prod" is
+close to the canonical failure mode this gap produces, and it's exactly why testing against the real
+database engine, not a compatible-ish stand-in, is worth the setup cost. Testcontainers solves this
+by spinning up an actual, disposable Postgres (or Kafka, or Redis) instance inside a Docker
+container for the duration of the test run — genuinely the same database engine, same version, same
+behavior as production, torn down automatically afterward, with zero persistent test-environment
+infrastructure to maintain.
 
 ```java
 @Testcontainers
@@ -661,7 +1028,12 @@ class PaymentRepositoryIntegrationTest {
 }
 ```
 
-`@AutoConfigureTestDatabase(replace = Replace.NONE)` is the detail that's easy to miss and worth calling out explicitly: `@DataJpaTest` by default tries to auto-configure an embedded in-memory database and will silently replace your real `DataSource` configuration with one, which defeats the entire point of wiring up a real Testcontainers Postgres instance — this annotation tells Spring Boot "don't do that, use the datasource I've configured," which is exactly the kind of gotcha that costs a debugging session the first time you hit it and is worth just knowing up front.
+`@AutoConfigureTestDatabase(replace = Replace.NONE)` is the detail that's easy to miss and worth
+calling out explicitly: `@DataJpaTest` by default tries to auto-configure an embedded in-memory
+database and will silently replace your real `DataSource` configuration with one, which defeats the
+entire point of wiring up a real Testcontainers Postgres instance — this annotation tells Spring
+Boot "don't do that, use the datasource I've configured," which is exactly the kind of gotcha that
+costs a debugging session the first time you hit it and is worth just knowing up front.
 
 ```xml
 <dependency>
@@ -685,7 +1057,16 @@ class PaymentRepositoryIntegrationTest {
 | `@DataJpaTest` (+ Testcontainers) | JPA layer only | Yes (real engine via container) | ~1 second (container reuse amortizes startup) | Slice — moderate count |
 | `@SpringBootTest` | Entire application context | Optionally yes | Several seconds+ per class | Top — small, deliberate minority |
 
-The right ratio — heavily weighted toward fast unit tests, a moderate number of slice tests covering each layer's specific concerns, and a small, deliberate set of full `@SpringBootTest` integration tests covering genuine end-to-end flows — is exactly what an interviewer is listening for when they ask about your team's testing approach, because the wrong ratio is a real, common failure mode: a suite with too many `@SpringBootTest` classes because it feels like the "most correct" option (it does test everything, after all) produces a CI pipeline that takes twenty minutes to give feedback on a one-line change, which teams predictably respond to by running tests less often, batching more changes per CI run, and catching regressions later and more expensively than they should — the pyramid shape isn't a purity rule, it's what keeps the feedback loop fast enough that people actually rely on it.
+The right ratio — heavily weighted toward fast unit tests, a moderate number of slice tests covering
+each layer's specific concerns, and a small, deliberate set of full `@SpringBootTest` integration
+tests covering genuine end-to-end flows — is exactly what an interviewer is listening for when they
+ask about your team's testing approach, because the wrong ratio is a real, common failure mode: a
+suite with too many `@SpringBootTest` classes because it feels like the "most correct" option (it
+does test everything, after all) produces a CI pipeline that takes twenty minutes to give feedback
+on a one-line change, which teams predictably respond to by running tests less often, batching more
+changes per CI run, and catching regressions later and more expensively than they should — the
+pyramid shape isn't a purity rule, it's what keeps the feedback loop fast enough that people
+actually rely on it.
 
 ### Interview Questions
 
@@ -705,15 +1086,80 @@ The right ratio — heavily weighted toward fast unit tests, a moderate number o
 
 ## Topic 6 — Service Discovery (Eureka / Consul)
 
-In a monolith, calling "the payments module" is a Java method call — the compiler and the classloader guarantee the callee exists. The moment you split `payment-service`, `notification-service`, and `merchant-service` into independently deployed processes running on an orchestrator like Kubernetes or ECS, that guarantee evaporates. Instances scale out under load, get rescheduled after a node drains, restart after a crash, and get new IP addresses every time any of that happens. If `notification-service` has `payment-service`'s IP hardcoded in an `application.yml` — or even in an environment variable injected at deploy time — that config is stale the moment the orchestrator reschedules a pod. You'd need to redeploy every consumer of `payment-service` every time `payment-service` itself redeploys, which defeats the entire point of decomposing the system in the first place: independent deployability. Service discovery exists to answer one dynamic question at call time — "where are the current healthy instances of payment-service?" — without a human or a deploy pipeline having to update config by hand.
+In a monolith, calling "the payments module" is a Java method call — the compiler and the
+classloader guarantee the callee exists. The moment you split `payment-service`, `notification-
+service`, and `merchant-service` into independently deployed processes running on an orchestrator
+like Kubernetes or ECS, that guarantee evaporates. Instances scale out under load, get rescheduled
+after a node drains, restart after a crash, and get new IP addresses every time any of that happens.
+If `notification-service` has `payment-service`'s IP hardcoded in an `application.yml` — or even in
+an environment variable injected at deploy time — that config is stale the moment the orchestrator
+reschedules a pod. You'd need to redeploy every consumer of `payment-service` every time `payment-
+service` itself redeploys, which defeats the entire point of decomposing the system in the first
+place: independent deployability. Service discovery exists to answer one dynamic question at call
+time — "where are the current healthy instances of payment-service?" — without a human or a deploy
+pipeline having to update config by hand.
 
-Netflix Eureka, part of Spring Cloud Netflix, solves this with a registry-and-heartbeat model. Every service instance, on startup, registers itself with the Eureka server, sending its hostname, IP, port, and a handful of metadata fields (status page URL, health-check URL, application name). After registration, each instance sends a heartbeat to the Eureka server — by default every 30 seconds — to prove it's still alive. If the Eureka server doesn't receive a heartbeat from an instance within a configurable lease-expiration window (default 90 seconds), it evicts that instance from the registry. Critically, Eureka clients don't hit the Eureka server on every single service-to-service call — that would make Eureka a single point of failure and a latency bottleneck for every request in the system. Instead, each client pulls a full copy of the registry on startup and refreshes it on a fixed interval (default every 30 seconds), caching it locally. When `notification-service` needs to call `payment-service`, it resolves the instance list from its own local cache, not from a live network call to Eureka. This means a Eureka server outage doesn't immediately break service-to-service calls throughout the fleet — every client is still working off a recent cached view of who's alive, and can keep making calls for as long as that cache stays reasonably fresh.
+Netflix Eureka, part of Spring Cloud Netflix, solves this with a registry-and-heartbeat model. Every
+service instance, on startup, registers itself with the Eureka server, sending its hostname, IP,
+port, and a handful of metadata fields (status page URL, health-check URL, application name). After
+registration, each instance sends a heartbeat to the Eureka server — by default every 30 seconds —
+to prove it's still alive. If the Eureka server doesn't receive a heartbeat from an instance within
+a configurable lease-expiration window (default 90 seconds), it evicts that instance from the
+registry. Critically, Eureka clients don't hit the Eureka server on every single service-to-service
+call — that would make Eureka a single point of failure and a latency bottleneck for every request
+in the system. Instead, each client pulls a full copy of the registry on startup and refreshes it on
+a fixed interval (default every 30 seconds), caching it locally. When `notification-service` needs
+to call `payment-service`, it resolves the instance list from its own local cache, not from a live
+network call to Eureka. This means a Eureka server outage doesn't immediately break service-to-
+service calls throughout the fleet — every client is still working off a recent cached view of who's
+alive, and can keep making calls for as long as that cache stays reasonably fresh.
 
-This client-side caching interacts with a feature called **self-preservation mode**, which is one of the more interview-relevant and least understood parts of Eureka. Under normal network conditions, Eureka expects to receive heartbeats from a predictable fraction of registered instances. If a large chunk of instances suddenly stop sending heartbeats, Eureka has to distinguish between two very different scenarios: either a lot of instances genuinely died at once, or the Eureka server itself is experiencing a network partition and simply isn't receiving heartbeats that are still being sent. Evicting every instance in the latter scenario would be catastrophic — you'd wipe the registry clean during a transient network blip, and every client refreshing its cache afterward would see an empty or near-empty registry for `payment-service`, effectively causing a fleet-wide outage triggered by a monitoring false positive. Self-preservation mode protects against this: when the rate of renewals (heartbeats) drops below a threshold (by default 85% of the expected rate), Eureka stops expiring instances and keeps serving the last known-good registry, on the theory that it's better to serve slightly stale data than to falsely believe the entire fleet died. The trade-off, and the thing interviewers push on, is that self-preservation mode means Eureka will keep telling clients about instances that are actually dead during a real, large-scale outage — trading correctness for availability, which is a defensible choice for a discovery layer whose job is to keep the system limping along rather than freeze it.
+This client-side caching interacts with a feature called **self-preservation mode**, which is one of
+the more interview-relevant and least understood parts of Eureka. Under normal network conditions,
+Eureka expects to receive heartbeats from a predictable fraction of registered instances. If a large
+chunk of instances suddenly stop sending heartbeats, Eureka has to distinguish between two very
+different scenarios: either a lot of instances genuinely died at once, or the Eureka server itself
+is experiencing a network partition and simply isn't receiving heartbeats that are still being sent.
+Evicting every instance in the latter scenario would be catastrophic — you'd wipe the registry clean
+during a transient network blip, and every client refreshing its cache afterward would see an empty
+or near-empty registry for `payment-service`, effectively causing a fleet-wide outage triggered by a
+monitoring false positive. Self-preservation mode protects against this: when the rate of renewals
+(heartbeats) drops below a threshold (by default 85% of the expected rate), Eureka stops expiring
+instances and keeps serving the last known-good registry, on the theory that it's better to serve
+slightly stale data than to falsely believe the entire fleet died. The trade-off, and the thing
+interviewers push on, is that self-preservation mode means Eureka will keep telling clients about
+instances that are actually dead during a real, large-scale outage — trading correctness for
+availability, which is a defensible choice for a discovery layer whose job is to keep the system
+limping along rather than freeze it.
 
-Consul, from HashiCorp, takes a different mechanical approach to the same problem. Where Eureka is heartbeat/lease-based (the instance proves it's alive by pinging the server), Consul is primarily health-check-based: you configure Consul with an active check against each service instance — commonly an HTTP GET against a health endpoint, a TCP connect check, or a script check — and Consul itself polls that check on an interval and deregisters the instance if the check starts failing. This is a meaningfully different failure model: Eureka answers "did this instance say it's alive recently," while Consul answers "did I just verify this instance is actually responding correctly." Consul additionally functions as a general-purpose service mesh control plane and distributed KV store, which is why it often shows up in polyglot shops that don't want a Java-specific discovery mechanism, whereas Eureka is deeply idiomatic to the Spring Cloud / JVM ecosystem via `spring-cloud-starter-netflix-eureka-client`.
+Consul, from HashiCorp, takes a different mechanical approach to the same problem. Where Eureka is
+heartbeat/lease-based (the instance proves it's alive by pinging the server), Consul is primarily
+health-check-based: you configure Consul with an active check against each service instance —
+commonly an HTTP GET against a health endpoint, a TCP connect check, or a script check — and Consul
+itself polls that check on an interval and deregisters the instance if the check starts failing.
+This is a meaningfully different failure model: Eureka answers "did this instance say it's alive
+recently," while Consul answers "did I just verify this instance is actually responding correctly."
+Consul additionally functions as a general-purpose service mesh control plane and distributed KV
+store, which is why it often shows up in polyglot shops that don't want a Java-specific discovery
+mechanism, whereas Eureka is deeply idiomatic to the Spring Cloud / JVM ecosystem via `spring-cloud-
+starter-netflix-eureka-client`.
 
-Here's the honest, interview-critical point that a lot of candidates miss: **if you're running on Kubernetes, you frequently don't need Eureka at all.** Kubernetes ships its own built-in service discovery — a `Service` object gets a stable virtual IP and a DNS name (`payment-service.default.svc.cluster.local`), and `kube-proxy` (or the CNI's equivalent) handles routing traffic to healthy pod endpoints, using the kubelet's own liveness/readiness probes to decide what's healthy. That's registration, health checking, and load-balanced resolution — the exact same problem Eureka solves — already provided by the platform, for free, without an extra JVM process to run and monitor. Bolting Eureka on top of Kubernetes is redundant work in the common case and can introduce a second, occasionally inconsistent source of truth about which instances are healthy (a pod can be "up" from Eureka's perspective via a heartbeat while Kubernetes has already marked it not-ready and pulled it from Service endpoints). Eureka earns its keep in non-Kubernetes deployments — VMs, bare EC2 instances, on-prem — or in hybrid environments, or where you specifically need Netflix-OSS-style client-side load-balancing metadata (zone awareness, instance status pages) that plain Kubernetes DNS doesn't give you. A senior engineer should be able to say, without prompting, "we run on K8s, so we lean on Service/DNS discovery and don't run a Eureka server" — and know precisely why that's the right default, not just parrot "Eureka is what Spring microservices use."
+Here's the honest, interview-critical point that a lot of candidates miss: **if you're running on
+Kubernetes, you frequently don't need Eureka at all.** Kubernetes ships its own built-in service
+discovery — a `Service` object gets a stable virtual IP and a DNS name (`payment-
+service.default.svc.cluster.local`), and `kube-proxy` (or the CNI's equivalent) handles routing
+traffic to healthy pod endpoints, using the kubelet's own liveness/readiness probes to decide what's
+healthy. That's registration, health checking, and load-balanced resolution — the exact same problem
+Eureka solves — already provided by the platform, for free, without an extra JVM process to run and
+monitor. Bolting Eureka on top of Kubernetes is redundant work in the common case and can introduce
+a second, occasionally inconsistent source of truth about which instances are healthy (a pod can be
+"up" from Eureka's perspective via a heartbeat while Kubernetes has already marked it not-ready and
+pulled it from Service endpoints). Eureka earns its keep in non-Kubernetes deployments — VMs, bare
+EC2 instances, on-prem — or in hybrid environments, or where you specifically need Netflix-OSS-style
+client-side load-balancing metadata (zone awareness, instance status pages) that plain Kubernetes
+DNS doesn't give you. A senior engineer should be able to say, without prompting, "we run on K8s, so
+we lean on Service/DNS discovery and don't run a Eureka server" — and know precisely why that's the
+right default, not just parrot "Eureka is what Spring microservices use."
 
 **Worked example — `payment-service` registering, `notification-service` looking it up:**
 
@@ -745,7 +1191,8 @@ public class PaymentServiceApplication {
 }
 ```
 
-`notification-service` looks up `payment-service` through the Eureka-aware, load-balanced `DiscoveryClient` rather than a hardcoded URL:
+`notification-service` looks up `payment-service` through the Eureka-aware, load-balanced
+`DiscoveryClient` rather than a hardcoded URL:
 
 ```java
 @Service
@@ -771,7 +1218,10 @@ public class PaymentStatusClient {
 }
 ```
 
-In practice you'd never manually round-robin like `instances.get(0)` — you'd let `@LoadBalanced RestTemplate` or a Feign client (Topic 9) resolve `http://payment-service/...` transparently, with Spring Cloud LoadBalancer doing instance selection behind the scenes using the same Eureka-backed registry.
+In practice you'd never manually round-robin like `instances.get(0)` — you'd let `@LoadBalanced
+RestTemplate` or a Feign client (Topic 9) resolve `http://payment-service/...` transparently, with
+Spring Cloud LoadBalancer doing instance selection behind the scenes using the same Eureka-backed
+registry.
 
 ### Interview Questions
 
@@ -791,9 +1241,29 @@ In practice you'd never manually round-robin like `instances.get(0)` — you'd l
 
 ## Topic 7 — API Gateway with Spring Cloud Gateway
 
-Once you have a dozen or more microservices, every one of them independently needs authentication, TLS termination, rate limiting, request/response logging, and often response shaping for external consumers. Reimplementing that in each service is not just duplicated code — it's duplicated *risk*: a rate-limiting bug fixed in `payment-service` but forgotten in `merchant-service` is a real production incident waiting to happen, and an auth check implemented slightly differently in two services is exactly the kind of inconsistency that becomes a security finding in a PCI audit. An API Gateway centralizes these cross-cutting concerns into a single, well-tested chokepoint that every external request passes through before it ever reaches a downstream service. It also decouples the shape of your public API from your internal service topology: clients call `api.yourcompany.com/api/payments/{id}`, and the gateway is free to route that to whatever `payment-service` instance, on whatever internal path, is currently serving that traffic — you can split, merge, or rename backend services without breaking a single external contract, as long as the gateway's routing rules are updated to match.
+Once you have a dozen or more microservices, every one of them independently needs authentication,
+TLS termination, rate limiting, request/response logging, and often response shaping for external
+consumers. Reimplementing that in each service is not just duplicated code — it's duplicated *risk*:
+a rate-limiting bug fixed in `payment-service` but forgotten in `merchant-service` is a real
+production incident waiting to happen, and an auth check implemented slightly differently in two
+services is exactly the kind of inconsistency that becomes a security finding in a PCI audit. An API
+Gateway centralizes these cross-cutting concerns into a single, well-tested chokepoint that every
+external request passes through before it ever reaches a downstream service. It also decouples the
+shape of your public API from your internal service topology: clients call
+`api.yourcompany.com/api/payments/{id}`, and the gateway is free to route that to whatever `payment-
+service` instance, on whatever internal path, is currently serving that traffic — you can split,
+merge, or rename backend services without breaking a single external contract, as long as the
+gateway's routing rules are updated to match.
 
-Spring Cloud Gateway is built around three concepts: **routes**, **predicates**, and **filters**. A route is the unit of configuration — a path or host pattern paired with a destination URI. A predicate is the condition that decides whether an incoming request matches that route (path pattern, header value, HTTP method, and so on — predicates compose with AND semantics). A filter is something that runs on the request on its way in, the response on its way out, or both, and is where cross-cutting policy actually gets applied — adding headers, stripping headers, rewriting paths, applying rate limits, tripping circuit breakers. This maps naturally onto YAML configuration, which is how most Spring Cloud Gateway deployments are actually run in production, since it lets ops teams change routing without a code deploy.
+Spring Cloud Gateway is built around three concepts: **routes**, **predicates**, and **filters**. A
+route is the unit of configuration — a path or host pattern paired with a destination URI. A
+predicate is the condition that decides whether an incoming request matches that route (path
+pattern, header value, HTTP method, and so on — predicates compose with AND semantics). A filter is
+something that runs on the request on its way in, the response on its way out, or both, and is where
+cross-cutting policy actually gets applied — adding headers, stripping headers, rewriting paths,
+applying rate limits, tripping circuit breakers. This maps naturally onto YAML configuration, which
+is how most Spring Cloud Gateway deployments are actually run in production, since it lets ops teams
+change routing without a code deploy.
 
 ```yaml
 spring:
@@ -824,7 +1294,12 @@ spring:
             - AddRequestHeader=X-Gateway-Source, api-gateway
 ```
 
-The `lb://payment-service` scheme is Spring Cloud Gateway integrating directly with service discovery (Topic 6) and Spring Cloud LoadBalancer — the gateway resolves the logical name `payment-service` to a live instance at request time rather than pointing at a fixed host. A correlation ID filter, which every request in a payments system should carry end to end for tracing and log correlation, is naturally implemented as a global filter so you don't have to remember to add it per route:
+The `lb://payment-service` scheme is Spring Cloud Gateway integrating directly with service
+discovery (Topic 6) and Spring Cloud LoadBalancer — the gateway resolves the logical name `payment-
+service` to a live instance at request time rather than pointing at a fixed host. A correlation ID
+filter, which every request in a payments system should carry end to end for tracing and log
+correlation, is naturally implemented as a global filter so you don't have to remember to add it per
+route:
 
 ```java
 @Component
@@ -854,11 +1329,38 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
 }
 ```
 
-An interviewer who's watched a candidate study L4/L7 networking and reverse-proxy fundamentals will often probe: "isn't this just a load balancer?" It isn't, and the distinction is worth stating precisely. A plain load balancer — an L4 device, or even a basic L7 reverse proxy like a bare Nginx config — distributes traffic across backend instances based on connection or simple HTTP-level rules; it doesn't know or care about the semantic content of the request beyond routing keys. An API Gateway is content-aware and policy-aware: it inspects the request enough to apply authentication, transform the body or headers, aggregate calls to multiple backends into one response for a client, enforce per-client rate limits, and make routing decisions based on business-meaningful attributes (a header claiming a client tier, a JWT claim, an API version in the path). The gateway sits at a higher semantic layer than a load balancer, and in most real architectures it *uses* a load balancer (or client-side load-balancing via service discovery, as above) internally as part of getting a request to a healthy backend instance — the two aren't competitors, the gateway is doing more work on top.
+An interviewer who's watched a candidate study L4/L7 networking and reverse-proxy fundamentals will
+often probe: "isn't this just a load balancer?" It isn't, and the distinction is worth stating
+precisely. A plain load balancer — an L4 device, or even a basic L7 reverse proxy like a bare Nginx
+config — distributes traffic across backend instances based on connection or simple HTTP-level
+rules; it doesn't know or care about the semantic content of the request beyond routing keys. An API
+Gateway is content-aware and policy-aware: it inspects the request enough to apply authentication,
+transform the body or headers, aggregate calls to multiple backends into one response for a client,
+enforce per-client rate limits, and make routing decisions based on business-meaningful attributes
+(a header claiming a client tier, a JWT claim, an API version in the path). The gateway sits at a
+higher semantic layer than a load balancer, and in most real architectures it *uses* a load balancer
+(or client-side load-balancing via service discovery, as above) internally as part of getting a
+request to a healthy backend instance — the two aren't competitors, the gateway is doing more work
+on top.
 
-Rate limiting and circuit breaking at the gateway are a first line of defense specifically because they're cheap to apply before a request has consumed any downstream resources. If `payment-service` is degraded and its own internal circuit breaker (Topic 10) is tripping, you still want the gateway itself to stop forwarding new requests to it — otherwise every one of those requests pays the cost of a connection attempt, a timeout, and a failed call, multiplied across every client hitting the gateway, before the client-side circuit breaker inside the gateway (or worse, no protection at all if the gateway blindly forwards) kicks in. Gateway-level rate limiting similarly protects the whole downstream fleet from a single noisy or malicious client before that traffic ever fans out.
+Rate limiting and circuit breaking at the gateway are a first line of defense specifically because
+they're cheap to apply before a request has consumed any downstream resources. If `payment-service`
+is degraded and its own internal circuit breaker (Topic 10) is tripping, you still want the gateway
+itself to stop forwarding new requests to it — otherwise every one of those requests pays the cost
+of a connection attempt, a timeout, and a failed call, multiplied across every client hitting the
+gateway, before the client-side circuit breaker inside the gateway (or worse, no protection at all
+if the gateway blindly forwards) kicks in. Gateway-level rate limiting similarly protects the whole
+downstream fleet from a single noisy or malicious client before that traffic ever fans out.
 
-The **Backend-for-Frontend (BFF)** pattern is a variant worth naming even briefly: instead of one gateway serving every client type identically, you run a dedicated gateway per client type — a mobile BFF and a web BFF, say — each shaped around what that specific client actually needs. A mobile client on a metered connection wants a slimmed-down, aggregated payload (one call that already joins payment status, merchant name, and loyalty points, because round-trips are expensive on mobile networks); a web client backing a rich admin dashboard might want more granular, paginated endpoints it can call independently. Rather than cramming both shapes into one generic gateway API with conditional logic, a BFF gives each frontend team ownership of an API tailored to their client, while both BFFs still route into the same set of backend microservices.
+The **Backend-for-Frontend (BFF)** pattern is a variant worth naming even briefly: instead of one
+gateway serving every client type identically, you run a dedicated gateway per client type — a
+mobile BFF and a web BFF, say — each shaped around what that specific client actually needs. A
+mobile client on a metered connection wants a slimmed-down, aggregated payload (one call that
+already joins payment status, merchant name, and loyalty points, because round-trips are expensive
+on mobile networks); a web client backing a rich admin dashboard might want more granular, paginated
+endpoints it can call independently. Rather than cramming both shapes into one generic gateway API
+with conditional logic, a BFF gives each frontend team ownership of an API tailored to their client,
+while both BFFs still route into the same set of backend microservices.
 
 | Concern | Plain Load Balancer / Reverse Proxy | API Gateway (Spring Cloud Gateway) |
 |---|---|---|
@@ -887,7 +1389,19 @@ The **Backend-for-Frontend (BFF)** pattern is a variant worth naming even briefl
 
 ## Topic 8 — Centralized Configuration with Spring Cloud Config
 
-A payments platform with thirty microservices, each with its own `application.yml`, has thirty places where a rate-limit threshold, a feature flag, a third-party API base URL, or a fraud-check timeout can live — and thirty places you'd have to touch, and thirty services you'd have to redeploy, to change one of them consistently. Worse, in a regulated environment, "who changed the daily transaction limit for merchant tier 2, and when" needs to be an answerable question, not something reconstructed by grepping deployment logs across a dozen repos. Spring Cloud Config Server solves this by externalizing configuration into a single service, backed — in the standard and strongly recommended pattern — by a Git repository. Config becomes config-as-code: every change is a commit, with an author, a timestamp, a diff, and a PR review trail if you wire branch protection on the config repo the same way you would on application code. For an auditor asking about change control on production financial parameters, "here's the Git history of the config repo, here's the PR approval on this specific commit" is a far stronger answer than "someone SSH'd in and edited a properties file."
+A payments platform with thirty microservices, each with its own `application.yml`, has thirty
+places where a rate-limit threshold, a feature flag, a third-party API base URL, or a fraud-check
+timeout can live — and thirty places you'd have to touch, and thirty services you'd have to
+redeploy, to change one of them consistently. Worse, in a regulated environment, "who changed the
+daily transaction limit for merchant tier 2, and when" needs to be an answerable question, not
+something reconstructed by grepping deployment logs across a dozen repos. Spring Cloud Config Server
+solves this by externalizing configuration into a single service, backed — in the standard and
+strongly recommended pattern — by a Git repository. Config becomes config-as-code: every change is a
+commit, with an author, a timestamp, a diff, and a PR review trail if you wire branch protection on
+the config repo the same way you would on application code. For an auditor asking about change
+control on production financial parameters, "here's the Git history of the config repo, here's the
+PR approval on this specific commit" is a far stronger answer than "someone SSH'd in and edited a
+properties file."
 
 ```yaml
 # config-server application.yml
@@ -917,7 +1431,11 @@ public class ConfigServerApplication {
 }
 ```
 
-The Git repo is laid out per-application (and optionally per-profile), e.g. `payment-service.yml`, `payment-service-prod.yml`, `notification-service.yml`, with the Config Server resolving and merging the right files based on the requesting client's `spring.application.name` and active profile. On the client side, modern Spring Boot (2.4+) pulls this config at startup via the `spring.config.import` property, which supersedes the older `bootstrap.yml`-based mechanism:
+The Git repo is laid out per-application (and optionally per-profile), e.g. `payment-service.yml`,
+`payment-service-prod.yml`, `notification-service.yml`, with the Config Server resolving and merging
+the right files based on the requesting client's `spring.application.name` and active profile. On
+the client side, modern Spring Boot (2.4+) pulls this config at startup via the
+`spring.config.import` property, which supersedes the older `bootstrap.yml`-based mechanism:
 
 ```properties
 # payment-service application.properties (or bootstrap)
@@ -927,9 +1445,20 @@ spring.cloud.config.fail-fast=true
 spring.cloud.config.retry.max-attempts=6
 ```
 
-`fail-fast=true` combined with retry settings is a deliberate choice worth calling out: on startup, if the Config Server is unreachable, do you want `payment-service` to start anyway with whatever local defaults it has baked in, or refuse to start at all? For most values that's a judgment call, but for something like a fraud-check timeout or a transaction limit, starting with a stale or default value silently is far more dangerous in a payments context than failing the health check and blocking the rollout — so `fail-fast` plus a bounded retry is the common production choice: try hard to get real config, and if you genuinely can't, don't come up in an unknown state.
+`fail-fast=true` combined with retry settings is a deliberate choice worth calling out: on startup,
+if the Config Server is unreachable, do you want `payment-service` to start anyway with whatever
+local defaults it has baked in, or refuse to start at all? For most values that's a judgment call,
+but for something like a fraud-check timeout or a transaction limit, starting with a stale or
+default value silently is far more dangerous in a payments context than failing the health check and
+blocking the rollout — so `fail-fast` plus a bounded retry is the common production choice: try hard
+to get real config, and if you genuinely can't, don't come up in an unknown state.
 
-Externalized config alone only solves half the operational problem — the other half is picking up a *change* to config without redeploying. A plain `@Value`-injected field is read once at bean construction and frozen for the life of that bean; changing the underlying config source doesn't touch it. `@RefreshScope` solves this specifically: it marks a bean as one Spring should throw away and recreate — re-reading its `@Value` and `@ConfigurationProperties` bindings from scratch — when a refresh event fires, rather than one Spring should mutate in place.
+Externalized config alone only solves half the operational problem — the other half is picking up a
+*change* to config without redeploying. A plain `@Value`-injected field is read once at bean
+construction and frozen for the life of that bean; changing the underlying config source doesn't
+touch it. `@RefreshScope` solves this specifically: it marks a bean as one Spring should throw away
+and recreate — re-reading its `@Value` and `@ConfigurationProperties` bindings from scratch — when a
+refresh event fires, rather than one Spring should mutate in place.
 
 ```java
 @RefreshScope
@@ -945,7 +1474,15 @@ public class RateLimitProperties {
 }
 ```
 
-Hitting `POST /actuator/refresh` on a single instance re-creates that bean on that one instance, picking up whatever the Config Server now returns for `payment.rate-limit.requests-per-second`. That's fine for a demo or a single-instance dev environment, and it's genuinely how a lot of people first learn the mechanism — but it doesn't scale operationally: curling `/actuator/refresh` on every one of forty running `payment-service` pods, one at a time, by hand or via a script, is exactly the kind of manual, error-prone, easy-to-half-do operation you were trying to eliminate by centralizing config in the first place. The realistic production pattern is **Spring Cloud Bus**, which wires every service instance to a shared message broker (Kafka or RabbitMQ) and broadcasts a `RefreshRemoteApplicationEvent` to the whole fleet with one call:
+Hitting `POST /actuator/refresh` on a single instance re-creates that bean on that one instance,
+picking up whatever the Config Server now returns for `payment.rate-limit.requests-per-second`.
+That's fine for a demo or a single-instance dev environment, and it's genuinely how a lot of people
+first learn the mechanism — but it doesn't scale operationally: curling `/actuator/refresh` on every
+one of forty running `payment-service` pods, one at a time, by hand or via a script, is exactly the
+kind of manual, error-prone, easy-to-half-do operation you were trying to eliminate by centralizing
+config in the first place. The realistic production pattern is **Spring Cloud Bus**, which wires
+every service instance to a shared message broker (Kafka or RabbitMQ) and broadcasts a
+`RefreshRemoteApplicationEvent` to the whole fleet with one call:
 
 ```properties
 spring.cloud.bus.enabled=true
@@ -957,9 +1494,25 @@ spring.cloud.stream.kafka.binder.brokers=kafka-broker:9092
 curl -X POST http://payment-service-1:8080/actuator/busrefresh
 ```
 
-Every instance subscribed to the bus topic picks up the event and refreshes its own `@RefreshScope` beans locally — one API call, fleet-wide propagation, no per-pod scripting.
+Every instance subscribed to the bus topic picks up the event and refreshes its own `@RefreshScope`
+beans locally — one API call, fleet-wide propagation, no per-pod scripting.
 
-Be precise about what this mechanism does and doesn't give you, because this is exactly where interviewers probe for depth. `@RefreshScope` refreshes *bean state* — the values bound into `@Value` or `@ConfigurationProperties` fields on beans marked with the annotation. It does not re-run arbitrary code paths, doesn't retroactively change decisions already made for in-flight requests, and doesn't help at all for state that was captured into a local variable, a constant, or baked into a non-refresh-scoped singleton at startup — that state is simply stale until the process restarts. More importantly, this pattern is not a substitute for a real feature-flag system. Config Server and `@RefreshScope` are good at "externalize this environment-level setting and let it change without a redeploy" — a timeout, a rate limit, a base URL, a boolean toggle applied uniformly to every instance. They are the wrong tool for "roll this feature out to 5% of merchants, expand to 25% over the next hour, and let me kill it instantly if error rates spike for that cohort" — that's per-request, per-user, percentage-based, often A/B-test-integrated targeting, which is what dedicated feature-flag platforms (LaunchDarkly, Unleash, and similar) are actually built for, with SDKs designed for millisecond-latency per-request flag evaluation rather than a fleet-wide config refresh. A staff-level answer keeps these two tools clearly separated rather than trying to stretch Config Server into being a flagging system because it's already there.
+Be precise about what this mechanism does and doesn't give you, because this is exactly where
+interviewers probe for depth. `@RefreshScope` refreshes *bean state* — the values bound into
+`@Value` or `@ConfigurationProperties` fields on beans marked with the annotation. It does not re-
+run arbitrary code paths, doesn't retroactively change decisions already made for in-flight
+requests, and doesn't help at all for state that was captured into a local variable, a constant, or
+baked into a non-refresh-scoped singleton at startup — that state is simply stale until the process
+restarts. More importantly, this pattern is not a substitute for a real feature-flag system. Config
+Server and `@RefreshScope` are good at "externalize this environment-level setting and let it change
+without a redeploy" — a timeout, a rate limit, a base URL, a boolean toggle applied uniformly to
+every instance. They are the wrong tool for "roll this feature out to 5% of merchants, expand to 25%
+over the next hour, and let me kill it instantly if error rates spike for that cohort" — that's per-
+request, per-user, percentage-based, often A/B-test-integrated targeting, which is what dedicated
+feature-flag platforms (LaunchDarkly, Unleash, and similar) are actually built for, with SDKs
+designed for millisecond-latency per-request flag evaluation rather than a fleet-wide config
+refresh. A staff-level answer keeps these two tools clearly separated rather than trying to stretch
+Config Server into being a flagging system because it's already there.
 
 ### Interview Questions
 
@@ -979,7 +1532,11 @@ Be precise about what this mechanism does and doesn't give you, because this is 
 
 ## Topic 9 — Inter-Service Communication: RestTemplate/WebClient vs OpenFeign
 
-Once services need to call each other synchronously — `payment-service` fetching a merchant's risk tier from `merchant-service` mid-transaction, for instance, where the call has to complete before you can decide how to process the payment — Spring gives you three practical tools, and knowing when to reach for which one, and why the ecosystem moved between them, is a fair thing for an interviewer to probe.
+Once services need to call each other synchronously — `payment-service` fetching a merchant's risk
+tier from `merchant-service` mid-transaction, for instance, where the call has to complete before
+you can decide how to process the payment — Spring gives you three practical tools, and knowing when
+to reach for which one, and why the ecosystem moved between them, is a fair thing for an interviewer
+to probe.
 
 **`RestTemplate`** is the original, synchronous, blocking HTTP client that shipped with Spring for years and is what you'll find scattered through any Spring codebase older than roughly 2018. It's simple to use and easy to read, but it's officially in maintenance mode — Spring hasn't added new features to it since Spring 5, and the documentation explicitly points newcomers toward `WebClient` instead. It's worth knowing cold because you will encounter it in legacy code and in interview questions about "what's wrong with this code," but you shouldn't be reaching for it in anything new.
 
@@ -1063,7 +1620,15 @@ public class PaymentProcessor {
 }
 ```
 
-The `name = "merchant-service"` value is the same logical service name resolved through Spring Cloud LoadBalancer against the discovery client (Eureka, Consul, or Kubernetes DNS via a `ServiceInstanceListSupplier`) — Feign doesn't bypass discovery, it sits on top of it, resolving `merchant-service` to an actual healthy instance URI on every call the same way the gateway's `lb://` scheme does. The `fallback` attribute is Feign's integration point with resilience tooling: when `merchant-service` is unreachable or its circuit breaker (wired via Resilience4j — Topic 10) is open, Spring routes the call to `MerchantServiceClientFallback` instead of propagating the exception up into `processPayment`, letting the payment flow continue with a safe, explicit default instead of crashing on a downstream outage it has no control over.
+The `name = "merchant-service"` value is the same logical service name resolved through Spring Cloud
+LoadBalancer against the discovery client (Eureka, Consul, or Kubernetes DNS via a
+`ServiceInstanceListSupplier`) — Feign doesn't bypass discovery, it sits on top of it, resolving
+`merchant-service` to an actual healthy instance URI on every call the same way the gateway's
+`lb://` scheme does. The `fallback` attribute is Feign's integration point with resilience tooling:
+when `merchant-service` is unreachable or its circuit breaker (wired via Resilience4j — Topic 10) is
+open, Spring routes the call to `MerchantServiceClientFallback` instead of propagating the exception
+up into `processPayment`, letting the payment flow continue with a safe, explicit default instead of
+crashing on a downstream outage it has no control over.
 
 | | `RestTemplate` | `WebClient` | OpenFeign |
 |---|---|---|---|
@@ -1093,9 +1658,20 @@ The `name = "merchant-service"` value is the same logical service name resolved 
 
 ## Topic 10 — Resilience Patterns with Resilience4j
 
-You've almost certainly already studied circuit breakers, retries, bulkheads, rate limiters, and timeouts as system design concepts — why they exist, what cascading failure looks like without them, why a naive retry storm can turn a partial outage into a total one. This topic is deliberately not re-deriving that theory; it's the Spring-specific mechanics of Resilience4j, the library that actually implements these patterns in a JVM service, because "I understand circuit breakers conceptually" and "I can configure one correctly in a Spring Boot service and reason about how it interacts with three other annotations on the same method" are different, and the second is what a staff-level interview at a payments company is actually testing.
+You've almost certainly already studied circuit breakers, retries, bulkheads, rate limiters, and
+timeouts as system design concepts — why they exist, what cascading failure looks like without them,
+why a naive retry storm can turn a partial outage into a total one. This topic is deliberately not
+re-deriving that theory; it's the Spring-specific mechanics of Resilience4j, the library that
+actually implements these patterns in a JVM service, because "I understand circuit breakers
+conceptually" and "I can configure one correctly in a Spring Boot service and reason about how it
+interacts with three other annotations on the same method" are different, and the second is what a
+staff-level interview at a payments company is actually testing.
 
-Resilience4j is organized into independent modules, each with its own annotation, each of which can be applied to a method independently or stacked together. Here they are individually, each guarding a call to a downstream fraud-check service — a realistic dependency for a payment processing path, since fraud checks are exactly the kind of call that's business-critical but can't be allowed to take the whole payment pipeline down if it degrades.
+Resilience4j is organized into independent modules, each with its own annotation, each of which can
+be applied to a method independently or stacked together. Here they are individually, each guarding
+a call to a downstream fraud-check service — a realistic dependency for a payment processing path,
+since fraud checks are exactly the kind of call that's business-critical but can't be allowed to
+take the whole payment pipeline down if it degrades.
 
 ```java
 @Service
@@ -1132,7 +1708,16 @@ public FraudCheckResult checkTransactionBulkheaded(PaymentRequest request) { /* 
 public CompletableFuture<FraudCheckResult> checkTransactionTimeLimited(PaymentRequest request) { /* ... */ }
 ```
 
-The circuit breaker's job is to stop calling a downstream that's clearly failing, rather than letting every request pay the full cost of discovering that failure independently. It's a state machine with three states. **Closed** is the normal state — calls pass through to the real downstream, and Resilience4j tracks outcomes over a sliding window. **Open** is the tripped state — once the failure rate within that sliding window crosses `failureRateThreshold`, the breaker flips open and every call is short-circuited immediately to the fallback, without attempting the network call at all, for a fixed `waitDurationInOpenState`. **Half-open** is the probing state entered automatically after that wait duration elapses — the breaker lets a small number of calls through (`permittedNumberOfCallsInHalfOpenState`) to test whether the downstream has recovered; if enough of those succeed, it closes again, and if they fail, it reopens and waits again.
+The circuit breaker's job is to stop calling a downstream that's clearly failing, rather than
+letting every request pay the full cost of discovering that failure independently. It's a state
+machine with three states. **Closed** is the normal state — calls pass through to the real
+downstream, and Resilience4j tracks outcomes over a sliding window. **Open** is the tripped state —
+once the failure rate within that sliding window crosses `failureRateThreshold`, the breaker flips
+open and every call is short-circuited immediately to the fallback, without attempting the network
+call at all, for a fixed `waitDurationInOpenState`. **Half-open** is the probing state entered
+automatically after that wait duration elapses — the breaker lets a small number of calls through
+(`permittedNumberOfCallsInHalfOpenState`) to test whether the downstream has recovered; if enough of
+those succeed, it closes again, and if they fail, it reopens and waits again.
 
 ```yaml
 resilience4j:
@@ -1170,9 +1755,32 @@ resilience4j:
         timeout-duration: 800ms
 ```
 
-Externalizing these thresholds in YAML rather than hardcoding them into annotation attributes is the realistic production pattern for exactly the same reason Config Server exists (Topic 8): a `failureRateThreshold` or `waitDurationInOpenState` is a value operators need to tune based on live production behavior — often during an actual incident — without waiting on a code deploy. Annotation-only configuration (`@CircuitBreaker(name = "x")` with no matching YAML block falls back to library defaults) is fine for a prototype; a real payments service configures these instance-by-instance in YAML, and ideally through Spring Cloud Config so those thresholds are versioned and can be adjusted fleet-wide via a refresh event.
+Externalizing these thresholds in YAML rather than hardcoding them into annotation attributes is the
+realistic production pattern for exactly the same reason Config Server exists (Topic 8): a
+`failureRateThreshold` or `waitDurationInOpenState` is a value operators need to tune based on live
+production behavior — often during an actual incident — without waiting on a code deploy.
+Annotation-only configuration (`@CircuitBreaker(name = "x")` with no matching YAML block falls back
+to library defaults) is fine for a prototype; a real payments service configures these instance-by-
+instance in YAML, and ideally through Spring Cloud Config so those thresholds are versioned and can
+be adjusted fleet-wide via a refresh event.
 
-The `fallbackMethod` is where a genuinely payments-specific design question shows up, and it's a favorite for staff-level interviews because there's no universally correct answer — the correct answer depends on context, and demonstrating that you know *which* context matters is the actual signal. When the fraud-check service is unavailable, should `checkTransaction` **fail closed** — reject the payment outright, refusing to process anything it can't screen — or **fail open** — let the payment through, flagged for asynchronous review, so a fraud-check outage doesn't become a full payment-processing outage? The wrong answer is picking one policy and applying it globally. The right framing ties the decision to transaction risk tier: for a high-value transaction, a first-time payment instrument, or a merchant already flagged as elevated-risk, failing closed is very likely correct — the cost of wrongly blocking a legitimate high-risk transaction during a fraud-service outage is lower than the cost of letting a genuinely fraudulent one through unscreened. For a small, low-risk, repeat transaction from an established customer with a long clean history, failing open with the transaction queued for async post-hoc review is often the better trade — you keep the payment platform available for the overwhelming majority of low-risk traffic instead of taking a full outage because one screening dependency degraded, and you accept a small, bounded, reviewable risk on a narrow slice of traffic instead. Implementing this well means the fallback isn't a single static default but a function of the request's own risk attributes:
+The `fallbackMethod` is where a genuinely payments-specific design question shows up, and it's a
+favorite for staff-level interviews because there's no universally correct answer — the correct
+answer depends on context, and demonstrating that you know *which* context matters is the actual
+signal. When the fraud-check service is unavailable, should `checkTransaction` **fail closed** —
+reject the payment outright, refusing to process anything it can't screen — or **fail open** — let
+the payment through, flagged for asynchronous review, so a fraud-check outage doesn't become a full
+payment-processing outage? The wrong answer is picking one policy and applying it globally. The
+right framing ties the decision to transaction risk tier: for a high-value transaction, a first-time
+payment instrument, or a merchant already flagged as elevated-risk, failing closed is very likely
+correct — the cost of wrongly blocking a legitimate high-risk transaction during a fraud-service
+outage is lower than the cost of letting a genuinely fraudulent one through unscreened. For a small,
+low-risk, repeat transaction from an established customer with a long clean history, failing open
+with the transaction queued for async post-hoc review is often the better trade — you keep the
+payment platform available for the overwhelming majority of low-risk traffic instead of taking a
+full outage because one screening dependency degraded, and you accept a small, bounded, reviewable
+risk on a narrow slice of traffic instead. Implementing this well means the fallback isn't a single
+static default but a function of the request's own risk attributes:
 
 ```java
 public FraudCheckResult fraudCheckFallback(PaymentRequest request, Throwable t) {
@@ -1183,7 +1791,22 @@ public FraudCheckResult fraudCheckFallback(PaymentRequest request, Throwable t) 
 }
 ```
 
-The last genuinely tricky mechanical point, and a real gotcha even for engineers who've used Resilience4j for a while, is **composition order** when multiple annotations stack on one method. Resilience4j applies them in a fixed, specific nesting order regardless of the order you write the annotations in the source: `Retry` wraps `CircuitBreaker` wraps `RateLimiter` wraps `TimeLimiter` (with `Bulkhead` innermost of all, closest to the actual call). This ordering has real behavioral consequences. Because `Retry` is outermost, a retry attempt re-enters the circuit breaker on every attempt — meaning a request can trip the breaker across the course of its own retries, and once the breaker opens, subsequent retry attempts from that same logical call get short-circuited to the fallback immediately rather than each one blocking on a fresh network attempt. Because `TimeLimiter` is closer to the actual call than `CircuitBreaker`, a call that times out is what the circuit breaker sees and counts toward its failure rate — the breaker is reacting to the time-limited outcome, not to the raw, potentially much longer, underlying call duration. Get this backwards in your mental model — assume, say, that `CircuitBreaker` is outermost and shields `Retry` — and you'll mispredict exactly what a stack trace or a metrics dashboard shows you during an incident, which is precisely the kind of subtle-but-checkable knowledge a staff interview question is designed to surface.
+The last genuinely tricky mechanical point, and a real gotcha even for engineers who've used
+Resilience4j for a while, is **composition order** when multiple annotations stack on one method.
+Resilience4j applies them in a fixed, specific nesting order regardless of the order you write the
+annotations in the source: `Retry` wraps `CircuitBreaker` wraps `RateLimiter` wraps `TimeLimiter`
+(with `Bulkhead` innermost of all, closest to the actual call). This ordering has real behavioral
+consequences. Because `Retry` is outermost, a retry attempt re-enters the circuit breaker on every
+attempt — meaning a request can trip the breaker across the course of its own retries, and once the
+breaker opens, subsequent retry attempts from that same logical call get short-circuited to the
+fallback immediately rather than each one blocking on a fresh network attempt. Because `TimeLimiter`
+is closer to the actual call than `CircuitBreaker`, a call that times out is what the circuit
+breaker sees and counts toward its failure rate — the breaker is reacting to the time-limited
+outcome, not to the raw, potentially much longer, underlying call duration. Get this backwards in
+your mental model — assume, say, that `CircuitBreaker` is outermost and shields `Retry` — and you'll
+mispredict exactly what a stack trace or a metrics dashboard shows you during an incident, which is
+precisely the kind of subtle-but-checkable knowledge a staff interview question is designed to
+surface.
 
 ### Interview Questions
 
@@ -1205,9 +1828,24 @@ The last genuinely tricky mechanical point, and a real gotcha even for engineers
 
 ## Topic 11 — Microservices Decomposition Patterns in Practice
 
-Bounded contexts and service-boundary theory tell you where the seams in a domain *should* be; this topic is about the mechanics of actually getting there from a running system, in a Spring Boot codebase, without a big-bang rewrite that risks the platform's stability along the way — which, on a payments system processing live money movement, is simply not a risk most organizations can responsibly take.
+Bounded contexts and service-boundary theory tell you where the seams in a domain *should* be; this
+topic is about the mechanics of actually getting there from a running system, in a Spring Boot
+codebase, without a big-bang rewrite that risks the platform's stability along the way — which, on a
+payments system processing live money movement, is simply not a risk most organizations can
+responsibly take.
 
-The **Strangler Fig pattern** is the standard, low-risk way to migrate functionality out of a monolith into a new microservice incrementally. The name comes from the strangler fig vine, which grows around a host tree, gradually taking over its structural role, until eventually the original tree can be removed while the vine stands on its own — the migration equivalent is routing traffic for a specific piece of functionality to a new service while the monolith still handles everything else, then gradually expanding what the new service owns until the monolith's corresponding code path is provably dead and can be deleted. Concretely: say a legacy monolithic `PaymentPlatform` application currently handles refunds inline as part of its own codebase, at `/api/v1/refunds`. You stand up a new, purpose-built `refund-service`, and instead of cutting every client over to it at once, you change the API Gateway's routing rule (Topic 7) so that only `/api/v1/refunds/**` traffic is routed to `refund-service`, while every other path — `/api/v1/payments`, `/api/v1/merchants`, everything else — continues to route to the monolith exactly as before.
+The **Strangler Fig pattern** is the standard, low-risk way to migrate functionality out of a
+monolith into a new microservice incrementally. The name comes from the strangler fig vine, which
+grows around a host tree, gradually taking over its structural role, until eventually the original
+tree can be removed while the vine stands on its own — the migration equivalent is routing traffic
+for a specific piece of functionality to a new service while the monolith still handles everything
+else, then gradually expanding what the new service owns until the monolith's corresponding code
+path is provably dead and can be deleted. Concretely: say a legacy monolithic `PaymentPlatform`
+application currently handles refunds inline as part of its own codebase, at `/api/v1/refunds`. You
+stand up a new, purpose-built `refund-service`, and instead of cutting every client over to it at
+once, you change the API Gateway's routing rule (Topic 7) so that only `/api/v1/refunds/**` traffic
+is routed to `refund-service`, while every other path — `/api/v1/payments`, `/api/v1/merchants`,
+everything else — continues to route to the monolith exactly as before.
 
 ```yaml
 spring:
@@ -1227,13 +1865,54 @@ spring:
           # everything not yet extracted still hits the monolith
 ```
 
-Route ordering and predicate specificity matter here — the more specific `refunds` route has to be evaluated and matched before the broad monolith catch-all, or every refund request falls through to the old code path regardless of intent. Once `refund-service` has run in production carrying real traffic for a meaningful bake-in period — verified against the monolith's prior behavior, ideally with a period of shadow traffic or a canary rollout where a small percentage of refund traffic goes to the new service while the rest still hits the monolith, so you can compare outcomes before fully committing — only then does the monolith's own refund code path get deleted. The discipline that makes this pattern work, and the thing worth stating explicitly in an interview, is that the old code is never deleted *before* the new service has been proven live under real traffic; the temptation to delete it early "since we're migrating anyway" is exactly what turns a strangler migration into a risky big-bang cutover wearing a strangler-fig costume. Doing this well typically also means the monolith and the new service share the same underlying data for a transitional period — either the new service reads from the monolith's database directly during the earliest phase (a pragmatic, temporary exception to database-per-service, explicitly called out as technical debt with a removal plan) or, more cleanly, the monolith publishes refund-related events that `refund-service` consumes to build its own local view, so the new service is source-of-truth-correct even before the monolith's write path is fully retired.
+Route ordering and predicate specificity matter here — the more specific `refunds` route has to be
+evaluated and matched before the broad monolith catch-all, or every refund request falls through to
+the old code path regardless of intent. Once `refund-service` has run in production carrying real
+traffic for a meaningful bake-in period — verified against the monolith's prior behavior, ideally
+with a period of shadow traffic or a canary rollout where a small percentage of refund traffic goes
+to the new service while the rest still hits the monolith, so you can compare outcomes before fully
+committing — only then does the monolith's own refund code path get deleted. The discipline that
+makes this pattern work, and the thing worth stating explicitly in an interview, is that the old
+code is never deleted *before* the new service has been proven live under real traffic; the
+temptation to delete it early "since we're migrating anyway" is exactly what turns a strangler
+migration into a risky big-bang cutover wearing a strangler-fig costume. Doing this well typically
+also means the monolith and the new service share the same underlying data for a transitional period
+— either the new service reads from the monolith's database directly during the earliest phase (a
+pragmatic, temporary exception to database-per-service, explicitly called out as technical debt with
+a removal plan) or, more cleanly, the monolith publishes refund-related events that `refund-service`
+consumes to build its own local view, so the new service is source-of-truth-correct even before the
+monolith's write path is fully retired.
 
-The **Sidecar pattern** is worth knowing exists even if your current stack doesn't use one, because it's a common interview topic for candidates whose experience is Spring-Cloud-centric and who haven't necessarily worked in a service-mesh environment. Instead of every service implementing cross-cutting concerns — mutual TLS, request retries, circuit breaking, distributed tracing, metrics collection — in its own application code (which is essentially what Resilience4j and Spring Cloud Gateway are doing, in-process, in everything covered so far in this document), a sidecar runs those concerns as a separate, co-located process alongside the main service container, typically as a second container in the same Kubernetes pod, intercepting the service's network traffic transparently. Istio, built on the Envoy proxy, is the canonical example: each pod gets an Envoy sidecar that handles mTLS between services, retry and circuit-breaking policy, and telemetry, all configured centrally through the mesh's control plane rather than through library dependencies and annotations inside each service's own code. The trade-off versus the Resilience4j/Spring Cloud Gateway approach covered in this document is real and worth naming directly: a service mesh centralizes resilience and security policy outside application code, which is powerful for a polyglot fleet (a Go service and a Java service get the same mTLS and retry behavior for free, with zero code in either) and for consistency at scale, but it adds real operational complexity — another control plane to run, understand, and debug, and a layer where "why did this call fail" now has to be diagnosed partly outside your own application's logs and metrics. Most Spring-centric shops get a long way with in-process Resilience4j and gateway-level policy before the case for a full mesh becomes compelling; a mesh tends to earn its cost once the fleet is genuinely polyglot or once security requirements (mandatory mTLS everywhere, enforced independent of any given service remembering to configure it) outgrow what's practical to enforce per-service.
+The **Sidecar pattern** is worth knowing exists even if your current stack doesn't use one, because
+it's a common interview topic for candidates whose experience is Spring-Cloud-centric and who
+haven't necessarily worked in a service-mesh environment. Instead of every service implementing
+cross-cutting concerns — mutual TLS, request retries, circuit breaking, distributed tracing, metrics
+collection — in its own application code (which is essentially what Resilience4j and Spring Cloud
+Gateway are doing, in-process, in everything covered so far in this document), a sidecar runs those
+concerns as a separate, co-located process alongside the main service container, typically as a
+second container in the same Kubernetes pod, intercepting the service's network traffic
+transparently. Istio, built on the Envoy proxy, is the canonical example: each pod gets an Envoy
+sidecar that handles mTLS between services, retry and circuit-breaking policy, and telemetry, all
+configured centrally through the mesh's control plane rather than through library dependencies and
+annotations inside each service's own code. The trade-off versus the Resilience4j/Spring Cloud
+Gateway approach covered in this document is real and worth naming directly: a service mesh
+centralizes resilience and security policy outside application code, which is powerful for a
+polyglot fleet (a Go service and a Java service get the same mTLS and retry behavior for free, with
+zero code in either) and for consistency at scale, but it adds real operational complexity — another
+control plane to run, understand, and debug, and a layer where "why did this call fail" now has to
+be diagnosed partly outside your own application's logs and metrics. Most Spring-centric shops get a
+long way with in-process Resilience4j and gateway-level policy before the case for a full mesh
+becomes compelling; a mesh tends to earn its cost once the fleet is genuinely polyglot or once
+security requirements (mandatory mTLS everywhere, enforced independent of any given service
+remembering to configure it) outgrow what's practical to enforce per-service.
 
 **Database-per-service** is the principle that each microservice owns its own datasource and schema exclusively — no other service is permitted to connect to it, query its tables, or share a JDBC connection pool against it, even read-only, even "just this once." In a Spring Data context this has a very concrete implication: `payment-service` gets its own `spring.datasource.url` pointing at a database or schema that only `payment-service`'s own `@Repository`/`JpaRepository` beans ever touch; `merchant-service` has a completely separate one. The point isn't paranoia for its own sake — it's what actually makes independent deployability real. If `merchant-service` reaches directly into `payment-service`'s `payments` table for a report, then `payment-service` can no longer freely change that table's schema (add a column, split a table, change a type) without coordinating a simultaneous deploy with `merchant-service`, which is precisely the tight coupling microservices were supposed to eliminate — you've just moved the coupling from a shared JVM classpath to a shared database schema, which is arguably worse, since a shared schema has no compiler to catch the breakage at build time.
 
-The genuinely hard part, and the part every candidate who's touched a real decomposition project has opinions about, is what happens to the SQL `JOIN` that used to be trivial inside the monolith. If `payment-service` needs merchant name and risk tier alongside a payment record — data that now lives in `merchant-service`'s own database — that join has to become one of three things, each with a real trade-off, not a free lunch:
+The genuinely hard part, and the part every candidate who's touched a real decomposition project has
+opinions about, is what happens to the SQL `JOIN` that used to be trivial inside the monolith. If
+`payment-service` needs merchant name and risk tier alongside a payment record — data that now lives
+in `merchant-service`'s own database — that join has to become one of three things, each with a real
+trade-off, not a free lunch:
 
 | Approach | How it works | Latency/consistency trade-off | Best fit |
 |---|---|---|---|
@@ -1241,9 +1920,28 @@ The genuinely hard part, and the part every candidate who's touched a real decom
 | Data replication / CDC-based local read replica | `merchant-service`'s changes stream via Debezium/CDC into a denormalized local table inside `payment-service`'s own database | No runtime dependency on `merchant-service` being up; data is eventually consistent, with a small, usually sub-second replication lag | High-read, latency-sensitive paths where a brief staleness window is acceptable and an extra network hop per request isn't |
 | Event-driven denormalization | `merchant-service` publishes domain events (`MerchantRiskTierChanged`) to Kafka; `payment-service` consumes them and maintains its own local, purpose-shaped projection | Same eventual-consistency trade-off as CDC, but the contract is an explicit, versioned domain event rather than a raw table-shape capture, which is more stable across `merchant-service`'s internal refactors | Same use case as CDC, preferred when you want an explicit event contract decoupled from `merchant-service`'s internal schema, consistent with the event-driven and Kafka Streams patterns already covered for cross-service data flow |
 
-This is the direct application of the CDC and event-streaming material already covered for cross-service data flow — the same "avoid a synchronous dependency on the critical path by maintaining a local, continuously-updated projection" idea that shows up in stream-processing contexts generally applies here as the standard way to avoid turning every cross-service data need into a brittle web of synchronous calls.
+This is the direct application of the CDC and event-streaming material already covered for cross-
+service data flow — the same "avoid a synchronous dependency on the critical path by maintaining a
+local, continuously-updated projection" idea that shows up in stream-processing contexts generally
+applies here as the standard way to avoid turning every cross-service data need into a brittle web
+of synchronous calls.
 
-Finally, "how do you know when to split a service" deserves an honest, non-mechanical answer, because the mechanical ones — a line-count threshold, "more than N endpoints," "more than N tables" — are all wrong in ways that show up quickly in practice. A 3,000-line module that's owned by one team, changes coherently as a unit, deploys on its own schedule without waiting on unrelated work, and has a stable, narrow interface to the rest of the system can be a perfectly good monolithic module that doesn't need to be a separate service — splitting it would just add network calls and operational overhead without buying anything. The signal that's actually worth splitting on is a mismatch between team ownership and deployment boundaries: when a piece of functionality is owned (in practice, day-to-day) by a team that can't ship a change to it without coordinating a deploy with other teams' unrelated work landing in the same artifact, when its release cadence is being throttled by code that has nothing to do with it, or when its scaling profile is different enough from the rest of the monolith that it's forcing the whole application to be over-provisioned to handle one hot path — those are the conditions where extracting a service buys real independent deployability. Team topology and change frequency are the honest heuristics; a services-per-line-of-code target is a proxy that's easy to game and easy to apply to the wrong boundary, splitting along a seam that's structurally convenient rather than organizationally or operationally meaningful.
+Finally, "how do you know when to split a service" deserves an honest, non-mechanical answer,
+because the mechanical ones — a line-count threshold, "more than N endpoints," "more than N tables"
+— are all wrong in ways that show up quickly in practice. A 3,000-line module that's owned by one
+team, changes coherently as a unit, deploys on its own schedule without waiting on unrelated work,
+and has a stable, narrow interface to the rest of the system can be a perfectly good monolithic
+module that doesn't need to be a separate service — splitting it would just add network calls and
+operational overhead without buying anything. The signal that's actually worth splitting on is a
+mismatch between team ownership and deployment boundaries: when a piece of functionality is owned
+(in practice, day-to-day) by a team that can't ship a change to it without coordinating a deploy
+with other teams' unrelated work landing in the same artifact, when its release cadence is being
+throttled by code that has nothing to do with it, or when its scaling profile is different enough
+from the rest of the monolith that it's forcing the whole application to be over-provisioned to
+handle one hot path — those are the conditions where extracting a service buys real independent
+deployability. Team topology and change frequency are the honest heuristics; a services-per-line-of-
+code target is a proxy that's easy to game and easy to apply to the wrong boundary, splitting along
+a seam that's structurally convenient rather than organizationally or operationally meaningful.
 
 ### Interview Questions
 
@@ -1265,7 +1963,20 @@ Finally, "how do you know when to split a service" deserves an honest, non-mecha
 
 ## Topic 12 — Spring Boot Actuator & Production Readiness
 
-Actuator is the operational skin Spring Boot puts over your application: a set of built-in HTTP endpoints (and JMX beans, if you still live in that world) that expose what a running instance is doing without you writing a line of monitoring code. Add `spring-boot-starter-actuator` to a `payment-service` and you get `/actuator/health` for a rollup of dependency and application health, `/actuator/metrics` for every Micrometer meter the app has registered (JVM memory, GC pauses, HTTP request latencies, thread pool utilization), `/actuator/info` for build and git metadata you can wire into your CI pipeline, `/actuator/env` for a dump of every property source and its resolved value (including where it came from, which is invaluable when someone swears they set `PAYMENT_GATEWAY_TIMEOUT_MS=5000` and the app is clearly still using the default), and `/actuator/loggers`, which is the one senior engineers actually reach for at 2am — it lets you `POST` a new log level to a specific logger package on a *running* instance, no redeploy, no restart. If `com.acme.payment.gateway` is misbehaving in production and you need `DEBUG`-level request/response logging to see what the gateway is actually sending back, you don't cut a release, you hit the endpoint:
+Actuator is the operational skin Spring Boot puts over your application: a set of built-in HTTP
+endpoints (and JMX beans, if you still live in that world) that expose what a running instance is
+doing without you writing a line of monitoring code. Add `spring-boot-starter-actuator` to a
+`payment-service` and you get `/actuator/health` for a rollup of dependency and application health,
+`/actuator/metrics` for every Micrometer meter the app has registered (JVM memory, GC pauses, HTTP
+request latencies, thread pool utilization), `/actuator/info` for build and git metadata you can
+wire into your CI pipeline, `/actuator/env` for a dump of every property source and its resolved
+value (including where it came from, which is invaluable when someone swears they set
+`PAYMENT_GATEWAY_TIMEOUT_MS=5000` and the app is clearly still using the default), and
+`/actuator/loggers`, which is the one senior engineers actually reach for at 2am — it lets you
+`POST` a new log level to a specific logger package on a *running* instance, no redeploy, no
+restart. If `com.acme.payment.gateway` is misbehaving in production and you need `DEBUG`-level
+request/response logging to see what the gateway is actually sending back, you don't cut a release,
+you hit the endpoint:
 
 ```bash
 curl -X POST https://payment-service.internal:8081/actuator/loggers/com.acme.payment.gateway \
@@ -1273,13 +1984,33 @@ curl -X POST https://payment-service.internal:8081/actuator/loggers/com.acme.pay
   -d '{"configuredLevel": "DEBUG"}'
 ```
 
-and dial it back the same way once you've captured what you need. That single endpoint has probably saved more incident-response time than any dashboard, because it collapses "reproduce in a lower environment, add logging, redeploy, wait, reproduce again" into thirty seconds against the actual misbehaving instance.
+and dial it back the same way once you've captured what you need. That single endpoint has probably
+saved more incident-response time than any dashboard, because it collapses "reproduce in a lower
+environment, add logging, redeploy, wait, reproduce again" into thirty seconds against the actual
+misbehaving instance.
 
-The piece that trips people up conceptually — and that Kubernetes makes you get right or it will actively fight you — is the split between **liveness** and **readiness**. They sound like synonyms and they are not. Liveness answers "is this process fundamentally broken in a way that only a restart fixes" — a deadlocked thread pool, an unrecoverable out-of-memory condition, a stuck event loop. Readiness answers a completely different question: "is this process healthy but not currently able to serve traffic" — still populating a local cache from a startup query, still waiting for a connection pool to warm up, or, mid-request-storm, deliberately shedding load because a downstream dependency is degraded. Spring Boot exposes these as two separate groups automatically when it detects it's running under Kubernetes: `/actuator/health/liveness` and `/actuator/health/readiness`. The reason this split exists, and the reason getting it wrong is a classic production incident, is entirely about what each probe *causes* Kubernetes to do. A failing liveness probe gets the pod killed and restarted. A failing readiness probe just gets the pod pulled out of the Service's endpoint list — no traffic routed to it — while the process keeps running and is left alone to finish whatever it's doing.
+The piece that trips people up conceptually — and that Kubernetes makes you get right or it will
+actively fight you — is the split between **liveness** and **readiness**. They sound like synonyms
+and they are not. Liveness answers "is this process fundamentally broken in a way that only a
+restart fixes" — a deadlocked thread pool, an unrecoverable out-of-memory condition, a stuck event
+loop. Readiness answers a completely different question: "is this process healthy but not currently
+able to serve traffic" — still populating a local cache from a startup query, still waiting for a
+connection pool to warm up, or, mid-request-storm, deliberately shedding load because a downstream
+dependency is degraded. Spring Boot exposes these as two separate groups automatically when it
+detects it's running under Kubernetes: `/actuator/health/liveness` and `/actuator/health/readiness`.
+The reason this split exists, and the reason getting it wrong is a classic production incident, is
+entirely about what each probe *causes* Kubernetes to do. A failing liveness probe gets the pod
+killed and restarted. A failing readiness probe just gets the pod pulled out of the Service's
+endpoint list — no traffic routed to it — while the process keeps running and is left alone to
+finish whatever it's doing.
 
 **Staff Engineer scenario:** Your `ledger-service` deploys fine in staging but in production, under real load, new pods keep crash-looping during rollout — `CrashLoopBackOff` in `kubectl get pods`, and each restart makes things marginally worse because now you have even fewer healthy pods absorbing the same traffic. Investigation shows the pod's startup sequence does a full reconciliation read against a read-replica to warm an in-memory balance cache, and under production data volume that takes 40–60 seconds — comfortably fine in staging where the dataset is tiny. The Deployment YAML, copied from a template, has liveness and readiness pointed at the *same* endpoint with the *same* short `initialDelaySeconds`. Kubernetes calls that endpoint, gets a non-200 because the cache warm-up isn't done, and because it's wired as the liveness probe, kills the pod — which restarts, begins warming the cache again, gets killed again, forever. The fix isn't a code change to the health check logic at all; it's separating the two probes properly: liveness should just answer "is the JVM up and the main event loop responsive" (nearly always true during a slow startup), while readiness should reflect "is the cache warm and are downstreams reachable," with a longer `initialDelaySeconds`/`failureThreshold` budget that tolerates a legitimately slow but healthy startup. This is precisely the failure mode the liveness/readiness split exists to prevent, and it's a very common thing for an interviewer to hand you as a "here's a symptom, find the root cause" exercise.
 
-Out of the box, Actuator's aggregate health status is a boolean-ish rollup — UP if every registered `HealthIndicator` reports UP, DOWN if any of them does — which is exactly the wrong default for anything beyond a toy service, because it means any dependency you wire a health check to for visibility can, by design, take your service out of rotation. Writing a custom indicator is straightforward:
+Out of the box, Actuator's aggregate health status is a boolean-ish rollup — UP if every registered
+`HealthIndicator` reports UP, DOWN if any of them does — which is exactly the wrong default for
+anything beyond a toy service, because it means any dependency you wire a health check to for
+visibility can, by design, take your service out of rotation. Writing a custom indicator is
+straightforward:
 
 ```java
 @Component
@@ -1312,7 +2043,21 @@ public class DownstreamPaymentGatewayHealthIndicator implements HealthIndicator 
 }
 ```
 
-The design question that separates a junior implementation from a senior one is: should this indicator's DOWN status flip the whole service's *readiness*, pulling `payment-service` out of the load balancer entirely, or should it just be visible in the `/actuator/health` details for dashboards and alerting without affecting whether traffic keeps flowing? The answer depends entirely on whether the dependency is on the critical path for the requests this service serves. If `payment-service` literally cannot authorize a payment without the gateway, DOWN-on-gateway-unreachable failing readiness is arguably correct — you'd rather shed the pod and let requests queue or fail fast than accept traffic you can't fulfill. But if the same service also exposes a read-only "view transaction history" endpoint that doesn't touch the gateway at all, failing readiness for the entire pod because one downstream is flaky is an over-aggressive health check that turns one dependency's partial outage into your own total outage — and worse, if every instance of `payment-service` does this simultaneously, you've just taken your whole fleet out of rotation because of someone else's incident, which is the textbook cascading-failure anti-pattern. Spring Boot lets you control this explicitly: register the indicator under a named group and decide per-group whether it participates in readiness:
+The design question that separates a junior implementation from a senior one is: should this
+indicator's DOWN status flip the whole service's *readiness*, pulling `payment-service` out of the
+load balancer entirely, or should it just be visible in the `/actuator/health` details for
+dashboards and alerting without affecting whether traffic keeps flowing? The answer depends entirely
+on whether the dependency is on the critical path for the requests this service serves. If `payment-
+service` literally cannot authorize a payment without the gateway, DOWN-on-gateway-unreachable
+failing readiness is arguably correct — you'd rather shed the pod and let requests queue or fail
+fast than accept traffic you can't fulfill. But if the same service also exposes a read-only "view
+transaction history" endpoint that doesn't touch the gateway at all, failing readiness for the
+entire pod because one downstream is flaky is an over-aggressive health check that turns one
+dependency's partial outage into your own total outage — and worse, if every instance of `payment-
+service` does this simultaneously, you've just taken your whole fleet out of rotation because of
+someone else's incident, which is the textbook cascading-failure anti-pattern. Spring Boot lets you
+control this explicitly: register the indicator under a named group and decide per-group whether it
+participates in readiness:
 
 ```yaml
 management:
@@ -1324,9 +2069,22 @@ management:
           include: readinessState,downstreamPaymentGateway
 ```
 
-or, more conservatively for a genuinely non-critical dependency, leave it out of the `readiness` group entirely and let it only surface in the general `/actuator/health` payload and your metrics/alerting pipeline — visible to humans, invisible to the Kubernetes controller deciding whether to route traffic.
+or, more conservatively for a genuinely non-critical dependency, leave it out of the `readiness`
+group entirely and let it only surface in the general `/actuator/health` payload and your
+metrics/alerting pipeline — visible to humans, invisible to the Kubernetes controller deciding
+whether to route traffic.
 
-The other half of "production readiness" is security, and this is the part that shows up in real breach post-mortems, not hypotheticals: Actuator endpoints left on their defaults and exposed on the same port as the application, unauthenticated, on the public internet. `/actuator/env` dumps every resolved property, which very often includes database credentials or API keys sourced from environment variables (Spring does mask common credential-looking property names, but that masking is heuristic, not a guarantee). `/actuator/heapdump` will hand out an actual heap dump of the running JVM — which can contain live objects holding decrypted card data, session tokens, or PII sitting in memory at the moment of capture. `/actuator/shutdown`, if enabled, will let anyone who can reach it kill your process. The fix has two independent layers, and a senior engineer should reach for both, not either: first, run Actuator on a **separate management port** that isn't exposed by the same ingress/load balancer as your application traffic —
+The other half of "production readiness" is security, and this is the part that shows up in real
+breach post-mortems, not hypotheticals: Actuator endpoints left on their defaults and exposed on the
+same port as the application, unauthenticated, on the public internet. `/actuator/env` dumps every
+resolved property, which very often includes database credentials or API keys sourced from
+environment variables (Spring does mask common credential-looking property names, but that masking
+is heuristic, not a guarantee). `/actuator/heapdump` will hand out an actual heap dump of the
+running JVM — which can contain live objects holding decrypted card data, session tokens, or PII
+sitting in memory at the moment of capture. `/actuator/shutdown`, if enabled, will let anyone who
+can reach it kill your process. The fix has two independent layers, and a senior engineer should
+reach for both, not either: first, run Actuator on a **separate management port** that isn't exposed
+by the same ingress/load balancer as your application traffic —
 
 ```yaml
 management:
@@ -1338,7 +2096,17 @@ management:
         include: health,info,metrics,loggers
 ```
 
-— so even if someone misconfigures the ingress, the sensitive endpoints simply aren't routable from outside the cluster. Second, and independently, put real authentication and authorization in front of whatever *is* exposed, using the same `SecurityFilterChain` mechanism covered in Topic 14, scoping `/actuator/**` to an `ADMIN` authority and leaving only `/actuator/health` open for the Kubernetes probes to hit unauthenticated (since the kubelet isn't carrying a bearer token). Relying on network topology alone is fragile — cloud misconfigurations, a stray public load balancer rule, or a debugging session where someone temporarily exposes a port are all real ways that "it's on an internal port" stops being true; relying on authentication alone means a compromised internal network segment still gets you nothing. Defense in depth here is not a platitude, it's the actual difference between an internal debugging convenience and a CVE writeup with your company's name in the title.
+— so even if someone misconfigures the ingress, the sensitive endpoints simply aren't routable from
+outside the cluster. Second, and independently, put real authentication and authorization in front
+of whatever *is* exposed, using the same `SecurityFilterChain` mechanism covered in Topic 14,
+scoping `/actuator/**` to an `ADMIN` authority and leaving only `/actuator/health` open for the
+Kubernetes probes to hit unauthenticated (since the kubelet isn't carrying a bearer token). Relying
+on network topology alone is fragile — cloud misconfigurations, a stray public load balancer rule,
+or a debugging session where someone temporarily exposes a port are all real ways that "it's on an
+internal port" stops being true; relying on authentication alone means a compromised internal
+network segment still gets you nothing. Defense in depth here is not a platitude, it's the actual
+difference between an internal debugging convenience and a CVE writeup with your company's name in
+the title.
 
 ### Interview Questions
 
@@ -1358,9 +2126,25 @@ management:
 
 ## Topic 13 — Observability: Metrics, Tracing, and Structured Logging
 
-Once a payment platform is more than a couple of services, "is it working" stops being answerable by staring at one application's logs and becomes a distributed-systems question, which is exactly the gap Micrometer, distributed tracing, and structured logging exist to close. Micrometer is Spring Boot's metrics facade — think SLF4J, but for metrics instead of logs. Your application code instruments against Micrometer's vendor-neutral API (`Counter`, `Gauge`, `Timer`, `DistributionSummary`), and which backend those numbers actually land in — Prometheus, Datadog, CloudWatch, New Relic — is a matter of which `MeterRegistry` implementation is on the classpath and configured, with zero changes to instrumentation code. This matters operationally more than it sounds: a platform team can migrate from self-hosted Prometheus to a managed observability vendor, or run both in parallel during a migration, without touching a single `@Timed` annotation or `Counter.builder()` call in `payment-service`.
+Once a payment platform is more than a couple of services, "is it working" stops being answerable by
+staring at one application's logs and becomes a distributed-systems question, which is exactly the
+gap Micrometer, distributed tracing, and structured logging exist to close. Micrometer is Spring
+Boot's metrics facade — think SLF4J, but for metrics instead of logs. Your application code
+instruments against Micrometer's vendor-neutral API (`Counter`, `Gauge`, `Timer`,
+`DistributionSummary`), and which backend those numbers actually land in — Prometheus, Datadog,
+CloudWatch, New Relic — is a matter of which `MeterRegistry` implementation is on the classpath and
+configured, with zero changes to instrumentation code. This matters operationally more than it
+sounds: a platform team can migrate from self-hosted Prometheus to a managed observability vendor,
+or run both in parallel during a migration, without touching a single `@Timed` annotation or
+`Counter.builder()` call in `payment-service`.
 
-The three meter types map to genuinely different questions. A `Counter` only ever goes up and answers "how many of these happened" — total payments processed since startup. A `Gauge` reports a point-in-time value that can go up or down — current size of the retry queue, number of open connections in the pool. A `Timer` (or `DistributionSummary` for non-time measurements) captures both a count and a distribution of durations — not just "how many payments processed" but "what does the latency distribution of processing them look like," which is what lets you report p50/p95/p99, not just an average that hides your worst-case tail. A worked instrumentation of payment processing:
+The three meter types map to genuinely different questions. A `Counter` only ever goes up and
+answers "how many of these happened" — total payments processed since startup. A `Gauge` reports a
+point-in-time value that can go up or down — current size of the retry queue, number of open
+connections in the pool. A `Timer` (or `DistributionSummary` for non-time measurements) captures
+both a count and a distribution of durations — not just "how many payments processed" but "what does
+the latency distribution of processing them look like," which is what lets you report p50/p95/p99,
+not just an average that hides your worst-case tail. A worked instrumentation of payment processing:
 
 ```java
 @Service
@@ -1401,11 +2185,40 @@ public class PaymentProcessingService {
 }
 ```
 
-`payment.processed` tagged by `status` and `merchantTier` lets you build a dashboard panel for "failure rate by merchant tier over time" directly out of the metrics backend, no log-scraping required, and `payment.processing.duration` with `publishPercentileHistogram()` gives you real p99 latency, not a misleading average across a heavily skewed distribution.
+`payment.processed` tagged by `status` and `merchantTier` lets you build a dashboard panel for
+"failure rate by merchant tier over time" directly out of the metrics backend, no log-scraping
+required, and `payment.processing.duration` with `publishPercentileHistogram()` gives you real p99
+latency, not a misleading average across a heavily skewed distribution.
 
-The tag choice — `merchantTier` rather than raw `merchantId`, and definitely not `customerId` — is not a stylistic preference, it's the difference between a metrics bill you can predict and one that blows up unannounced. This is **cardinality**, and it is one of the most common production gotchas in metrics instrumentation: every unique combination of tag values creates a distinct time series that the backend has to store and index. `status` (two values) times `merchantTier` (maybe four tiers) is eight time series — trivial. `status` times raw `customerId` on a platform with millions of customers is potentially millions of time series for a single metric, and most Prometheus-compatible backends will either silently drop data, blow past a cardinality limit and start rejecting scrapes, or generate a bill that gets a Slack message from finance. The fix isn't "don't tag by anything interesting," it's "tag by bounded dimensions" — merchant tier, region, payment method type, error category — and push genuinely high-cardinality identifiers like `customerId` or `paymentId` into structured logs and trace attributes instead, where they belong as searchable context rather than as metric-series keys.
+The tag choice — `merchantTier` rather than raw `merchantId`, and definitely not `customerId` — is
+not a stylistic preference, it's the difference between a metrics bill you can predict and one that
+blows up unannounced. This is **cardinality**, and it is one of the most common production gotchas
+in metrics instrumentation: every unique combination of tag values creates a distinct time series
+that the backend has to store and index. `status` (two values) times `merchantTier` (maybe four
+tiers) is eight time series — trivial. `status` times raw `customerId` on a platform with millions
+of customers is potentially millions of time series for a single metric, and most Prometheus-
+compatible backends will either silently drop data, blow past a cardinality limit and start
+rejecting scrapes, or generate a bill that gets a Slack message from finance. The fix isn't "don't
+tag by anything interesting," it's "tag by bounded dimensions" — merchant tier, region, payment
+method type, error category — and push genuinely high-cardinality identifiers like `customerId` or
+`paymentId` into structured logs and trace attributes instead, where they belong as searchable
+context rather than as metric-series keys.
 
-Metrics tell you *that* something is slow or failing in aggregate; distributed tracing tells you *where in a specific request* the time went. Micrometer Tracing is Spring Boot 3's replacement for the now-EOL Spring Cloud Sleuth, and it does the same conceptual job: it generates a trace ID for an incoming request and propagates it, along with a span ID per hop, across service boundaries via HTTP headers (or Kafka headers, per kafka-deep-dive.md's coverage of header propagation in event-driven flows), so the same trace ID shows up in every service's logs and in a tracing backend like Zipkin or Jaeger. Consider a UPI payment flowing through `api-gateway` → `payment-service` → `fraud-service` → `ledger-service`: with tracing wired up, a single request generates one trace ID at the gateway, and each hop creates a child span under it — `fraud-service`'s span nested under `payment-service`'s, `ledger-service`'s span nested under that. In Zipkin's waterfall view, an engineer investigating a customer complaint about a slow payment doesn't grep four services' logs by timestamp and guess at correlation; they search by trace ID (or by request attributes, if the backend supports it) and see one visual bar chart: gateway 12ms, payment-service 40ms, fraud-service 380ms, ledger-service 18ms — immediately pointing at `fraud-service` as the hop that ate the latency budget, without a single log line read.
+Metrics tell you *that* something is slow or failing in aggregate; distributed tracing tells you
+*where in a specific request* the time went. Micrometer Tracing is Spring Boot 3's replacement for
+the now-EOL Spring Cloud Sleuth, and it does the same conceptual job: it generates a trace ID for an
+incoming request and propagates it, along with a span ID per hop, across service boundaries via HTTP
+headers (or Kafka headers, per kafka-deep-dive.md's coverage of header propagation in event-driven
+flows), so the same trace ID shows up in every service's logs and in a tracing backend like Zipkin
+or Jaeger. Consider a UPI payment flowing through `api-gateway` → `payment-service` → `fraud-
+service` → `ledger-service`: with tracing wired up, a single request generates one trace ID at the
+gateway, and each hop creates a child span under it — `fraud-service`'s span nested under `payment-
+service`'s, `ledger-service`'s span nested under that. In Zipkin's waterfall view, an engineer
+investigating a customer complaint about a slow payment doesn't grep four services' logs by
+timestamp and guess at correlation; they search by trace ID (or by request attributes, if the
+backend supports it) and see one visual bar chart: gateway 12ms, payment-service 40ms, fraud-service
+380ms, ledger-service 18ms — immediately pointing at `fraud-service` as the hop that ate the latency
+budget, without a single log line read.
 
 ```yaml
 management:
@@ -1421,7 +2234,11 @@ logging:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 ```
 
-That last line is the connective tissue between tracing and logging: Micrometer Tracing populates the trace ID and span ID into SLF4J's MDC (Mapped Diagnostic Context) automatically, and the logging pattern above pulls `%X{traceId}` and `%X{spanId}` into every log line without any manual `MDC.put()` calls in application code. Combined with structured JSON logging — swapping Logback's default text pattern for a JSON encoder —
+That last line is the connective tissue between tracing and logging: Micrometer Tracing populates
+the trace ID and span ID into SLF4J's MDC (Mapped Diagnostic Context) automatically, and the logging
+pattern above pulls `%X{traceId}` and `%X{spanId}` into every log line without any manual
+`MDC.put()` calls in application code. Combined with structured JSON logging — swapping Logback's
+default text pattern for a JSON encoder —
 
 ```xml
 <encoder class="net.logstash.logback.encoder.LogstashEncoder">
@@ -1431,7 +2248,14 @@ That last line is the connective tissue between tracing and logging: Micrometer 
 </encoder>
 ```
 
-every log line becomes a structured, queryable record with the trace ID as a first-class searchable field in whatever log aggregation platform (ELK, Splunk, Datadog Logs) ingests it. This is the concrete operational payoff: "grep the logs across twelve services for this one stuck payment, correlating by rough timestamp and hoping the clocks are in sync" is exactly the failure mode distributed tracing and MDC-propagated trace IDs are built to eliminate. An engineer gets one trace ID from a customer support ticket or an error alert, pastes it into the log aggregator, and gets every log line from every service that touched that specific payment, in causal order, correlated automatically — no timestamp archaeology.
+every log line becomes a structured, queryable record with the trace ID as a first-class searchable
+field in whatever log aggregation platform (ELK, Splunk, Datadog Logs) ingests it. This is the
+concrete operational payoff: "grep the logs across twelve services for this one stuck payment,
+correlating by rough timestamp and hoping the clocks are in sync" is exactly the failure mode
+distributed tracing and MDC-propagated trace IDs are built to eliminate. An engineer gets one trace
+ID from a customer support ticket or an error alert, pastes it into the log aggregator, and gets
+every log line from every service that touched that specific payment, in causal order, correlated
+automatically — no timestamp archaeology.
 
 **Staff Engineer scenario:** Customers are intermittently reporting UPI payments that "hang" for 8–10 seconds before succeeding, well outside SLA, but it's inconsistent and doesn't reproduce on demand. Aggregate metrics on `payment.processing.duration` show p50 is fine and p99 is elevated but not dramatically — nothing screams "broken" at the dashboard level, because the slow requests are a small enough fraction that they don't move the aggregate much. This is precisely the case where metrics alone can't localize the problem — you need tracing. Pulling trace IDs for the specific slow requests (correlated from customer-reported transaction IDs via structured logs) and viewing them in Jaeger shows a consistent pattern: the `fraud-service` span itself is fast, but there's a large gap *between* `payment-service`'s call being issued and `fraud-service`'s span starting — meaning the time isn't inside fraud-service's processing at all, it's in whatever sits between the two calls. That redirects the investigation from "why is fraud-service slow" (a dead end, since its own span is fast) to "what's adding latency in the network/connection path to fraud-service" — which turns out to be a connection pool exhaustion issue in the HTTP client `payment-service` uses to call `fraud-service`, visible only because the trace waterfall showed a gap that wouldn't have been visible in either service's own internal metrics. This is the argument for tracing as a first-class investment, not a nice-to-have: some classes of latency bug are structurally invisible to per-service metrics and only show up in the cross-service causal view.
 
@@ -1453,9 +2277,24 @@ every log line becomes a structured, queryable record with the trace ID as a fir
 
 ## Topic 14 — Spring Security: Authentication & Authorization
 
-Spring Security's core mental model is a chain of servlet filters that a request passes through before it ever reaches your `@RestController`, each filter owning exactly one concern — CORS handling, CSRF token validation, authentication (establishing who the caller is), and authorization (deciding what that caller is allowed to do) — composed into a single `FilterChain` that either lets the request through to your handler or short-circuits it with a 401/403. This matters at a design level because it means security concerns are cross-cutting and declarative rather than scattered as `if` checks inside controller methods: your `PaymentController` never has to manually check "is there a valid token" before processing a refund, because by the time the request reaches it, the filter chain has already either rejected it or attached a fully-populated `Authentication` object to the `SecurityContext` that the controller (or the method-security layer in front of it) can trust.
+Spring Security's core mental model is a chain of servlet filters that a request passes through
+before it ever reaches your `@RestController`, each filter owning exactly one concern — CORS
+handling, CSRF token validation, authentication (establishing who the caller is), and authorization
+(deciding what that caller is allowed to do) — composed into a single `FilterChain` that either lets
+the request through to your handler or short-circuits it with a 401/403. This matters at a design
+level because it means security concerns are cross-cutting and declarative rather than scattered as
+`if` checks inside controller methods: your `PaymentController` never has to manually check "is
+there a valid token" before processing a refund, because by the time the request reaches it, the
+filter chain has already either rejected it or attached a fully-populated `Authentication` object to
+the `SecurityContext` that the controller (or the method-security layer in front of it) can trust.
 
-The authentication/authorization distinction is the same one that shows up in any broader security-architecture discussion — authentication is "who are you," authorization is "what are you allowed to do given who you are" — but Spring gives you two concrete, complementary places to enforce authorization, and knowing when to reach for which is a real design decision, not a style preference. **Endpoint-level** rules, configured once in a `SecurityFilterChain` bean, are the coarse-grained gate: which URL patterns require authentication at all, and which require a specific role, before the request is even dispatched.
+The authentication/authorization distinction is the same one that shows up in any broader security-
+architecture discussion — authentication is "who are you," authorization is "what are you allowed to
+do given who you are" — but Spring gives you two concrete, complementary places to enforce
+authorization, and knowing when to reach for which is a real design decision, not a style
+preference. **Endpoint-level** rules, configured once in a `SecurityFilterChain` bean, are the
+coarse-grained gate: which URL patterns require authentication at all, and which require a specific
+role, before the request is even dispatched.
 
 ```java
 @Configuration
@@ -1507,9 +2346,27 @@ public class PaymentController {
 }
 ```
 
-`hasRole('ADMIN')` and `hasAuthority('PAYMENT_REFUND')` look similar but express different design intents worth being precise about in an interview: roles are typically coarse organizational buckets (`ADMIN`, `MERCHANT`, `SUPPORT_AGENT`) that Spring prefixes with `ROLE_` under the hood, while authorities are finer-grained, often permission-shaped grants (`PAYMENT_REFUND`, `PAYMENT_VOID`, `MERCHANT_ONBOARD`) that can be assigned independently of role — letting you build an actual permissions model (a support agent with `PAYMENT_REFUND` but not `PAYMENT_VOID`) instead of forcing every authorization decision through a small fixed set of roles. Real payment platforms almost always end up needing the authority-based model for anything touching money movement, because "which roles can refund" is a business/compliance question that changes independently of "which roles exist."
+`hasRole('ADMIN')` and `hasAuthority('PAYMENT_REFUND')` look similar but express different design
+intents worth being precise about in an interview: roles are typically coarse organizational buckets
+(`ADMIN`, `MERCHANT`, `SUPPORT_AGENT`) that Spring prefixes with `ROLE_` under the hood, while
+authorities are finer-grained, often permission-shaped grants (`PAYMENT_REFUND`, `PAYMENT_VOID`,
+`MERCHANT_ONBOARD`) that can be assigned independently of role — letting you build an actual
+permissions model (a support agent with `PAYMENT_REFUND` but not `PAYMENT_VOID`) instead of forcing
+every authorization decision through a small fixed set of roles. Real payment platforms almost
+always end up needing the authority-based model for anything touching money movement, because "which
+roles can refund" is a business/compliance question that changes independently of "which roles
+exist."
 
-For authentication itself, the dominant pattern for a stateless microservices platform is configuring the service as an **OAuth2 Resource Server** validating JWTs rather than maintaining server-side sessions. The `oauth2ResourceServer(oauth2 -> oauth2.jwt(...))` line above does real work: on startup, Spring Security fetches the identity provider's JWKS (JSON Web Key Set) endpoint, caches the public keys, and uses them to validate the signature on every incoming JWT — confirming it was actually issued by your identity provider and hasn't been tampered with — without your service needing to call the identity provider synchronously per request or hold any shared secret. Once validated, it extracts claims (`sub` for subject/user identity, `scope` or a custom `authorities` claim for permissions) and builds the `Authentication` object your `@PreAuthorize` expressions evaluate against:
+For authentication itself, the dominant pattern for a stateless microservices platform is
+configuring the service as an **OAuth2 Resource Server** validating JWTs rather than maintaining
+server-side sessions. The `oauth2ResourceServer(oauth2 -> oauth2.jwt(...))` line above does real
+work: on startup, Spring Security fetches the identity provider's JWKS (JSON Web Key Set) endpoint,
+caches the public keys, and uses them to validate the signature on every incoming JWT — confirming
+it was actually issued by your identity provider and hasn't been tampered with — without your
+service needing to call the identity provider synchronously per request or hold any shared secret.
+Once validated, it extracts claims (`sub` for subject/user identity, `scope` or a custom
+`authorities` claim for permissions) and builds the `Authentication` object your `@PreAuthorize`
+expressions evaluate against:
 
 ```yaml
 spring:
@@ -1534,9 +2391,23 @@ public JwtAuthenticationConverter jwtAuthenticationConverter() {
 }
 ```
 
-The reason JWT fits stateless microservices better than server-side session cookies is structural, not just a fashion preference: a session cookie requires the server that issued it (or a shared session store every instance can reach) to validate it on every request, which means either sticky routing or a shared-state dependency that becomes a scaling bottleneck and a single point of failure across a fleet of services. A JWT carries its own validity proof (the signature) and its own claims, so any instance of any service that trusts the issuer's public key can validate it independently, with no shared state and no call back to an auth service on the hot path — which is exactly the property you want when `payment-service`, `fraud-service`, and `ledger-service` are all independently scaled and none of them should need to coordinate session state with each other.
+The reason JWT fits stateless microservices better than server-side session cookies is structural,
+not just a fashion preference: a session cookie requires the server that issued it (or a shared
+session store every instance can reach) to validate it on every request, which means either sticky
+routing or a shared-state dependency that becomes a scaling bottleneck and a single point of failure
+across a fleet of services. A JWT carries its own validity proof (the signature) and its own claims,
+so any instance of any service that trusts the issuer's public key can validate it independently,
+with no shared state and no call back to an auth service on the hot path — which is exactly the
+property you want when `payment-service`, `fraud-service`, and `ledger-service` are all
+independently scaled and none of them should need to coordinate session state with each other.
 
-Service-to-service authentication is a distinct problem from user-facing authentication and deserves its own treatment, because "how does `payment-service` prove to `ledger-service` that this call is legitimate" has no human sitting at a browser to redirect through a login flow. The standard pattern is the OAuth2 **client-credentials** grant: each service has its own service-account client ID/secret registered with the identity provider, and it exchanges those credentials directly for a service-scoped access token — no user involved — which it then attaches to outbound calls. Spring makes this a client-side interceptor concern rather than something scattered through business logic:
+Service-to-service authentication is a distinct problem from user-facing authentication and deserves
+its own treatment, because "how does `payment-service` prove to `ledger-service` that this call is
+legitimate" has no human sitting at a browser to redirect through a login flow. The standard pattern
+is the OAuth2 **client-credentials** grant: each service has its own service-account client
+ID/secret registered with the identity provider, and it exchanges those credentials directly for a
+service-scoped access token — no user involved — which it then attaches to outbound calls. Spring
+makes this a client-side interceptor concern rather than something scattered through business logic:
 
 ```java
 @Bean
@@ -1568,7 +2439,18 @@ spring:
             token-uri: https://idp.acme.internal/oauth2/token
 ```
 
-The equivalent for a Feign client is an `Interceptor` bean that fetches (and caches/refreshes) the client-credentials token and attaches it as a bearer header; the pattern is identical regardless of which HTTP client library the call site uses. The alternative worth naming — and this ties directly into whatever broader service-to-service security material already covers the trade-off in depth — is **mTLS**, where the identity proof is a certificate presented at the TLS handshake layer rather than a bearer token in the application layer. mTLS is stronger against token theft (there's no bearer credential to steal off the wire or out of a log) and pushes identity verification down into the infrastructure layer (often a service mesh sidecar, transparent to application code), but it's heavier to operate — certificate issuance, rotation, and revocation infrastructure — and doesn't naturally carry claims like scopes the way a JWT does, so many platforms end up layering both: mTLS for transport-level service identity and network segmentation, OAuth2 client-credentials tokens for the fine-grained "what is this specific call allowed to do" authorization decision.
+The equivalent for a Feign client is an `Interceptor` bean that fetches (and caches/refreshes) the
+client-credentials token and attaches it as a bearer header; the pattern is identical regardless of
+which HTTP client library the call site uses. The alternative worth naming — and this ties directly
+into whatever broader service-to-service security material already covers the trade-off in depth —
+is **mTLS**, where the identity proof is a certificate presented at the TLS handshake layer rather
+than a bearer token in the application layer. mTLS is stronger against token theft (there's no
+bearer credential to steal off the wire or out of a log) and pushes identity verification down into
+the infrastructure layer (often a service mesh sidecar, transparent to application code), but it's
+heavier to operate — certificate issuance, rotation, and revocation infrastructure — and doesn't
+naturally carry claims like scopes the way a JWT does, so many platforms end up layering both: mTLS
+for transport-level service identity and network segmentation, OAuth2 client-credentials tokens for
+the fine-grained "what is this specific call allowed to do" authorization decision.
 
 | Approach | Identity proof | Where enforced | Carries claims/scopes | Operational overhead | Best fit |
 |---|---|---|---|---|---|
@@ -1596,9 +2478,18 @@ The equivalent for a Feign client is an `Interceptor` bean that fetches (and cac
 
 ## Topic 15 — Spring Kafka Integration
 
-kafka-deep-dive.md already covers the mechanics that matter here — partitions and consumer groups, ACKs and the in-sync replica set, exactly-once semantics, `@RetryableTopic` for retry topic chains, DLQ design, and the Kafka-native Outbox and Saga implementations via Debezium — in enough depth that repeating any of it would just be noise. This topic is deliberately narrower: given that you already understand *why* Kafka behaves the way it does, here is *how you actually write the Spring code* that produces to it, consumes from it, handles errors against it, and gets transactional guarantees out of it, inside a Spring Boot service.
+kafka-deep-dive.md already covers the mechanics that matter here — partitions and consumer groups,
+ACKs and the in-sync replica set, exactly-once semantics, `@RetryableTopic` for retry topic chains,
+DLQ design, and the Kafka-native Outbox and Saga implementations via Debezium — in enough depth that
+repeating any of it would just be noise. This topic is deliberately narrower: given that you already
+understand *why* Kafka behaves the way it does, here is *how you actually write the Spring code*
+that produces to it, consumes from it, handles errors against it, and gets transactional guarantees
+out of it, inside a Spring Boot service.
 
-Producing is `KafkaTemplate`, Spring's thin, `RestTemplate`-shaped wrapper around the native Kafka producer client. A `PaymentEventPublisher` publishing a `PaymentCompleted` event after a successful authorization, keyed by `paymentId` so all events for the same payment land on the same partition and preserve ordering (per the partitioning discussion in kafka-deep-dive.md):
+Producing is `KafkaTemplate`, Spring's thin, `RestTemplate`-shaped wrapper around the native Kafka
+producer client. A `PaymentEventPublisher` publishing a `PaymentCompleted` event after a successful
+authorization, keyed by `paymentId` so all events for the same payment land on the same partition
+and preserve ordering (per the partitioning discussion in kafka-deep-dive.md):
 
 ```java
 @Service
@@ -1624,7 +2515,18 @@ public class PaymentEventPublisher {
 }
 ```
 
-The call site matters as much as the publisher class itself, and this is the gotcha worth being precise about in an interview: the event has to be published *after* the database transaction that recorded the payment has actually committed, not from inside it, unless you're specifically implementing the transactional-outbox pattern kafka-deep-dive.md's Lesson 27 covers. If you call `kafkaTemplate.send(...)` from inside a `@Transactional` method before the commit happens, you've created a race — a consumer could receive and act on the `PaymentCompleted` event before the producing transaction has actually committed and become visible to other readers, or worse, the Kafka publish could succeed while the surrounding transaction later rolls back for an unrelated reason, leaving you with an event on the wire describing a payment that, as far as the database is concerned, never happened. The straightforward (non-outbox) fix is publishing from an `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)` handler, which Spring only invokes once the enclosing transaction has actually committed:
+The call site matters as much as the publisher class itself, and this is the gotcha worth being
+precise about in an interview: the event has to be published *after* the database transaction that
+recorded the payment has actually committed, not from inside it, unless you're specifically
+implementing the transactional-outbox pattern kafka-deep-dive.md's Lesson 27 covers. If you call
+`kafkaTemplate.send(...)` from inside a `@Transactional` method before the commit happens, you've
+created a race — a consumer could receive and act on the `PaymentCompleted` event before the
+producing transaction has actually committed and become visible to other readers, or worse, the
+Kafka publish could succeed while the surrounding transaction later rolls back for an unrelated
+reason, leaving you with an event on the wire describing a payment that, as far as the database is
+concerned, never happened. The straightforward (non-outbox) fix is publishing from an
+`@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)` handler, which Spring only
+invokes once the enclosing transaction has actually committed:
 
 ```java
 @Component
@@ -1658,9 +2560,22 @@ public class PaymentService {
 }
 ```
 
-This is strictly weaker than the transactional outbox (there's still a small window where the DB commit succeeds but the process crashes before the Kafka publish goes out, meaning the event is simply lost rather than eventually delivered), which is exactly why kafka-deep-dive.md's outbox coverage exists for the cases where that gap is unacceptable — payment completion events feeding a ledger are usually exactly such a case. The `AFTER_COMMIT` pattern is the right tool when losing an occasional event is tolerable (a non-critical notification, an analytics event) and the outbox is the right tool when it isn't.
+This is strictly weaker than the transactional outbox (there's still a small window where the DB
+commit succeeds but the process crashes before the Kafka publish goes out, meaning the event is
+simply lost rather than eventually delivered), which is exactly why kafka-deep-dive.md's outbox
+coverage exists for the cases where that gap is unacceptable — payment completion events feeding a
+ledger are usually exactly such a case. The `AFTER_COMMIT` pattern is the right tool when losing an
+occasional event is tolerable (a non-critical notification, an analytics event) and the outbox is
+the right tool when it isn't.
 
-Consuming is `@KafkaListener`, and the design choice that matters most here is acknowledgment mode. A `LedgerEventConsumer` reacting to `payment.completed` needs the Kafka offset to only commit once the ledger update has actually succeeded — committing the offset first and updating the ledger second would mean a crash between those two steps loses the event forever, since Kafka would believe it was already processed. This is the same offset-commit-timing principle kafka-deep-dive.md's Lesson 5 covers at the protocol level; in Spring Kafka it's controlled by setting `AckMode.MANUAL` (or `MANUAL_IMMEDIATE`) and calling `Acknowledgment.acknowledge()` only after the business logic succeeds:
+Consuming is `@KafkaListener`, and the design choice that matters most here is acknowledgment mode.
+A `LedgerEventConsumer` reacting to `payment.completed` needs the Kafka offset to only commit once
+the ledger update has actually succeeded — committing the offset first and updating the ledger
+second would mean a crash between those two steps loses the event forever, since Kafka would believe
+it was already processed. This is the same offset-commit-timing principle kafka-deep-dive.md's
+Lesson 5 covers at the protocol level; in Spring Kafka it's controlled by setting `AckMode.MANUAL`
+(or `MANUAL_IMMEDIATE`) and calling `Acknowledgment.acknowledge()` only after the business logic
+succeeds:
 
 ```java
 @Component
@@ -1695,9 +2610,17 @@ public ConcurrentKafkaListenerContainerFactory<String, PaymentCompletedEvent> ma
 }
 ```
 
-If `applyPaymentToLedger` throws, `ack.acknowledge()` is never reached, the offset doesn't advance, and — assuming default consumer behavior — the same record gets redelivered on the next poll, which is exactly the at-least-once guarantee you want for a financial write, paired with an idempotent ledger write (keyed by `paymentId`) on the consumer side to make redelivery safe rather than a source of double-counting.
+If `applyPaymentToLedger` throws, `ack.acknowledge()` is never reached, the offset doesn't advance,
+and — assuming default consumer behavior — the same record gets redelivered on the next poll, which
+is exactly the at-least-once guarantee you want for a financial write, paired with an idempotent
+ledger write (keyed by `paymentId`) on the consumer side to make redelivery safe rather than a
+source of double-counting.
 
-Error handling on the consumer side is Spring Kafka's `DefaultErrorHandler`, wired with a `BackOff` policy and a `DeadLetterPublishingRecoverer` — this is the Spring-native mechanism for implementing the DLQ pattern kafka-deep-dive.md's Lesson 25 covers conceptually, and it plugs directly into the retry-topic thinking from that chapter's `@RetryableTopic` coverage as an alternative, more manually-controlled path to the same outcome:
+Error handling on the consumer side is Spring Kafka's `DefaultErrorHandler`, wired with a `BackOff`
+policy and a `DeadLetterPublishingRecoverer` — this is the Spring-native mechanism for implementing
+the DLQ pattern kafka-deep-dive.md's Lesson 25 covers conceptually, and it plugs directly into the
+retry-topic thinking from that chapter's `@RetryableTopic` coverage as an alternative, more
+manually-controlled path to the same outcome:
 
 ```java
 @Bean
@@ -1715,9 +2638,19 @@ public DefaultErrorHandler ledgerErrorHandler(KafkaTemplate<String, Object> kafk
 }
 ```
 
-Attaching this to the listener container factory means a transient failure (ledger DB briefly unreachable) gets retried with exponential backoff on the same partition, while an exception explicitly marked non-retryable (malformed event payload — no amount of retrying fixes that) is routed straight to the `payment.completed.DLT` topic without wasting retry attempts, exactly mirroring the retry-vs-DLQ decision tree kafka-deep-dive.md walks through conceptually, just expressed as Spring bean wiring instead of broker-level topic chains.
+Attaching this to the listener container factory means a transient failure (ledger DB briefly
+unreachable) gets retried with exponential backoff on the same partition, while an exception
+explicitly marked non-retryable (malformed event payload — no amount of retrying fixes that) is
+routed straight to the `payment.completed.DLT` topic without wasting retry attempts, exactly
+mirroring the retry-vs-DLQ decision tree kafka-deep-dive.md walks through conceptually, just
+expressed as Spring bean wiring instead of broker-level topic chains.
 
-Finally, transactional support: `@Transactional` combined with a transaction-capable `KafkaTemplate` gives you the Spring-side implementation of read-process-write atomicity — consume a record, do a database write, produce a downstream event, and commit the Kafka offset, all as one atomic unit that either fully succeeds or fully rolls back, which is the Spring plumbing for the exactly-once semantics kafka-deep-dive.md's Lesson 20 covers at the protocol level (idempotent producer plus transactional coordinator):
+Finally, transactional support: `@Transactional` combined with a transaction-capable `KafkaTemplate`
+gives you the Spring-side implementation of read-process-write atomicity — consume a record, do a
+database write, produce a downstream event, and commit the Kafka offset, all as one atomic unit that
+either fully succeeds or fully rolls back, which is the Spring plumbing for the exactly-once
+semantics kafka-deep-dive.md's Lesson 20 covers at the protocol level (idempotent producer plus
+transactional coordinator):
 
 ```yaml
 spring:
@@ -1745,7 +2678,16 @@ public class LedgerReprocessConsumer {
 }
 ```
 
-Note this specific arrangement — a DB write and a Kafka produce sharing one transactional outcome — is exactly the kind of dual-resource atomicity problem the outbox pattern exists to solve *without* requiring a distributed (XA/JTA) transaction spanning two different resource managers; using `@Transactional("kafkaTransactionManager")` here works because Spring Kafka's transaction manager is coordinating the Kafka-side transaction specifically, and true atomicity between the *database* write and the Kafka produce still generally routes through the outbox pattern in production systems rather than relying on distributed transactions across a relational database and Kafka, which is fragile and slow. Where this pattern shines cleanly is read-process-write entirely *within* Kafka — consume from one topic, produce to another, commit the offset, atomically — which is the classic Kafka Streams / exactly-once processing use case.
+Note this specific arrangement — a DB write and a Kafka produce sharing one transactional outcome —
+is exactly the kind of dual-resource atomicity problem the outbox pattern exists to solve *without*
+requiring a distributed (XA/JTA) transaction spanning two different resource managers; using
+`@Transactional("kafkaTransactionManager")` here works because Spring Kafka's transaction manager is
+coordinating the Kafka-side transaction specifically, and true atomicity between the *database*
+write and the Kafka produce still generally routes through the outbox pattern in production systems
+rather than relying on distributed transactions across a relational database and Kafka, which is
+fragile and slow. Where this pattern shines cleanly is read-process-write entirely *within* Kafka —
+consume from one topic, produce to another, commit the offset, atomically — which is the classic
+Kafka Streams / exactly-once processing use case.
 
 | Concern | Spring mechanism | Kafka-level concept it implements (see kafka-deep-dive.md) |
 |---|---|---|
@@ -1772,7 +2714,12 @@ Note this specific arrangement — a DB write and a Kafka produce sharing one tr
 
 ## Topic 16 — Dockerizing and Deploying Spring Boot to Kubernetes
 
-Shipping a Spring Boot service to Kubernetes starts with the Dockerfile, and the single biggest lever for image quality is a **multi-stage build**: one stage with the full JDK and build tool (Maven or Gradle) that actually compiles and packages the application, and a second, separate stage that starts from a minimal JRE base image and copies in only the built artifact — none of the build tooling, source code, or dependency-resolution caches end up in the image that actually ships to production.
+Shipping a Spring Boot service to Kubernetes starts with the Dockerfile, and the single biggest
+lever for image quality is a **multi-stage build**: one stage with the full JDK and build tool
+(Maven or Gradle) that actually compiles and packages the application, and a second, separate stage
+that starts from a minimal JRE base image and copies in only the built artifact — none of the build
+tooling, source code, or dependency-resolution caches end up in the image that actually ships to
+production.
 
 ```dockerfile
 # ---- Build stage ----
@@ -1795,9 +2742,24 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
 ```
 
-A single-stage equivalent would ship Maven itself, the full JDK (versus a much smaller JRE), every downloaded dependency `.jar` used only at build time, and often the raw source tree into the production image — bloating the image by hundreds of megabytes, slowing every pull during a rolling deployment, and needlessly expanding the attack surface with build tooling nobody runtime needs. The `dependency:go-offline` step, run before copying `src`, is a deliberate ordering trick for Docker's layer caching: dependencies change far less often than application code, so as long as `pom.xml` is unchanged, Docker reuses the cached dependency-resolution layer on rebuilds and only re-runs the (much faster) `package` step, instead of re-downloading the entire dependency tree on every single build.
+A single-stage equivalent would ship Maven itself, the full JDK (versus a much smaller JRE), every
+downloaded dependency `.jar` used only at build time, and often the raw source tree into the
+production image — bloating the image by hundreds of megabytes, slowing every pull during a rolling
+deployment, and needlessly expanding the attack surface with build tooling nobody runtime needs. The
+`dependency:go-offline` step, run before copying `src`, is a deliberate ordering trick for Docker's
+layer caching: dependencies change far less often than application code, so as long as `pom.xml` is
+unchanged, Docker reuses the cached dependency-resolution layer on rebuilds and only re-runs the
+(much faster) `package` step, instead of re-downloading the entire dependency tree on every single
+build.
 
-Spring Boot pushes this idea one layer further with its **layered jar** support, which matters specifically for CI/CD iteration speed once you're deploying multiple times a day. A default Spring Boot fat jar bundles your application classes and every dependency into one monolithic archive; from Docker's perspective, a one-line code change means the entire jar — dependencies included — is a new file, so the whole thing gets re-pushed to the registry and re-pulled by every node, even though 99% of the bytes (the dependency jars) didn't actually change. Layered jars split the archive into logical layers — dependencies (rarely change), the Spring Boot loader itself (almost never changes), resources, and application classes (change on every commit) — each becoming its own Docker layer:
+Spring Boot pushes this idea one layer further with its **layered jar** support, which matters
+specifically for CI/CD iteration speed once you're deploying multiple times a day. A default Spring
+Boot fat jar bundles your application classes and every dependency into one monolithic archive; from
+Docker's perspective, a one-line code change means the entire jar — dependencies included — is a new
+file, so the whole thing gets re-pushed to the registry and re-pulled by every node, even though 99%
+of the bytes (the dependency jars) didn't actually change. Layered jars split the archive into
+logical layers — dependencies (rarely change), the Spring Boot loader itself (almost never changes),
+resources, and application classes (change on every commit) — each becoming its own Docker layer:
 
 ```dockerfile
 FROM eclipse-temurin:21-jdk-alpine AS build
@@ -1815,9 +2777,20 @@ COPY --from=build /workspace/extracted/application/ ./
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "org.springframework.boot.loader.launch.JarLauncher"]
 ```
 
-Because each `COPY` becomes its own Docker layer, a code-only change invalidates and re-pushes only the `application/` layer — typically a few kilobytes — while the `dependencies/` layer (often tens or hundreds of megabytes) stays cached and unchanged across the fleet. On a platform where CI is building and pushing images dozens of times a day, this is a genuine, measurable speed win worth naming explicitly in an interview, not a micro-optimization — it's the difference between a multi-minute image push per deploy and a near-instant one.
+Because each `COPY` becomes its own Docker layer, a code-only change invalidates and re-pushes only
+the `application/` layer — typically a few kilobytes — while the `dependencies/` layer (often tens
+or hundreds of megabytes) stays cached and unchanged across the fleet. On a platform where CI is
+building and pushing images dozens of times a day, this is a genuine, measurable speed win worth
+naming explicitly in an interview, not a micro-optimization — it's the difference between a multi-
+minute image push per deploy and a near-instant one.
 
-Configuration belongs outside the image entirely, for the same reason Topic 1's discussion of profile and property precedence exists: environment variables sit above `application.yml` in Spring's property-source resolution order, which is precisely the mechanism that makes externalized-by-default configuration work without any custom plumbing. The same image built once in CI runs unmodified in staging and production; what differs is what Kubernetes injects at deploy time — a `ConfigMap` for non-sensitive values, a `Secret` for credentials, both surfaced as environment variables:
+Configuration belongs outside the image entirely, for the same reason Topic 1's discussion of
+profile and property precedence exists: environment variables sit above `application.yml` in
+Spring's property-source resolution order, which is precisely the mechanism that makes externalized-
+by-default configuration work without any custom plumbing. The same image built once in CI runs
+unmodified in staging and production; what differs is what Kubernetes injects at deploy time — a
+`ConfigMap` for non-sensitive values, a `Secret` for credentials, both surfaced as environment
+variables:
 
 ```yaml
 apiVersion: apps/v1
@@ -1867,9 +2840,27 @@ spec:
             failureThreshold: 6
 ```
 
-This wires directly back to Topic 12: liveness and readiness are pointed at two distinct Actuator endpoints on the separate management port, with a longer failure budget on readiness (`failureThreshold: 6` at 5-second intervals gives 30 seconds of grace) than on liveness, reflecting that a slow-but-healthy startup should be tolerated, not punished with a restart.
+This wires directly back to Topic 12: liveness and readiness are pointed at two distinct Actuator
+endpoints on the separate management port, with a longer failure budget on readiness
+(`failureThreshold: 6` at 5-second intervals gives 30 seconds of grace) than on liveness, reflecting
+that a slow-but-healthy startup should be tolerated, not punished with a restart.
 
-The last piece — JVM memory tuning inside a container — is a specific, well-documented trap: a hardcoded `-Xmx512m` doesn't know anything about the container's actual memory limit set in the Deployment's `resources.limits.memory`. If someone bumps the pod's memory limit to 1Gi during a capacity fix but forgets the hardcoded `-Xmx` (a very easy thing to forget, since they live in two different files owned by two different teams), the JVM heap stays capped at its old value and never uses the memory it was actually given — wasted capacity, more frequent GC pauses than necessary. Go the other direction — a hardcoded `-Xmx` set *higher* than the container's actual limit — and the JVM will happily try to grow its heap past what the container is allowed to use, and the kernel's cgroup OOM killer terminates the container outright, which shows up as a mysterious `OOMKilled` pod restart that doesn't correlate cleanly with a Java-level `OutOfMemoryError` in the logs (because the JVM never got the chance to throw one — the container was killed out from under it). `-XX:MaxRAMPercentage=75.0`, used in both Dockerfiles above, tells the JVM to size its heap as a percentage of whatever memory the container actually has available (modern JVMs are cgroup-aware and read the container's limit directly), so the same image adapts correctly whether it's deployed with a 512Mi limit or a 2Gi limit, with no coordination required between the Dockerfile and the Deployment YAML.
+The last piece — JVM memory tuning inside a container — is a specific, well-documented trap: a
+hardcoded `-Xmx512m` doesn't know anything about the container's actual memory limit set in the
+Deployment's `resources.limits.memory`. If someone bumps the pod's memory limit to 1Gi during a
+capacity fix but forgets the hardcoded `-Xmx` (a very easy thing to forget, since they live in two
+different files owned by two different teams), the JVM heap stays capped at its old value and never
+uses the memory it was actually given — wasted capacity, more frequent GC pauses than necessary. Go
+the other direction — a hardcoded `-Xmx` set *higher* than the container's actual limit — and the
+JVM will happily try to grow its heap past what the container is allowed to use, and the kernel's
+cgroup OOM killer terminates the container outright, which shows up as a mysterious `OOMKilled` pod
+restart that doesn't correlate cleanly with a Java-level `OutOfMemoryError` in the logs (because the
+JVM never got the chance to throw one — the container was killed out from under it).
+`-XX:MaxRAMPercentage=75.0`, used in both Dockerfiles above, tells the JVM to size its heap as a
+percentage of whatever memory the container actually has available (modern JVMs are cgroup-aware and
+read the container's limit directly), so the same image adapts correctly whether it's deployed with
+a 512Mi limit or a 2Gi limit, with no coordination required between the Dockerfile and the
+Deployment YAML.
 
 | Approach | Adapts to container limit changes | Risk if limit changes without a matching code change | When it's actually fine |
 |---|---|---|---|
@@ -1895,16 +2886,50 @@ The last piece — JVM memory tuning inside a container — is a specific, well-
 
 ## Topic 17 — Common Spring Boot Interview Traps (Synthesis)
 
-Everything above is real material, but a Staff-level interview usually isn't testing whether you can recite what `@Transactional` does — it's testing whether you've been burned by the gap between what the annotation promises and what actually happens at runtime. That gap is where the recurring traps live, and they're worth holding in your head as one compact list, because interviewers reuse them precisely because they separate "has used Spring Boot" from "has debugged Spring Boot in production at 2am."
+Everything above is real material, but a Staff-level interview usually isn't testing whether you can
+recite what `@Transactional` does — it's testing whether you've been burned by the gap between what
+the annotation promises and what actually happens at runtime. That gap is where the recurring traps
+live, and they're worth holding in your head as one compact list, because interviewers reuse them
+precisely because they separate "has used Spring Boot" from "has debugged Spring Boot in production
+at 2am."
 
-The **`@Transactional` self-invocation trap** (Topic 4) is the most classic: `@Transactional` works via a dynamic proxy Spring wraps around your bean, and that proxy only intercepts calls that come in from *outside* the bean — a call from one method to another method on `this`, within the same class, bypasses the proxy entirely and runs with no transaction at all, silently. The tell in an interview is a candidate who can define the annotation but has never actually watched a "transactional" method quietly not roll back because it was called internally rather than through the bean's public interface. The **circular-dependency-via-constructor-injection trap** (Topic 2) is the flip side of Spring's best practice: constructor injection is universally recommended over field injection specifically because it fails fast — a circular dependency between two beans throws at context startup instead of manifesting as a mysterious `null` field discovered at 2am in production, which is exactly what field injection with `@Autowired` allows to slip through (Spring can sometimes resolve circularity there via early-reference proxies, hiding a design smell that should have been a startup failure).
+The **`@Transactional` self-invocation trap** (Topic 4) is the most classic: `@Transactional` works
+via a dynamic proxy Spring wraps around your bean, and that proxy only intercepts calls that come in
+from *outside* the bean — a call from one method to another method on `this`, within the same class,
+bypasses the proxy entirely and runs with no transaction at all, silently. The tell in an interview
+is a candidate who can define the annotation but has never actually watched a "transactional" method
+quietly not roll back because it was called internally rather than through the bean's public
+interface. The **circular-dependency-via-constructor-injection trap** (Topic 2) is the flip side of
+Spring's best practice: constructor injection is universally recommended over field injection
+specifically because it fails fast — a circular dependency between two beans throws at context
+startup instead of manifesting as a mysterious `null` field discovered at 2am in production, which
+is exactly what field injection with `@Autowired` allows to slip through (Spring can sometimes
+resolve circularity there via early-reference proxies, hiding a design smell that should have been a
+startup failure).
 
 **Liveness-versus-readiness confusion causing crash loops** (Topic 12) and **publishing a Kafka event inside versus after a DB transaction without an outbox** (Topic 15, cross-referencing kafka-deep-dive.md's Lesson 27) are both instances of the same deeper pattern: two systems that don't share a transaction boundary, treated as if they do. Wiring both Kubernetes probes to one endpoint assumes "healthy" and "ready for traffic" are the same fact; publishing inside a `@Transactional` method assumes "about to commit" and "committed" are the same fact. Neither assumption holds, and both failures are invisible in code review — they only show up under real timing conditions in production, which is exactly why interviewers like asking about them: they test whether you think about failure windows, not just happy-path correctness.
 
 **Unauthenticated Actuator endpoints** (Topic 12) is the security-hygiene entry on the list, and it's dangerous precisely because it's not a logic bug — the code works exactly as designed, the design itself just assumed a network boundary that a misconfigured ingress or an internal-network compromise can erase. It's the reminder that "it's on an internal port" is a claim about topology, not a security control, and defense in depth (separate management port *and* authentication) is what actually holds when one layer fails.
 
-The **N+1 query problem** (Topic 4) is the trap most likely to survive code review undetected, because the code that causes it looks completely idiomatic — a `for` loop over a list of `Payment` entities calling `payment.getMerchant().getName()`, with lazy-loaded JPA associations quietly firing one extra `SELECT` per iteration. It passes every unit test against a fixture with three rows and turns into thousands of round trips against production data, which is why it's such a good interview probe: it tests whether a candidate thinks about what their ORM is actually doing at the SQL level, not just whether the Java compiles.
+The **N+1 query problem** (Topic 4) is the trap most likely to survive code review undetected,
+because the code that causes it looks completely idiomatic — a `for` loop over a list of `Payment`
+entities calling `payment.getMerchant().getName()`, with lazy-loaded JPA associations quietly firing
+one extra `SELECT` per iteration. It passes every unit test against a fixture with three rows and
+turns into thousands of round trips against production data, which is why it's such a good interview
+probe: it tests whether a candidate thinks about what their ORM is actually doing at the SQL level,
+not just whether the Java compiles.
 
-Finally, the **resilience-annotation composition-order gotcha** (Topic 10) — stacking `@Retry`, `@CircuitBreaker`, and `@RateLimiter` on the same method and getting a materially different (and often wrong) behavior depending on the order Resilience4j applies them, because retry wrapped outside a circuit breaker means retries keep hammering an already-open circuit's short-circuit path, while the reverse ordering means the circuit breaker sees retries as separate calls and never opens when it should. It's a small configuration detail with an outsized production consequence, and it's the kind of thing that only becomes obvious once you've watched a "resilient" service make an outage worse instead of better.
+Finally, the **resilience-annotation composition-order gotcha** (Topic 10) — stacking `@Retry`,
+`@CircuitBreaker`, and `@RateLimiter` on the same method and getting a materially different (and
+often wrong) behavior depending on the order Resilience4j applies them, because retry wrapped
+outside a circuit breaker means retries keep hammering an already-open circuit's short-circuit path,
+while the reverse ordering means the circuit breaker sees retries as separate calls and never opens
+when it should. It's a small configuration detail with an outsized production consequence, and it's
+the kind of thing that only becomes obvious once you've watched a "resilient" service make an outage
+worse instead of better.
 
-None of these are exotic — every one of them is a mainstream Spring Boot feature used exactly as documented. What makes them interview-worthy is that the documentation describes the happy path, and production is where the edge cases live. That's the actual thing a Staff Engineer interview is probing for: not whether you know the annotations, but whether you've internalized where each one quietly stops doing what its name implies.
+None of these are exotic — every one of them is a mainstream Spring Boot feature used exactly as
+documented. What makes them interview-worthy is that the documentation describes the happy path, and
+production is where the edge cases live. That's the actual thing a Staff Engineer interview is
+probing for: not whether you know the annotations, but whether you've internalized where each one
+quietly stops doing what its name implies.

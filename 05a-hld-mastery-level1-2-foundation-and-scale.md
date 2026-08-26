@@ -1,8 +1,15 @@
 # Stage 5 (Part A) — HLD Mastery: Foundation & Read/Write Scale Designs
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
-> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing architectures?*
->
-> Every design below is built from the same small set of primitives you already know — load balancers, stateless app servers, a KV store, a relational store, a queue, a cache, consistent hashing, and CDN edge caching. The skill being tested at Staff level is not "do you know the Twitter architecture," it's "given fresh requirements, do you pick the right primitive, size it with real numbers, and reason about what breaks first." Read each design asking: *which of my building blocks did they reach for, and why not the other one?*
+> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing
+architectures?* > > Every design below is built from the same small set of primitives you already
+know — load balancers, stateless app servers, a KV store, a relational store, a queue, a cache,
+consistent hashing, and CDN edge caching. The skill being tested at Staff level is not "do you know
+the Twitter architecture," it's "given fresh requirements, do you pick the right primitive, size it
+with real numbers, and reason about what breaks first." Read each design asking: *which of my
+building blocks did they reach for, and why not the other one?*
 
 ## Table of Contents
 
@@ -130,9 +137,15 @@ def encode(num):
     return ''.join(reversed(s))
 ```
 
-To avoid a single counter becoming a bottleneck/SPOF, pre-allocate **ranges** to each app server (e.g., server claims IDs [1,000,000–1,999,999] from a coordination service like Zookeeper/DynamoDB with a conditional increment), and hands them out locally without a network round-trip per request. This is the same pattern as Twitter Snowflake / Instagram's ID generation — memorize the *pattern* (range-lease + local counter), not any one company's exact bit layout.
+To avoid a single counter becoming a bottleneck/SPOF, pre-allocate **ranges** to each app server
+(e.g., server claims IDs [1,000,000–1,999,999] from a coordination service like Zookeeper/DynamoDB
+with a conditional increment), and hands them out locally without a network round-trip per request.
+This is the same pattern as Twitter Snowflake / Instagram's ID generation — memorize the *pattern*
+(range-lease + local counter), not any one company's exact bit layout.
 
-Trade-off to state explicitly in an interview: sequential IDs are guessable (enumerable short URLs leak how many URLs exist and let scraping). Mitigate by XOR-ing the counter with a fixed secret or shuffling bits before base62 encoding — cheap obfuscation, not real security, and worth saying so.
+Trade-off to state explicitly in an interview: sequential IDs are guessable (enumerable short URLs
+leak how many URLs exist and let scraping). Mitigate by XOR-ing the counter with a fixed secret or
+shuffling bits before base62 encoding — cheap obfuscation, not real security, and worth saying so.
 
 ### Scaling the Design
 
@@ -243,7 +256,9 @@ Client ──▶ Load Balancer ──▶ App Servers (stateless)
 
 ### Deep Dive: Burn-After-Read Correctness Under Concurrency
 
-The interesting problem: if two requests hit the same burn-after-read paste simultaneously (double-click, retry, or a scraper race), only one should get the content — this is a classic "at-most-once delivery" problem that naive read-then-delete code gets wrong.
+The interesting problem: if two requests hit the same burn-after-read paste simultaneously (double-
+click, retry, or a scraper race), only one should get the content — this is a classic "at-most-once
+delivery" problem that naive read-then-delete code gets wrong.
 
 **Wrong approach:** `GET content; DELETE row` — race window lets both requests see the content before either deletes.
 
@@ -254,7 +269,11 @@ SET consumed = TRUE
 WHERE paste_id = ? AND consumed = FALSE
 RETURNING blob_key;
 ```
-This is an atomic compare-and-swap at the DB layer — exactly one concurrent request gets a non-empty `RETURNING` result; every other concurrent request gets zero rows back and returns 410 Gone. Only the winner fetches and returns the blob content, then deletes it from object storage. This pattern (atomic UPDATE...RETURNING as a distributed lock/claim) generalizes to any "exactly one consumer" problem — job queues, ticket reservation, etc.
+This is an atomic compare-and-swap at the DB layer — exactly one concurrent request gets a non-empty
+`RETURNING` result; every other concurrent request gets zero rows back and returns 410 Gone. Only
+the winner fetches and returns the blob content, then deletes it from object storage. This pattern
+(atomic UPDATE...RETURNING as a distributed lock/claim) generalizes to any "exactly one consumer"
+problem — job queues, ticket reservation, etc.
 
 ### Scaling the Design
 
@@ -316,11 +335,17 @@ PUT /internal/v1/policies/{client_tier}
   (admin-only, config management)
 ```
 
-In practice, most systems implement this as a **library embedded in each app server** that talks to a shared Redis, or as a **sidecar** (Envoy rate-limit filter pattern) — not a separate hop-heavy microservice, precisely because latency budget is so tight.
+In practice, most systems implement this as a **library embedded in each app server** that talks to
+a shared Redis, or as a **sidecar** (Envoy rate-limit filter pattern) — not a separate hop-heavy
+microservice, precisely because latency budget is so tight.
 
 ### Data Model
 
-Redis is the obvious and correct choice here — not a relational DB. Why: rate limiting needs atomic increment-and-check operations at extremely high throughput with sub-millisecond latency, and the data (counters) is inherently ephemeral/TTL-based. A relational DB would need row-locking for atomicity under concurrent writers to the same row — that's exactly the throughput profile Redis is built for and Postgres is not.
+Redis is the obvious and correct choice here — not a relational DB. Why: rate limiting needs atomic
+increment-and-check operations at extremely high throughput with sub-millisecond latency, and the
+data (counters) is inherently ephemeral/TTL-based. A relational DB would need row-locking for
+atomicity under concurrent writers to the same row — that's exactly the throughput profile Redis is
+built for and Postgres is not.
 
 ```
 Redis key: ratelimit:{client_id}:{resource}:{window_bucket}
@@ -393,7 +418,8 @@ redis.call("setex", tokens_key, 3600, new_tokens)
 redis.call("setex", timestamp_key, 3600, now)
 return allowed and 1 or 0
 ```
-This single round-trip, atomic-on-the-Redis-side approach is *the* pattern to know cold for this design — it's what separates a correct answer from a hand-wavy one.
+This single round-trip, atomic-on-the-Redis-side approach is *the* pattern to know cold for this
+design — it's what separates a correct answer from a hand-wavy one.
 
 ### Scaling the Design
 
@@ -466,7 +492,8 @@ GET /api/v1/sync/changes?since_cursor=...   (delta sync — what changed since l
 
 ### Data Model
 
-Same split-storage principle as Pastebin, at much larger scale, plus content-addressable deduplication:
+Same split-storage principle as Pastebin, at much larger scale, plus content-addressable
+deduplication:
 
 ```
 files (metadata DB — sharded relational or wide-column store)
@@ -664,7 +691,8 @@ user_metadata
 
 ### Deep Dive: Fan-out-on-Write vs. Fan-out-on-Read — The Core Trade-off
 
-This is the single most important trade-off in the entire "Level 2" set and deserves the full depth treatment.
+This is the single most important trade-off in the entire "Level 2" set and deserves the full depth
+treatment.
 
 **Fan-out-on-write (push model):** On every post, immediately write the post reference into every follower's precomputed feed list. 
 - *Pro:* Feed reads are extremely fast — just read one pre-built list, O(1)-ish.
@@ -740,7 +768,8 @@ POST /internal/v1/query-log   (fire-and-forget, from the main search service)
   Body: { "query": "system design interview", "user_id": "...", "timestamp": ... }
 ```
 
-Autocomplete is read-only and public-facing; the log ingestion endpoint is internal, feeding the offline pipeline that updates trie weights.
+Autocomplete is read-only and public-facing; the log ingestion endpoint is internal, feeding the
+offline pipeline that updates trie weights.
 
 ### Data Model
 
@@ -810,7 +839,11 @@ def merge_top_k(list_a, list_b, K):
     return sorted(list_a + list_b, key=lambda x: -x[1])[:K]
 ```
 
-At read time, the lookup is purely: walk down to the node matching the typed prefix (O(prefix length), typically <20 char comparisons), then return `node.top_k` directly — no subtree traversal at request time at all. This shift-the-cost-to-build-time-not-query-time pattern is the generalizable lesson: **any read path with a brutal latency SLA should be asking "what can I precompute offline so the hot path becomes a lookup, not a computation."**
+At read time, the lookup is purely: walk down to the node matching the typed prefix (O(prefix
+length), typically <20 char comparisons), then return `node.top_k` directly — no subtree traversal
+at request time at all. This shift-the-cost-to-build-time-not-query-time pattern is the
+generalizable lesson: **any read path with a brutal latency SLA should be asking "what can I
+precompute offline so the hot path becomes a lookup, not a computation."**
 
 **Incremental updates** (avoiding a full trie rebuild every time): rather than rebuilding from scratch on every batch cycle, maintain the frequency table separately, and only recompute `top_k` bottom-up along the path from an updated leaf to the root (since only ancestors of a changed query can have their top-K affected) — this bounds update cost to O(word length × K log K) per changed query instead of rebuilding the whole trie.
 
@@ -860,7 +893,8 @@ At read time, the lookup is purely: walk down to the node matching the typed pre
 
 ### API Design
 
-This is a client-library-facing protocol, not an HTTP REST API (latency budget rules out HTTP overhead per call):
+This is a client-library-facing protocol, not an HTTP REST API (latency budget rules out HTTP
+overhead per call):
 
 ```
 Client library interface (e.g., a thin binary protocol over TCP, RESP-like):
@@ -875,11 +909,13 @@ Cluster management (admin/internal):
   → triggers resharding via consistent hashing (see Deep Dive)
 ```
 
-The client library embeds the routing logic (which node owns a given key) so there's no centralized proxy hop on the hot path — this mirrors how real Memcached/Redis Cluster clients work.
+The client library embeds the routing logic (which node owns a given key) so there's no centralized
+proxy hop on the hot path — this mirrors how real Memcached/Redis Cluster clients work.
 
 ### Data Model
 
-There's no "database schema" here in the traditional sense — the data model *is* the system's internal structure:
+There's no "database schema" here in the traditional sense — the data model *is* the system's
+internal structure:
 
 ```
 Per-node in-memory hash table:
@@ -890,7 +926,9 @@ Cluster-level:
   (see Deep Dive — this ring is the core "schema" of the whole system)
 ```
 
-No persistent DB is involved by design — durability is explicitly not a goal (that's what the backing DB is for); if a cache node dies, its data is gone and simply refetched from the source of truth on next access (cache-aside pattern from the caller's side).
+No persistent DB is involved by design — durability is explicitly not a goal (that's what the
+backing DB is for); if a cache node dies, its data is gone and simply refetched from the source of
+truth on next access (cache-aside pattern from the caller's side).
 
 ### High-Level Design
 
@@ -967,7 +1005,8 @@ class LRUCache:
             new_node = self.dll.push_front(key, value)
             self.map[key] = new_node
 ```
-This O(1)-per-operation property is non-negotiable given the sub-millisecond latency requirement — anything O(log n) or worse per operation (e.g., a heap-based approach) is a worse fit here.
+This O(1)-per-operation property is non-negotiable given the sub-millisecond latency requirement —
+anything O(log n) or worse per operation (e.g., a heap-based approach) is a worse fit here.
 
 ### Scaling the Design
 
@@ -1037,7 +1076,10 @@ POST /api/v1/alerts
 
 ### Data Model
 
-A **time-series database** is the correct specialized choice here (not a general relational DB) — purpose-built TSDBs (Prometheus's TSDB, InfluxDB, or a Cassandra-backed model like OpenTSDB) are optimized for exactly this write pattern (append-only, time-ordered, high cardinality on tags) and this query pattern (range scans over time, aggregation).
+A **time-series database** is the correct specialized choice here (not a general relational DB) —
+purpose-built TSDBs (Prometheus's TSDB, InfluxDB, or a Cassandra-backed model like OpenTSDB) are
+optimized for exactly this write pattern (append-only, time-ordered, high cardinality on tags) and
+this query pattern (range scans over time, aggregation).
 
 ```
 Time-series key: metric_name + sorted tag set → forms a unique "series ID"
@@ -1120,7 +1162,10 @@ merged = TDigest.merge(digests)
 p99 = merged.quantile(0.99)
 ```
 
-This is the single most important "gotcha" to name in a metrics-system interview — candidates who don't know that percentiles aren't mergeable will propose a rollup scheme that silently produces wrong p99s, which is a serious, hard-to-detect correctness bug in a monitoring system (exactly the systems everyone trusts to tell the truth about production health).
+This is the single most important "gotcha" to name in a metrics-system interview — candidates who
+don't know that percentiles aren't mergeable will propose a rollup scheme that silently produces
+wrong p99s, which is a serious, hard-to-detect correctness bug in a monitoring system (exactly the
+systems everyone trusts to tell the truth about production health).
 
 ### Scaling the Design
 
@@ -1149,7 +1194,8 @@ This is the single most important "gotcha" to name in a metrics-system interview
 
 ## Closing: The Pattern Behind the Patterns
 
-Looking back across all eight systems, the same handful of decisions keep recurring in different costumes:
+Looking back across all eight systems, the same handful of decisions keep recurring in different
+costumes:
 
 - **Split hot metadata from cold/large payloads** (Pastebin, File Storage) — small indexed records in a fast DB, bulk bytes in object storage.
 - **Push cost from the read path to a background/offline path whenever the read path has a tight latency SLA** (Autocomplete's precomputed top-K, Metrics' rollups, News Feed's fan-out-on-write).
@@ -1157,4 +1203,6 @@ Looking back across all eight systems, the same handful of decisions keep recurr
 - **Decouple ingestion/write bursts from persistence with a queue** (Metrics, News Feed fan-out, File Storage uploads).
 - **Fail open vs. fail closed is a product decision, not just an engineering one** — state it explicitly rather than assuming (Rate Limiter, Cache).
 
-Revisit the framing question: *did you pick each primitive because the requirements demanded it, or because it was the one you remembered from a diagram?* If you can defend every box in every diagram above with a number or a failure scenario, you're ready for Part B.
+Revisit the framing question: *did you pick each primitive because the requirements demanded it, or
+because it was the one you remembered from a diagram?* If you can defend every box in every diagram
+above with a number or a failure scenario, you're ready for Part B.

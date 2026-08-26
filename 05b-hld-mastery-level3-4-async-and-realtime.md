@@ -1,8 +1,14 @@
 # Stage 5 (Part B) — HLD Mastery: Level 3 Async/Event Systems & Level 4 Real-Time Systems
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
-> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing architectures?*
->
-> Every system below is built from the same ~15 primitives you already know: load balancers, stateless app servers, a message queue/log, a KV store, a relational store, a blob store, consistent hashing, a WebSocket/connection-management layer, and idempotency/retry/backoff patterns. The skill being tested at Staff level is not "have you seen this exact diagram before" — it's "can you assemble the primitives, justify each choice with a number, and know exactly where it breaks."
+> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing
+architectures?* > > Every system below is built from the same ~15 primitives you already know: load
+balancers, stateless app servers, a message queue/log, a KV store, a relational store, a blob store,
+consistent hashing, a WebSocket/connection-management layer, and idempotency/retry/backoff patterns.
+The skill being tested at Staff level is not "have you seen this exact diagram before" — it's "can
+you assemble the primitives, justify each choice with a number, and know exactly where it breaks."
 
 ## Table of Contents
 
@@ -21,6 +27,9 @@
 ---
 
 # 1. Notification Platform
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -68,7 +77,9 @@ POST /v1/templates          (admin) - create/version a template
 PUT  /v1/users/{id}/preferences   - opt in/out per category+channel
 ```
 
-Bulk/campaign path is separate: `POST /v1/campaigns` takes a segment query or a recipient-list file (uploaded to blob storage) and is processed asynchronously by a fan-out job, never synchronously through the single-notification API.
+Bulk/campaign path is separate: `POST /v1/campaigns` takes a segment query or a recipient-list file
+(uploaded to blob storage) and is processed asynchronously by a fan-out job, never synchronously
+through the single-notification API.
 
 ### Data model
 
@@ -141,6 +152,9 @@ Bulk/campaign path is separate: `POST /v1/campaigns` takes a segment query or a 
 ---
 
 # 2. Logging Platform
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -166,7 +180,8 @@ Bulk/campaign path is separate: `POST /v1/campaigns` takes a segment query or a 
 
 ### API design
 
-Ingestion is not a public request/response API in the traditional sense — it's an agent protocol, but we still define it:
+Ingestion is not a public request/response API in the traditional sense — it's an agent protocol,
+but we still define it:
 
 ```
 Agent → Ingest Gateway (gRPC or HTTP/2 streaming):
@@ -184,7 +199,9 @@ POST /v1/search
 { "query": "service:checkout AND level:ERROR", "from":..., "to":..., "limit":100 }
 ```
 
-Batching + compression at the agent is a deliberate choice: 250k individual HTTP requests/sec would drown the gateway in connection overhead; batches of ~500 lines every 1-2s per host cuts request count by orders of magnitude.
+Batching + compression at the agent is a deliberate choice: 250k individual HTTP requests/sec would
+drown the gateway in connection overhead; batches of ~500 lines every 1-2s per host cuts request
+count by orders of magnitude.
 
 ### Data model
 
@@ -241,6 +258,9 @@ Batching + compression at the agent is a deliberate choice: 250k individual HTTP
 ---
 
 # 3. Job Scheduler
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -352,6 +372,9 @@ Two different access patterns need two different structures:
 ---
 
 # 4. Webhook Delivery Platform
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -398,7 +421,9 @@ Headers: X-Webhook-Signature: hmac-sha256=..., X-Webhook-Id: evt_9, X-Webhook-Ti
 Body: {"event_type":"payment.completed","data":{...}}
 ```
 
-`event_id` from the producer is the idempotency key receivers use to dedupe on their end — this is a first-class part of the contract, not an implementation detail, since at-least-once delivery guarantees the receiver *will* see duplicates eventually.
+`event_id` from the producer is the idempotency key receivers use to dedupe on their end — this is a
+first-class part of the contract, not an implementation detail, since at-least-once delivery
+guarantees the receiver *will* see duplicates eventually.
 
 ### Data model
 
@@ -466,6 +491,9 @@ Body: {"event_type":"payment.completed","data":{...}}
 ---
 
 # 5. Chat / WhatsApp-style Messaging
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -507,7 +535,8 @@ GET /v1/conversations/{id}/messages?before=m_1&limit=50
 POST /v1/conversations/{id}/read  { "up_to_msg_id": "m_50" }
 ```
 
-`client_msg_id` is generated client-side so sends are idempotent across retries (e.g., client resends if it doesn't get an ack within a timeout).
+`client_msg_id` is generated client-side so sends are idempotent across retries (e.g., client
+resends if it doesn't get an ack within a timeout).
 
 ### Data model
 
@@ -575,6 +604,9 @@ POST /v1/conversations/{id}/read  { "up_to_msg_id": "m_50" }
 ---
 
 # 6. Presence System
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -612,7 +644,9 @@ REST (fallback / initial load):
 GET /v1/presence?user_ids=u1,u2,u3   → bulk current-state snapshot
 ```
 
-Subscriptions are explicit and scoped (a client only subscribes to presence for users currently visible in its UI — the open conversation list — not its entire 150-contact graph at once), which is itself a major fan-out mitigation baked into the API contract.
+Subscriptions are explicit and scoped (a client only subscribes to presence for users currently
+visible in its UI — the open conversation list — not its entire 150-contact graph at once), which is
+itself a major fan-out mitigation baked into the API contract.
 
 ### Data model
 
@@ -673,6 +707,9 @@ Subscriptions are explicit and scoped (a client only subscribes to presence for 
 ---
 
 # 7. Live Location (Uber-style)
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -711,7 +748,9 @@ Matching service (internal):
 GET /internal/v1/nearby-drivers?lat=..&lng=..&radius_km=3&limit=20
 ```
 
-Driver pings are intentionally *not* a rich synchronous request/response API — they're a fire-and-forget stream, because the driver doesn't need per-ping acknowledgment beyond basic delivery confirmation, and minimizing round-trip chatter matters for battery/bandwidth.
+Driver pings are intentionally *not* a rich synchronous request/response API — they're a fire-and-
+forget stream, because the driver doesn't need per-ping acknowledgment beyond basic delivery
+confirmation, and minimizing round-trip chatter matters for battery/bandwidth.
 
 ### Data model
 
@@ -774,6 +813,9 @@ Driver pings are intentionally *not* a rich synchronous request/response API —
 ---
 
 # 8. Collaborative Editing (OT vs CRDT)
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 ### Requirements
 
@@ -814,7 +856,10 @@ GET /v1/documents/{id}          → current materialized snapshot + current vers
 GET /v1/documents/{id}/history  → version history for time-travel/undo UI
 ```
 
-The API shape is nearly identical whether the server runs OT or a CRDT underneath — the interesting differences are entirely in what the server (OT) or the merge function (CRDT) does with the op, which is exactly why this is a good "concept-level" interview topic: the wire protocol doesn't force the choice, the consistency model does.
+The API shape is nearly identical whether the server runs OT or a CRDT underneath — the interesting
+differences are entirely in what the server (OT) or the merge function (CRDT) does with the op,
+which is exactly why this is a good "concept-level" interview topic: the wire protocol doesn't force
+the choice, the consistency model does.
 
 ### Data model
 
@@ -879,6 +924,12 @@ The API shape is nearly identical whether the server runs OT or a CRDT underneat
 
 ## Closing
 
-Across all eight systems, the same handful of decisions kept recurring: *where does durability happen relative to acknowledgment* (webhook, chat, scheduler), *how do you avoid centralizing a fan-out that grows multiplicatively* (presence, notifications), *what's ephemeral vs. what must survive a crash* (live location, presence, job scheduler), and *what consistency guarantee does the product actually need, versus what's the strongest guarantee available* (webhook ordering, collaborative editing, chat multi-device). None of these are memorized diagrams — they're the same handful of trade-off axes, reapplied.
+Across all eight systems, the same handful of decisions kept recurring: *where does durability
+happen relative to acknowledgment* (webhook, chat, scheduler), *how do you avoid centralizing a fan-
+out that grows multiplicatively* (presence, notifications), *what's ephemeral vs. what must survive
+a crash* (live location, presence, job scheduler), and *what consistency guarantee does the product
+actually need, versus what's the strongest guarantee available* (webhook ordering, collaborative
+editing, chat multi-device). None of these are memorized diagrams — they're the same handful of
+trade-off axes, reapplied.
 
 **Framing question, again:** *Can I combine the building blocks appropriately instead of memorizing architectures?* If you can look at any one of these eight systems and point to which primitive is doing the heavy lifting and why a *different* choice would have broken under the stated numbers, that's the signal a Staff-level interview is actually probing for.

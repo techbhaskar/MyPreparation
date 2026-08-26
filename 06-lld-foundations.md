@@ -1,8 +1,18 @@
 # Stage 6 — LLD Foundations
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 > **Framing question: How should responsibilities inside a component be organized?**
 
-High-level design (HLD) answers "what talks to what" — services, databases, queues, load balancers. Low-level design (LLD) answers a narrower, harder question: once you're inside one box on that diagram, how do you carve it into classes, interfaces, and methods so that it can be built, tested, changed, and understood by someone other than the person who wrote it? This is the level senior/staff interviews probe hardest, because it's where engineering judgment actually lives — anyone can draw boxes and arrows, but knowing *why* a `PaymentProcessor` shouldn't also validate card numbers is the difference between a design that survives five years of feature requests and one that gets rewritten in eighteen months.
+High-level design (HLD) answers "what talks to what" — services, databases, queues, load balancers.
+Low-level design (LLD) answers a narrower, harder question: once you're inside one box on that
+diagram, how do you carve it into classes, interfaces, and methods so that it can be built, tested,
+changed, and understood by someone other than the person who wrote it? This is the level
+senior/staff interviews probe hardest, because it's where engineering judgment actually lives —
+anyone can draw boxes and arrows, but knowing *why* a `PaymentProcessor` shouldn't also validate
+card numbers is the difference between a design that survives five years of feature requests and one
+that gets rewritten in eighteen months.
 
 All code examples in this document use **Java**.
 
@@ -66,9 +76,13 @@ All code examples in this document use **Java**.
 
 ### Requirements → Use Cases
 
-The most common failure in an LLD interview isn't writing bad code — it's writing *the wrong classes* because the candidate jumped to code before extracting the nouns and verbs from the problem statement. There's a repeatable technique for this.
+The most common failure in an LLD interview isn't writing bad code — it's writing *the wrong
+classes* because the candidate jumped to code before extracting the nouns and verbs from the problem
+statement. There's a repeatable technique for this.
 
-Take a word problem: *"Design a parking lot. It has multiple levels, each with spots of different sizes (compact, large, motorcycle). Vehicles of different types enter, get assigned a spot, and pay when leaving based on duration."*
+Take a word problem: *"Design a parking lot. It has multiple levels, each with spots of different
+sizes (compact, large, motorcycle). Vehicles of different types enter, get assigned a spot, and pay
+when leaving based on duration."*
 
 **Step 1 — underline the nouns.** These are candidate classes: `ParkingLot`, `Level`, `Spot`, `Vehicle`, `Ticket`, `Payment`.
 
@@ -93,11 +107,16 @@ UC2: Vehicle exits
 
 **Step 4 — assign each noun a single job** based on the verbs it participates in. `ParkingLot` owns levels and orchestrates entry/exit. `Level` owns its spots. `Spot` knows its own size and occupancy. `Ticket` is a record of one parking session. `PricingStrategy` is pulled out as its own concept because "compute fee" has enough independent variability (flat rate, hourly, per-vehicle-type) to deserve isolation — this is the seed of the Strategy pattern discussed in Phase 4.
 
-The discipline here is: **don't invent classes the text doesn't justify**, and **don't cram two nouns' responsibilities into one class** because it seemed convenient at the whiteboard. A `Ticket` that also calculates its own price is a small decision now that becomes a painful refactor later when pricing rules multiply.
+The discipline here is: **don't invent classes the text doesn't justify**, and **don't cram two
+nouns' responsibilities into one class** because it seemed convenient at the whiteboard. A `Ticket`
+that also calculates its own price is a small decision now that becomes a painful refactor later
+when pricing rules multiply.
 
 ### Entities
 
-An **entity** is an object defined by a persistent identity, not by the values of its fields. Two `Order` objects with identical line items are still *different orders* if they have different order IDs — one might get cancelled while the other ships. Identity, not state, is what you compare.
+An **entity** is an object defined by a persistent identity, not by the values of its fields. Two
+`Order` objects with identical line items are still *different orders* if they have different order
+IDs — one might get cancelled while the other ships. Identity, not state, is what you compare.
 
 ```java
 public class Order {
@@ -118,11 +137,16 @@ public class Order {
 }
 ```
 
-Entities are mutable over their lifetime (an order's status changes), typically have a lifecycle (created → paid → shipped → delivered), and usually map to a row in a database table with a primary key. In interviews, whenever you see "track", "history", "status changes", or "must be uniquely identifiable", you're looking at an entity.
+Entities are mutable over their lifetime (an order's status changes), typically have a lifecycle
+(created → paid → shipped → delivered), and usually map to a row in a database table with a primary
+key. In interviews, whenever you see "track", "history", "status changes", or "must be uniquely
+identifiable", you're looking at an entity.
 
 ### Value Objects
 
-A **value object** has no identity of its own — it's defined entirely by its attributes, and two value objects with the same attributes are interchangeable. `Money`, `Address`, `DateRange`, `EmailAddress` are canonical examples.
+A **value object** has no identity of its own — it's defined entirely by its attributes, and two
+value objects with the same attributes are interchangeable. `Money`, `Address`, `DateRange`,
+`EmailAddress` are canonical examples.
 
 ```java
 public final class Money {
@@ -154,23 +178,33 @@ public final class Money {
 }
 ```
 
-Notice three design implications of treating `Money` as a value object rather than two raw fields (`long cents`, `String currency`) scattered across `Order`, `Invoice`, and `Payment`:
+Notice three design implications of treating `Money` as a value object rather than two raw fields
+(`long cents`, `String currency`) scattered across `Order`, `Invoice`, and `Payment`:
 
 1. **Validation lives in one place.** Currency mismatches are caught inside `add()`, not re-checked in every call site.
 2. **It's immutable** — `final` fields, no setters, operations return new instances. This eliminates an entire category of bugs where one part of the code mutates a shared `Money` instance that another part didn't expect to change.
 3. **Equality is structural**, not reference-based, so `Money` objects behave the way business logic expects (`$10 == $10`, always).
 
-The rule of thumb: if identity matters, it's an entity; if only the current values matter, it's a value object.
+The rule of thumb: if identity matters, it's an entity; if only the current values matter, it's a
+value object.
 
 ### Responsibilities
 
-Every class should be answerable to the question "what is your one job?" in a single sentence without the word "and". This isn't the same as SRP (covered in depth in Phase 3) — at the modeling stage, it's simpler: when you draw a class on the whiteboard, write next to it the one thing it *owns*. If you can't, split it.
+Every class should be answerable to the question "what is your one job?" in a single sentence
+without the word "and". This isn't the same as SRP (covered in depth in Phase 3) — at the modeling
+stage, it's simpler: when you draw a class on the whiteboard, write next to it the one thing it
+*owns*. If you can't, split it.
 
-A `Spot` in the parking lot example owns "am I occupied, and by what size vehicle". It does **not** own "how much does it cost to park here" (that's `PricingStrategy`'s job) or "how do I find a free spot" (that's `Level`'s or `ParkingLot`'s job as an orchestrator). Ownership boundaries drawn at modeling time are what SOLID enforces at the code level later — get this right early and SRP becomes almost automatic.
+A `Spot` in the parking lot example owns "am I occupied, and by what size vehicle". It does **not**
+own "how much does it cost to park here" (that's `PricingStrategy`'s job) or "how do I find a free
+spot" (that's `Level`'s or `ParkingLot`'s job as an orchestrator). Ownership boundaries drawn at
+modeling time are what SOLID enforces at the code level later — get this right early and SRP becomes
+almost automatic.
 
 ### Relationships
 
-Three relationships describe how objects relate, in increasing order of "how tightly are their lifetimes bound together."
+Three relationships describe how objects relate, in increasing order of "how tightly are their
+lifetimes bound together."
 
 **Association** — a general "uses" or "knows about" relationship, no ownership. A `Driver` is associated with a `Car` they're currently driving, but the car exists independently of any one driver.
 
@@ -211,11 +245,22 @@ class House {
 }
 ```
 
-The practical test in an interview: **"if I delete the container, should the contained object be deleted too?"** Yes → composition. No, it just gets disconnected → aggregation. No formal ownership at all, just collaboration → association. This distinction directly affects how you write constructors (does the container build its parts, or receive already-existing ones?) and destructors/cleanup logic in real systems.
+The practical test in an interview: **"if I delete the container, should the contained object be
+deleted too?"** Yes → composition. No, it just gets disconnected → aggregation. No formal ownership
+at all, just collaboration → association. This distinction directly affects how you write
+constructors (does the container build its parts, or receive already-existing ones?) and
+destructors/cleanup logic in real systems.
 
 ### Behavior
 
-Once nouns (classes) and relationships are fixed, behavior is assigned by asking **"who has the information needed to do this?"** — the classic "Information Expert" pattern from GRASP. If computing a late fee needs `dueDate` and `returnDate`, and both live on `Loan`, then `Loan.calculateLateFee()` is the right home for that method — not a separate `FeeCalculator` that has to be handed both dates from outside (unless the calculation itself is complex/pluggable enough to warrant extraction, per Phase 4's Strategy discussion). Keeping behavior next to the data it operates on is what separates a **rich domain model** from an **anemic** one — a distinction expanded on in Phase 5.
+Once nouns (classes) and relationships are fixed, behavior is assigned by asking **"who has the
+information needed to do this?"** — the classic "Information Expert" pattern from GRASP. If
+computing a late fee needs `dueDate` and `returnDate`, and both live on `Loan`, then
+`Loan.calculateLateFee()` is the right home for that method — not a separate `FeeCalculator` that
+has to be handed both dates from outside (unless the calculation itself is complex/pluggable enough
+to warrant extraction, per Phase 4's Strategy discussion). Keeping behavior next to the data it
+operates on is what separates a **rich domain model** from an **anemic** one — a distinction
+expanded on in Phase 5.
 
 ---
 
@@ -223,7 +268,9 @@ Once nouns (classes) and relationships are fixed, behavior is assigned by asking
 
 ### Encapsulation
 
-Encapsulation means hiding internal state and only exposing behavior through a controlled interface — not just "making fields private," but making it *impossible* for external code to put an object into an invalid state.
+Encapsulation means hiding internal state and only exposing behavior through a controlled interface
+— not just "making fields private," but making it *impossible* for external code to put an object
+into an invalid state.
 
 **Before** (state exposed, invariant unenforced):
 
@@ -259,11 +306,17 @@ public class BankAccount {
 }
 ```
 
-The design implication: with the public field, *every* call site that touches `balance` is a place a bug could corrupt the account, and there's no single place to add an audit log, a fraud check, or a currency conversion later. With the encapsulated version, `withdraw`/`deposit` are the only doors in, so adding a new rule ("no withdrawals over $10,000 without 2FA") is a one-method change instead of an audit of the entire codebase.
+The design implication: with the public field, *every* call site that touches `balance` is a place a
+bug could corrupt the account, and there's no single place to add an audit log, a fraud check, or a
+currency conversion later. With the encapsulated version, `withdraw`/`deposit` are the only doors
+in, so adding a new rule ("no withdrawals over $10,000 without 2FA") is a one-method change instead
+of an audit of the entire codebase.
 
 ### Abstraction
 
-Abstraction means exposing *what* an object does while hiding *how*. It's closely tied to interfaces (Phase 4) but is a modeling principle first: a `NotificationService.send(message)` caller shouldn't need to know whether that's implemented via SMTP, a push notification SDK, or an SMS gateway.
+Abstraction means exposing *what* an object does while hiding *how*. It's closely tied to interfaces
+(Phase 4) but is a modeling principle first: a `NotificationService.send(message)` caller shouldn't
+need to know whether that's implemented via SMTP, a push notification SDK, or an SMS gateway.
 
 ```java
 public interface NotificationService {
@@ -277,11 +330,15 @@ public class EmailNotificationService implements NotificationService {
 }
 ```
 
-Client code calls `notificationService.send(...)` and is completely insulated from the mechanism. The design implication is that the *cost* of the underlying mechanism changing (switching email providers, adding retry logic, adding a circuit breaker) is paid inside one class instead of at every call site.
+Client code calls `notificationService.send(...)` and is completely insulated from the mechanism.
+The design implication is that the *cost* of the underlying mechanism changing (switching email
+providers, adding retry logic, adding a circuit breaker) is paid inside one class instead of at
+every call site.
 
 ### Polymorphism
 
-Polymorphism lets you call the same method name on different object types and get type-appropriate behavior, eliminating conditional branching on type.
+Polymorphism lets you call the same method name on different object types and get type-appropriate
+behavior, eliminating conditional branching on type.
 
 **Before** (type-checking branch, grows with every new shape):
 
@@ -317,11 +374,15 @@ public class Rectangle implements Shape {
 double a = shape.area(); // works for any Shape, no branching
 ```
 
-Design implication: adding a `Triangle` in the "before" version means finding and editing the `area()` method (and every other method with a similar `instanceof` chain scattered through the codebase). In the "after" version, adding `Triangle` means writing one new class — nothing existing is touched. This is polymorphism enabling the Open/Closed Principle, covered formally in Phase 3.
+Design implication: adding a `Triangle` in the "before" version means finding and editing the
+`area()` method (and every other method with a similar `instanceof` chain scattered through the
+codebase). In the "after" version, adding `Triangle` means writing one new class — nothing existing
+is touched. This is polymorphism enabling the Open/Closed Principle, covered formally in Phase 3.
 
 ### Inheritance
 
-Inheritance models a strict **"is-a"** relationship and lets a subclass reuse a superclass's implementation and be substitutable for it.
+Inheritance models a strict **"is-a"** relationship and lets a subclass reuse a superclass's
+implementation and be substitutable for it.
 
 ```java
 public abstract class Employee {
@@ -343,11 +404,16 @@ public class SalesEmployee extends Employee {
 }
 ```
 
-`SalesEmployee` **is an** `Employee` — every place that expects an `Employee` can safely receive a `SalesEmployee`. Inheritance is the right tool when: the relationship is genuinely "is-a" (not just "has similar code to"), the subclass doesn't need to change or disable inherited behavior, and the hierarchy is expected to stay shallow and stable. When those conditions don't hold, composition (next section) is usually the safer choice.
+`SalesEmployee` **is an** `Employee` — every place that expects an `Employee` can safely receive a
+`SalesEmployee`. Inheritance is the right tool when: the relationship is genuinely "is-a" (not just
+"has similar code to"), the subclass doesn't need to change or disable inherited behavior, and the
+hierarchy is expected to stay shallow and stable. When those conditions don't hold, composition
+(next section) is usually the safer choice.
 
 ### Composition
 
-Composition builds behavior by **holding references to other objects** and delegating to them, rather than inheriting their implementation.
+Composition builds behavior by **holding references to other objects** and delegating to them,
+rather than inheriting their implementation.
 
 ```java
 public class Car {
@@ -363,11 +429,15 @@ public class Car {
 }
 ```
 
-`Car` doesn't extend `Engine` — that would be nonsensical ("a car is an engine" is false), and it wouldn't let you swap engines at runtime. Composition lets `Car` be built with any `Engine` implementation (`ElectricEngine`, `V8Engine`) and lets that choice change without touching `Car`'s class hierarchy.
+`Car` doesn't extend `Engine` — that would be nonsensical ("a car is an engine" is false), and it
+wouldn't let you swap engines at runtime. Composition lets `Car` be built with any `Engine`
+implementation (`ElectricEngine`, `V8Engine`) and lets that choice change without touching `Car`'s
+class hierarchy.
 
 ### Composition vs Inheritance
 
-This is one of the most interview-relevant OOP judgment calls. The classic failure mode is building a deep inheritance tree to reuse code, then hitting a combination the hierarchy can't express.
+This is one of the most interview-relevant OOP judgment calls. The classic failure mode is building
+a deep inheritance tree to reuse code, then hitting a combination the hierarchy can't express.
 
 **Before** (inheritance explosion): model birds where some fly and some don't.
 
@@ -388,7 +458,12 @@ public class Penguin extends Bird {
 }
 ```
 
-This already breaks Liskov Substitution (Phase 3) — a `Penguin` is-a `Bird` but throws when asked to do something every other `Bird` can do. As you add `Ostrich`, `Emu`, `Duck` (which flies *and* swims), and `Kiwi`, you either keep overriding methods to throw exceptions or start inserting intermediate abstract classes like `FlightlessBird` and `SwimmingBird` — and Java doesn't allow multiple class inheritance, so a `Duck` that both flies and swims becomes awkward to place in a single-parent tree.
+This already breaks Liskov Substitution (Phase 3) — a `Penguin` is-a `Bird` but throws when asked to
+do something every other `Bird` can do. As you add `Ostrich`, `Emu`, `Duck` (which flies *and*
+swims), and `Kiwi`, you either keep overriding methods to throw exceptions or start inserting
+intermediate abstract classes like `FlightlessBird` and `SwimmingBird` — and Java doesn't allow
+multiple class inheritance, so a `Duck` that both flies and swims becomes awkward to place in a
+single-parent tree.
 
 **After** (composition via behavior interfaces):
 
@@ -428,7 +503,13 @@ Bird penguin = new Bird(new CannotFly(), new CanSwim());
 Bird duck = new Bird(new CanFly(), new CanSwim());
 ```
 
-Design implication: there is no exception-throwing override, no combinatorial explosion of subclasses, and behaviors can even be swapped at runtime (`bird.setFlyBehavior(new CanFly())` after training, for instance). The cost is one extra layer of indirection (you're now composing objects instead of writing `class Duck extends Bird`), which is a fair trade whenever behavior varies independently across more than one axis. **Rule of thumb**: reach for inheritance only for a genuine, stable "is-a" with no behavioral exceptions; reach for composition the moment you catch yourself overriding a method just to disable or contradict what the parent does.
+Design implication: there is no exception-throwing override, no combinatorial explosion of
+subclasses, and behaviors can even be swapped at runtime (`bird.setFlyBehavior(new CanFly())` after
+training, for instance). The cost is one extra layer of indirection (you're now composing objects
+instead of writing `class Duck extends Bird`), which is a fair trade whenever behavior varies
+independently across more than one axis. **Rule of thumb**: reach for inheritance only for a
+genuine, stable "is-a" with no behavioral exceptions; reach for composition the moment you catch
+yourself overriding a method just to disable or contradict what the parent does.
 
 ---
 
@@ -720,7 +801,9 @@ public class OrderService {
 
 ### Interfaces
 
-An interface is a pure contract — a set of method signatures with no implementation (default methods aside) and no state. It answers "what can you do," never "how do you do it, or what do you remember." In Java:
+An interface is a pure contract — a set of method signatures with no implementation (default methods
+aside) and no state. It answers "what can you do," never "how do you do it, or what do you
+remember." In Java:
 
 ```java
 public interface PaymentGateway {
@@ -729,11 +812,16 @@ public interface PaymentGateway {
 }
 ```
 
-Any number of unrelated classes (`StripeGateway`, `PaypalGateway`, `MockGateway` for tests) can implement this without any of them being related by inheritance — interfaces let you group by *capability* rather than by *ancestry*, which is exactly what multiple-inheritance-of-behavior needs and what Java's single-inheritance class model can't otherwise give you.
+Any number of unrelated classes (`StripeGateway`, `PaypalGateway`, `MockGateway` for tests) can
+implement this without any of them being related by inheritance — interfaces let you group by
+*capability* rather than by *ancestry*, which is exactly what multiple-inheritance-of-behavior needs
+and what Java's single-inheritance class model can't otherwise give you.
 
 ### Abstract Classes
 
-An abstract class sits between interfaces and concrete classes: it can hold state, provide some concrete method implementations, and still leave some methods unimplemented for subclasses to fill in (the Template Method pattern).
+An abstract class sits between interfaces and concrete classes: it can hold state, provide some
+concrete method implementations, and still leave some methods unimplemented for subclasses to fill
+in (the Template Method pattern).
 
 ```java
 public abstract class ReportGenerator {
@@ -761,11 +849,18 @@ public class PdfReportGenerator extends ReportGenerator {
 
 ### Dependency Inversion (Applied)
 
-Building on Phase 3's DIP, the *applied* pattern is: define the abstraction from the high-level module's point of view, not the low-level module's. `OrderService` should define what it needs (`OrderRepository.save(Order)`), and low-level modules conform to that — not the other way around, where a database class dictates a wide, leaky interface that business logic has to work around. This "the interface belongs to the consumer" framing is what separates DIP done well from DIP done as ceremony.
+Building on Phase 3's DIP, the *applied* pattern is: define the abstraction from the high-level
+module's point of view, not the low-level module's. `OrderService` should define what it needs
+(`OrderRepository.save(Order)`), and low-level modules conform to that — not the other way around,
+where a database class dictates a wide, leaky interface that business logic has to work around. This
+"the interface belongs to the consumer" framing is what separates DIP done well from DIP done as
+ceremony.
 
 ### Dependency Injection
 
-Dependency Injection (DI) is the mechanical technique of supplying an object's dependencies from the outside rather than having it construct them itself — the most common way to satisfy DIP in practice.
+Dependency Injection (DI) is the mechanical technique of supplying an object's dependencies from the
+outside rather than having it construct them itself — the most common way to satisfy DIP in
+practice.
 
 **Before** (dependency self-constructed, hidden, unreplaceable):
 
@@ -802,15 +897,33 @@ OrderService service = new OrderService(new EmailNotifier());
 OrderService testService = new OrderService(new FakeNotifier());
 ```
 
-Constructor injection specifically (versus field or setter injection) is generally preferred because it makes dependencies **visible in the type signature**, guarantees the object is never in a partially-constructed state (no `null` notifier), and lets fields be `final`. This is elaborated on in Phase 7's Testability section — DI is the single biggest lever for making business logic unit-testable without a live database, network, or filesystem.
+Constructor injection specifically (versus field or setter injection) is generally preferred because
+it makes dependencies **visible in the type signature**, guarantees the object is never in a
+partially-constructed state (no `null` notifier), and lets fields be `final`. This is elaborated on
+in Phase 7's Testability section — DI is the single biggest lever for making business logic unit-
+testable without a live database, network, or filesystem.
 
 ### Pluggable Behavior
 
-"Pluggable behavior" is the practical payoff of interfaces + DI: behavior can be swapped by passing a different implementation, with no change to the class that uses it. The `DiscountStrategy` example from OCP (Phase 3) and the `FlyBehavior`/`SwimBehavior` example from Composition (Phase 2) are both instances of this — a class holds a reference to an interface, and *what actually runs* is decided by whichever concrete implementation was injected. This is how production systems support feature flags, A/B-tested algorithms, and per-tenant customization without branching logic scattered through the codebase: the branch happens once, at composition time (often in configuration or a factory), not at every call site.
+"Pluggable behavior" is the practical payoff of interfaces + DI: behavior can be swapped by passing
+a different implementation, with no change to the class that uses it. The `DiscountStrategy` example
+from OCP (Phase 3) and the `FlyBehavior`/`SwimBehavior` example from Composition (Phase 2) are both
+instances of this — a class holds a reference to an interface, and *what actually runs* is decided
+by whichever concrete implementation was injected. This is how production systems support feature
+flags, A/B-tested algorithms, and per-tenant customization without branching logic scattered through
+the codebase: the branch happens once, at composition time (often in configuration or a factory),
+not at every call site.
 
 ### Change Isolation
 
-Change isolation is the cumulative effect of everything above: a well-drawn interface boundary means a change on one side (swapping `MySqlOrderRepository` for `DynamoOrderRepository`, or `EmailNotifier` for `SmsNotifier`) never requires touching, retesting, or redeploying code on the other side. In an interview, when asked "how would you extend this system to support X," the strong answer isn't "I'd add an `if` for X" — it's "I'd check whether X is a new implementation of an existing interface; if the interface is drawn correctly, adding X touches zero existing files." That property — new capability without editing tested code — is the entire practical point of OCP, DIP, and DI working together.
+Change isolation is the cumulative effect of everything above: a well-drawn interface boundary means
+a change on one side (swapping `MySqlOrderRepository` for `DynamoOrderRepository`, or
+`EmailNotifier` for `SmsNotifier`) never requires touching, retesting, or redeploying code on the
+other side. In an interview, when asked "how would you extend this system to support X," the strong
+answer isn't "I'd add an `if` for X" — it's "I'd check whether X is a new implementation of an
+existing interface; if the interface is drawn correctly, adding X touches zero existing files." That
+property — new capability without editing tested code — is the entire practical point of OCP, DIP,
+and DI working together.
 
 ---
 
@@ -818,7 +931,9 @@ Change isolation is the cumulative effect of everything above: a well-drawn inte
 
 ### State Machines
 
-Many real entities — an `Order`, a `TCP connection`, a `document approval workflow` — are best modeled explicitly as a **finite state machine**: a fixed set of states, and a fixed set of legal transitions between them triggered by events.
+Many real entities — an `Order`, a `TCP connection`, a `document approval workflow` — are best
+modeled explicitly as a **finite state machine**: a fixed set of states, and a fixed set of legal
+transitions between them triggered by events.
 
 Consider an `Order`:
 
@@ -859,15 +974,27 @@ public class Order {
 }
 ```
 
-Modeling state explicitly like this — rather than a bare `String status` field mutated freely from anywhere — means illegal transitions (shipping a cancelled order, delivering an order that was never paid) are caught in one place, at the moment they're attempted, instead of manifesting later as a data integrity bug discovered in production.
+Modeling state explicitly like this — rather than a bare `String status` field mutated freely from
+anywhere — means illegal transitions (shipping a cancelled order, delivering an order that was never
+paid) are caught in one place, at the moment they're attempted, instead of manifesting later as a
+data integrity bug discovered in production.
 
 ### Valid Transitions
 
-The transition table above *is* the specification — notice `SHIPPED` cannot go directly to `CANCELLED` (you can't cancel something already shipped in this model; that would need a `RETURN` flow instead), and `DELIVERED`/`CANCELLED` are terminal states with no outgoing transitions. Encoding this as data (a `Map`) rather than as scattered `if` statements means the *entire* set of legal transitions is visible and auditable in one place — valuable both for code review and for onboarding engineers who need to understand what an `Order` can and can't do.
+The transition table above *is* the specification — notice `SHIPPED` cannot go directly to
+`CANCELLED` (you can't cancel something already shipped in this model; that would need a `RETURN`
+flow instead), and `DELIVERED`/`CANCELLED` are terminal states with no outgoing transitions.
+Encoding this as data (a `Map`) rather than as scattered `if` statements means the *entire* set of
+legal transitions is visible and auditable in one place — valuable both for code review and for
+onboarding engineers who need to understand what an `Order` can and can't do.
 
 ### Invariants
 
-An invariant is a condition that must hold true for an object at all times (or at least, at the end of every public method call). For `BankAccount`, "balance never goes negative" is an invariant. For `Order`, "cannot have items added after it reaches PAID" is an invariant. Invariants are enforced the same way encapsulation enforces state validity (Phase 2) — by routing all mutation through methods that check the condition before allowing the change:
+An invariant is a condition that must hold true for an object at all times (or at least, at the end
+of every public method call). For `BankAccount`, "balance never goes negative" is an invariant. For
+`Order`, "cannot have items added after it reaches PAID" is an invariant. Invariants are enforced
+the same way encapsulation enforces state validity (Phase 2) — by routing all mutation through
+methods that check the condition before allowing the change:
 
 ```java
 public class Order {
@@ -883,11 +1010,14 @@ public class Order {
 }
 ```
 
-Invariants and state machines compose naturally: many invariants are really "this field can only be touched while the object is in state X."
+Invariants and state machines compose naturally: many invariants are really "this field can only be
+touched while the object is in state X."
 
 ### Validation
 
-Validation checks *input* against rules before it's allowed to affect state; invariants protect the *object's* internal consistency after the fact. In practice both matter, and they belong at different layers:
+Validation checks *input* against rules before it's allowed to affect state; invariants protect the
+*object's* internal consistency after the fact. In practice both matter, and they belong at
+different layers:
 
 ```java
 public class RegisterUserRequest {
@@ -907,11 +1037,17 @@ public class RegisterUserRequest {
 }
 ```
 
-Validating in the constructor of a value-object-like request means it is **impossible to construct an invalid instance** — every downstream consumer of `RegisterUserRequest` can trust it without re-validating. This is sometimes called "parse, don't validate": push validation to the boundary and let the type system guarantee the rest of the code never sees bad data.
+Validating in the constructor of a value-object-like request means it is **impossible to construct
+an invalid instance** — every downstream consumer of `RegisterUserRequest` can trust it without re-
+validating. This is sometimes called "parse, don't validate": push validation to the boundary and
+let the type system guarantee the rest of the code never sees bad data.
 
 ### Domain Behavior
 
-This is the payoff of everything in this phase: the choice between a **rich domain model** (entities own their behavior and enforce their own invariants — everything above) and an **anemic domain model** (entities are bags of getters/setters, and all the logic lives in outside "service" classes).
+This is the payoff of everything in this phase: the choice between a **rich domain model** (entities
+own their behavior and enforce their own invariants — everything above) and an **anemic domain
+model** (entities are bags of getters/setters, and all the logic lives in outside "service"
+classes).
 
 **Anemic** (a common anti-pattern in enterprise Java):
 
@@ -936,7 +1072,10 @@ public class OrderService {
 }
 ```
 
-The problem: nothing stops another piece of code from calling `order.setStatus(OrderStatus.SHIPPED)` directly and skipping the check entirely — the rule only holds as long as every caller remembers to go through `OrderService`. As the codebase grows, rules get duplicated or bypassed inconsistently across services.
+The problem: nothing stops another piece of code from calling `order.setStatus(OrderStatus.SHIPPED)`
+directly and skipping the check entirely — the rule only holds as long as every caller remembers to
+go through `OrderService`. As the codebase grows, rules get duplicated or bypassed inconsistently
+across services.
 
 **Rich domain model** (the `Order` from the State Machines section above): the entity itself refuses illegal transitions no matter who calls it or from where, because the invariant lives inside the object, not beside it. Business rules become impossible to bypass by construction rather than "please remember to call the right service" — a materially stronger guarantee at scale, and the recommended default for any entity with real lifecycle rules.
 
@@ -946,11 +1085,17 @@ The problem: nothing stops another piece of code from calling `order.setStatus(O
 
 ### Thread Safety
 
-A class is thread-safe if it behaves correctly when accessed by multiple threads concurrently, with no external synchronization required by the caller. "Correctly" means: no data corruption, no lost updates, no observation of a half-updated state — regardless of how the threads are scheduled or interleaved. Thread safety is not a yes/no property of code that *looks* fine in isolation; it's a property that only shows up under concurrent access, which is why it's so easy to ship a race condition that passes every single-threaded test.
+A class is thread-safe if it behaves correctly when accessed by multiple threads concurrently, with
+no external synchronization required by the caller. "Correctly" means: no data corruption, no lost
+updates, no observation of a half-updated state — regardless of how the threads are scheduled or
+interleaved. Thread safety is not a yes/no property of code that *looks* fine in isolation; it's a
+property that only shows up under concurrent access, which is why it's so easy to ship a race
+condition that passes every single-threaded test.
 
 ### Race Conditions
 
-A race condition occurs when the correctness of a result depends on the relative timing of threads — most commonly, a "check-then-act" or "read-modify-write" sequence that isn't atomic.
+A race condition occurs when the correctness of a result depends on the relative timing of threads —
+most commonly, a "check-then-act" or "read-modify-write" sequence that isn't atomic.
 
 **Before** (classic lost-update race):
 
@@ -968,7 +1113,9 @@ public class Counter {
 }
 ```
 
-If two threads call `increment()` concurrently, both can read `count` as `5`, both compute `6`, both write `6` back — one increment is silently lost. Run 1,000 increments across 10 threads and the final count is reliably *less* than 1,000, non-deterministically.
+If two threads call `increment()` concurrently, both can read `count` as `5`, both compute `6`, both
+write `6` back — one increment is silently lost. Run 1,000 increments across 10 threads and the
+final count is reliably *less* than 1,000, non-deterministically.
 
 **After** (synchronized method — simplest fix):
 
@@ -1004,7 +1151,9 @@ public class Counter {
 
 ### Locks
 
-A lock ensures only one thread executes a critical section at a time. Java's `synchronized` keyword is the built-in intrinsic lock; `java.util.concurrent.locks.ReentrantLock` offers more control (tryLock with timeout, interruptible waits, fairness policies):
+A lock ensures only one thread executes a critical section at a time. Java's `synchronized` keyword
+is the built-in intrinsic lock; `java.util.concurrent.locks.ReentrantLock` offers more control
+(tryLock with timeout, interruptible waits, fairness policies):
 
 ```java
 public class Account {
@@ -1024,11 +1173,17 @@ public class Account {
 }
 ```
 
-The `try/finally` pattern is non-negotiable with explicit locks — an exception thrown mid-critical-section without a `finally` unlock leaves the lock held forever, deadlocking every other thread that needs it. Locks trade throughput (only one thread proceeds at a time through the critical section) for correctness; the design skill is minimizing what's *inside* the lock so contention stays low.
+The `try/finally` pattern is non-negotiable with explicit locks — an exception thrown mid-critical-
+section without a `finally` unlock leaves the lock held forever, deadlocking every other thread that
+needs it. Locks trade throughput (only one thread proceeds at a time through the critical section)
+for correctness; the design skill is minimizing what's *inside* the lock so contention stays low.
 
 ### Atomic Operations
 
-An atomic operation completes as a single, indivisible step from every other thread's point of view — no other thread can observe it "half-done." Java's `java.util.concurrent.atomic` package (`AtomicInteger`, `AtomicLong`, `AtomicReference`) provides lock-free atomic operations built on CPU-level compare-and-swap (CAS) instructions:
+An atomic operation completes as a single, indivisible step from every other thread's point of view
+— no other thread can observe it "half-done." Java's `java.util.concurrent.atomic` package
+(`AtomicInteger`, `AtomicLong`, `AtomicReference`) provides lock-free atomic operations built on
+CPU-level compare-and-swap (CAS) instructions:
 
 ```java
 AtomicInteger balance = new AtomicInteger(100);
@@ -1037,11 +1192,18 @@ AtomicInteger balance = new AtomicInteger(100);
 boolean success = balance.compareAndSet(100, 80); // withdraw 20, only if balance is still 100
 ```
 
-Atomics are generally faster than locks under moderate contention because they avoid OS-level thread blocking/context-switching — the CPU retries the CAS instruction instead of parking the thread. For a single counter or flag, prefer an atomic type over `synchronized`; for multi-step invariants spanning several fields (like the `transfer` example above), a lock is usually clearer and safer than trying to compose multiple atomics correctly.
+Atomics are generally faster than locks under moderate contention because they avoid OS-level thread
+blocking/context-switching — the CPU retries the CAS instruction instead of parking the thread. For
+a single counter or flag, prefer an atomic type over `synchronized`; for multi-step invariants
+spanning several fields (like the `transfer` example above), a lock is usually clearer and safer
+than trying to compose multiple atomics correctly.
 
 ### Immutability
 
-An immutable object's state cannot change after construction — and an object that never changes **cannot have a race condition**, because there is nothing for concurrent threads to corrupt. This is why `Money` (Phase 1) being immutable wasn't just a modeling nicety — it's a concurrency guarantee for free.
+An immutable object's state cannot change after construction — and an object that never changes
+**cannot have a race condition**, because there is nothing for concurrent threads to corrupt. This
+is why `Money` (Phase 1) being immutable wasn't just a modeling nicety — it's a concurrency
+guarantee for free.
 
 ```java
 public final class Point {
@@ -1058,11 +1220,17 @@ public final class Point {
 }
 ```
 
-Any number of threads can hold and read the same `Point` instance simultaneously with zero synchronization needed — there's no write to race against. This is why functional-style, immutable data modeling is prized in highly concurrent systems: it eliminates a whole category of bugs at the design level, rather than requiring careful lock discipline at every access site.
+Any number of threads can hold and read the same `Point` instance simultaneously with zero
+synchronization needed — there's no write to race against. This is why functional-style, immutable
+data modeling is prized in highly concurrent systems: it eliminates a whole category of bugs at the
+design level, rather than requiring careful lock discipline at every access site.
 
 ### Concurrent Collections
 
-Standard collections (`ArrayList`, `HashMap`) are not thread-safe — concurrent modification from multiple threads can corrupt internal structure (e.g., `HashMap`'s internal linked structure can end up in an infinite loop during concurrent resizing) or throw `ConcurrentModificationException`. `java.util.concurrent` provides purpose-built alternatives:
+Standard collections (`ArrayList`, `HashMap`) are not thread-safe — concurrent modification from
+multiple threads can corrupt internal structure (e.g., `HashMap`'s internal linked structure can end
+up in an infinite loop during concurrent resizing) or throw `ConcurrentModificationException`.
+`java.util.concurrent` provides purpose-built alternatives:
 
 ```java
 Map<String, Integer> cache = new ConcurrentHashMap<>(); // safe concurrent reads/writes, fine-grained locking internally
@@ -1070,7 +1238,12 @@ List<String> log = new CopyOnWriteArrayList<>();        // safe for many readers
 Queue<Task> tasks = new ConcurrentLinkedQueue<>();       // lock-free queue for producer/consumer patterns
 ```
 
-`ConcurrentHashMap` is the default choice for a shared cache or lookup table under concurrent access — it allows concurrent reads and writes without locking the entire map (unlike `Collections.synchronizedMap(new HashMap<>())`, which serializes *all* access behind one lock). `CopyOnWriteArrayList` fits read-heavy, write-rare scenarios (e.g., a list of event listeners) since every write pays the cost of copying the backing array. Picking the right concurrent collection is a concrete, low-effort way to get thread safety without hand-writing lock logic.
+`ConcurrentHashMap` is the default choice for a shared cache or lookup table under concurrent access
+— it allows concurrent reads and writes without locking the entire map (unlike
+`Collections.synchronizedMap(new HashMap<>())`, which serializes *all* access behind one lock).
+`CopyOnWriteArrayList` fits read-heavy, write-rare scenarios (e.g., a list of event listeners) since
+every write pays the cost of copying the backing array. Picking the right concurrent collection is a
+concrete, low-effort way to get thread safety without hand-writing lock logic.
 
 ---
 
@@ -1078,15 +1251,26 @@ Queue<Task> tasks = new ConcurrentLinkedQueue<>();       // lock-free queue for 
 
 ### Cohesion
 
-Cohesion measures how closely the responsibilities *within* a single class relate to each other. High cohesion means every method and field in the class works together toward one purpose — which is SRP's practical, everyday face at the code level (Phase 3). A class with high cohesion is easy to name accurately, easy to describe in one sentence, and easy to unit test in isolation because its behavior doesn't secretly depend on unrelated state living inside it.
+Cohesion measures how closely the responsibilities *within* a single class relate to each other.
+High cohesion means every method and field in the class works together toward one purpose — which is
+SRP's practical, everyday face at the code level (Phase 3). A class with high cohesion is easy to
+name accurately, easy to describe in one sentence, and easy to unit test in isolation because its
+behavior doesn't secretly depend on unrelated state living inside it.
 
 ### Coupling
 
-Coupling measures how much one class depends on the internal details of another. Low coupling — achieved through interfaces, DI, and clear boundaries (Phase 4) — means a change in one class is unlikely to force a change in another. High cohesion and low coupling are usually presented together because they trade off in the same direction: badly-drawn class boundaries (low cohesion) tend to also produce classes that reach into each other's internals (high coupling), while well-drawn boundaries produce both good cohesion and low coupling as a side effect.
+Coupling measures how much one class depends on the internal details of another. Low coupling —
+achieved through interfaces, DI, and clear boundaries (Phase 4) — means a change in one class is
+unlikely to force a change in another. High cohesion and low coupling are usually presented together
+because they trade off in the same direction: badly-drawn class boundaries (low cohesion) tend to
+also produce classes that reach into each other's internals (high coupling), while well-drawn
+boundaries produce both good cohesion and low coupling as a side effect.
 
 ### Testability
 
-Testability is the most concrete, provable payoff of DI (Phase 4). A class with dependencies injected as interfaces can be tested with fakes/mocks, with zero real database, network, or filesystem involvement.
+Testability is the most concrete, provable payoff of DI (Phase 4). A class with dependencies
+injected as interfaces can be tested with fakes/mocks, with zero real database, network, or
+filesystem involvement.
 
 ```java
 public interface Notifier {
@@ -1127,11 +1311,18 @@ class FakeNotifier implements Notifier {
 }
 ```
 
-Compare this to the "before" version of `OrderService` from Phase 4, where `EmailNotifier` was constructed internally with `new` — that version is untestable without either sending a real email in every test run or resorting to fragile bytecode-manipulation mocking frameworks. Constructor injection turns "hard to test" into "trivial to test" as a direct, mechanical consequence — this is the single strongest practical argument for DI, stronger even than the architectural DIP argument in Phase 3.
+Compare this to the "before" version of `OrderService` from Phase 4, where `EmailNotifier` was
+constructed internally with `new` — that version is untestable without either sending a real email
+in every test run or resorting to fragile bytecode-manipulation mocking frameworks. Constructor
+injection turns "hard to test" into "trivial to test" as a direct, mechanical consequence — this is
+the single strongest practical argument for DI, stronger even than the architectural DIP argument in
+Phase 3.
 
 ### Error Handling
 
-Good error handling communicates failure through the type system and forces callers to acknowledge it, rather than failing silently or crashing with an unhelpful stack trace three layers away from the actual cause.
+Good error handling communicates failure through the type system and forces callers to acknowledge
+it, rather than failing silently or crashing with an unhelpful stack trace three layers away from
+the actual cause.
 
 ```java
 public class InsufficientFundsException extends RuntimeException {
@@ -1152,26 +1343,62 @@ public class Account {
 }
 ```
 
-A specific exception type (`InsufficientFundsException`) lets calling code catch and handle *that exact failure mode* differently from, say, a network timeout — versus throwing a generic `RuntimeException("error")` that forces every caller to either catch everything indiscriminately or let it propagate uninformatively. The general rule: fail fast, fail with enough context to diagnose without a debugger, and design exception types around what a *caller* needs to distinguish, not around what's convenient to throw.
+A specific exception type (`InsufficientFundsException`) lets calling code catch and handle *that
+exact failure mode* differently from, say, a network timeout — versus throwing a generic
+`RuntimeException("error")` that forces every caller to either catch everything indiscriminately or
+let it propagate uninformatively. The general rule: fail fast, fail with enough context to diagnose
+without a debugger, and design exception types around what a *caller* needs to distinguish, not
+around what's convenient to throw.
 
 ### Maintainability
 
-Maintainability isn't a separate technique — it's the accumulated outcome of everything in this document done well: high cohesion, low coupling, SOLID boundaries, explicit state machines, and good test coverage combine to make future changes cheap and low-risk. The single best proxy question for maintainability in an interview: **"if requirement X changed tomorrow, how many files would need to change, and how confident would you be that nothing else broke?"** A well-factored design answers "one or two files, and the test suite would tell me immediately if something broke."
+Maintainability isn't a separate technique — it's the accumulated outcome of everything in this
+document done well: high cohesion, low coupling, SOLID boundaries, explicit state machines, and good
+test coverage combine to make future changes cheap and low-risk. The single best proxy question for
+maintainability in an interview: **"if requirement X changed tomorrow, how many files would need to
+change, and how confident would you be that nothing else broke?"** A well-factored design answers
+"one or two files, and the test suite would tell me immediately if something broke."
 
 ### YAGNI
 
-"You Aren't Gonna Need It" — don't build abstraction, configuration, or flexibility for a requirement that doesn't exist yet. A `PaymentGateway` interface (Phase 4) is justified because the problem statement already mentions multiple payment providers; a `PaymentGateway` interface built "just in case we need Stripe and PayPal someday" when only one provider is in scope is speculative complexity that costs real navigation and cognitive overhead for a flexibility nobody asked for. In an interview, if asked to design for one concrete case, build for that case — but *do* mention out loud where you'd introduce a seam (an interface boundary) if a second implementation were requested, which demonstrates judgment without over-building.
+"You Aren't Gonna Need It" — don't build abstraction, configuration, or flexibility for a
+requirement that doesn't exist yet. A `PaymentGateway` interface (Phase 4) is justified because the
+problem statement already mentions multiple payment providers; a `PaymentGateway` interface built
+"just in case we need Stripe and PayPal someday" when only one provider is in scope is speculative
+complexity that costs real navigation and cognitive overhead for a flexibility nobody asked for. In
+an interview, if asked to design for one concrete case, build for that case — but *do* mention out
+loud where you'd introduce a seam (an interface boundary) if a second implementation were requested,
+which demonstrates judgment without over-building.
 
 ### DRY
 
-"Don't Repeat Yourself" — every piece of business knowledge should have one authoritative representation. But DRY applies to *knowledge*, not to *text that merely looks similar*. Two validation checks that happen to both be one line long but represent unrelated rules (`age >= 18` for adult content vs. `age >= 18` for a legal drinking age in some jurisdiction) should **not** be merged just because the code is textually identical — one rule changing shouldn't silently change the other. Real DRY violations are things like the pricing calculation duplicated across `OrderService` and `InvoiceService` — if the tax rate formula changes, both need to change in lockstep, and it's only a matter of time before someone updates one and misses the other.
+"Don't Repeat Yourself" — every piece of business knowledge should have one authoritative
+representation. But DRY applies to *knowledge*, not to *text that merely looks similar*. Two
+validation checks that happen to both be one line long but represent unrelated rules (`age >= 18`
+for adult content vs. `age >= 18` for a legal drinking age in some jurisdiction) should **not** be
+merged just because the code is textually identical — one rule changing shouldn't silently change
+the other. Real DRY violations are things like the pricing calculation duplicated across
+`OrderService` and `InvoiceService` — if the tax rate formula changes, both need to change in
+lockstep, and it's only a matter of time before someone updates one and misses the other.
 
 ### KISS
 
-"Keep It Simple, Stupid" — given two designs that satisfy the requirements, prefer the one with fewer moving parts. This is the meta-principle behind everything above: SOLID, DI, and design patterns are tools for managing *genuine* complexity (multiple implementations, changing requirements, concurrent access) — they are not goals in themselves. A three-line `if/else` handling two fixed, permanent cases does not need to become a Strategy pattern with an interface and two classes; that's not flexibility, it's ceremony. The senior-level skill this whole document is really testing is knowing **which** principle applies to the problem in front of you, and stopping the moment simpler code satisfies the actual requirement.
+"Keep It Simple, Stupid" — given two designs that satisfy the requirements, prefer the one with
+fewer moving parts. This is the meta-principle behind everything above: SOLID, DI, and design
+patterns are tools for managing *genuine* complexity (multiple implementations, changing
+requirements, concurrent access) — they are not goals in themselves. A three-line `if/else` handling
+two fixed, permanent cases does not need to become a Strategy pattern with an interface and two
+classes; that's not flexibility, it's ceremony. The senior-level skill this whole document is really
+testing is knowing **which** principle applies to the problem in front of you, and stopping the
+moment simpler code satisfies the actual requirement.
 
 ---
 
 > **Framing question, revisited: How should responsibilities inside a component be organized?**
 >
-> Around clear, single-purpose ownership (Phase 1 and SRP) — expressed through the right relationship between objects (composition over inheritance where behavior varies), protected by encapsulated invariants and explicit state machines (Phase 5), made extensible through interfaces and dependency inversion rather than conditional branching (Phase 3 and 4), made safe under concurrent access through immutability and the right synchronization primitive (Phase 6) — and, at every step, no more elaborate than the actual, current requirements justify (Phase 7).
+> Around clear, single-purpose ownership (Phase 1 and SRP) — expressed through the right
+relationship between objects (composition over inheritance where behavior varies), protected by
+encapsulated invariants and explicit state machines (Phase 5), made extensible through interfaces
+and dependency inversion rather than conditional branching (Phase 3 and 4), made safe under
+concurrent access through immutability and the right synchronization primitive (Phase 6) — and, at
+every step, no more elaborate than the actual, current requirements justify (Phase 7).

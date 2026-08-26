@@ -1,10 +1,21 @@
 # Stage 2 — Distributed Systems Fundamentals
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 > **Framing question:** *What can go wrong because these operations happen on different machines?*
 
-Every topic in this stage is really one topic wearing different costumes. A single machine gives you a shared clock, a shared memory bus, and atomic instructions for free. The moment you split work across two machines connected by a network, you lose all three, and every "fundamental" of distributed systems is really just an engineer's attempt to buy back a piece of what a single machine gave away for free — for a price, and never completely.
+Every topic in this stage is really one topic wearing different costumes. A single machine gives you
+a shared clock, a shared memory bus, and atomic instructions for free. The moment you split work
+across two machines connected by a network, you lose all three, and every "fundamental" of
+distributed systems is really just an engineer's attempt to buy back a piece of what a single
+machine gave away for free — for a price, and never completely.
 
-Hold that lens over every section below. When you read about quorums, ask "what free guarantee is this rebuying, and what's the price?" When you read about 2PC, ask the same. That's what a Staff interviewer is actually listening for: not whether you memorized the vocabulary, but whether you understand that distributed systems engineering is a continuous act of trading money, latency, and complexity for guarantees that used to be free.
+Hold that lens over every section below. When you read about quorums, ask "what free guarantee is
+this rebuying, and what's the price?" When you read about 2PC, ask the same. That's what a Staff
+interviewer is actually listening for: not whether you memorized the vocabulary, but whether you
+understand that distributed systems engineering is a continuous act of trading money, latency, and
+complexity for guarantees that used to be free.
 
 ## Table of Contents
 
@@ -99,7 +110,14 @@ Hold that lens over every section below. When you read about quorums, ask "what 
 
 **Definition.** A system is distributed the moment it consists of two or more independent computers that communicate only by passing messages over a network, and must coordinate to present a single coherent service. The keyword is *independent*: each node has its own memory, its own clock, its own failure mode, and no way to directly observe the internal state of any other node. Everything a node knows about another node is inference from messages that arrived (or didn't).
 
-Contrast this with a single multi-threaded process on one machine: threads share memory, share a clock, and the OS guarantees atomic instructions and a consistent view of what "now" and "already happened" mean. A distributed system throws all of that away. Two services running in the same Kubernetes cluster, in the same rack, connected by a 0.2ms network hop, are exactly as "distributed" — in the rigorous sense — as two data centers on different continents. The physical distance changes the *magnitude* of the problems (latency, partition probability) but not their *existence*. This is the single most common misconception junior engineers carry into Staff-level interviews: they think "distributed" means "far apart." It means "cannot share fate."
+Contrast this with a single multi-threaded process on one machine: threads share memory, share a
+clock, and the OS guarantees atomic instructions and a consistent view of what "now" and "already
+happened" mean. A distributed system throws all of that away. Two services running in the same
+Kubernetes cluster, in the same rack, connected by a 0.2ms network hop, are exactly as "distributed"
+— in the rigorous sense — as two data centers on different continents. The physical distance changes
+the *magnitude* of the problems (latency, partition probability) but not their *existence*. This is
+the single most common misconception junior engineers carry into Staff-level interviews: they think
+"distributed" means "far apart." It means "cannot share fate."
 
 **Mechanics.** The defining primitive of a distributed system is the message: a packet of bytes sent from node A that node B may receive, at some unknown and unbounded time later, or may never receive at all. Every property you want — consistency, ordering, exactly-once — has to be built as a protocol layered on top of that one unreliable primitive. There is no "trust me, it arrived" bit anywhere in the physics of a network.
 
@@ -359,7 +377,12 @@ Other user V reads profile.bio at the same moment
 
 **The rigor engineers usually miss.** The sloppy pop version — "you can only pick 2 of 3 out of C, A, P" — is misleading, because P (network partitions) isn't optional; it's a property of physical reality that any network *can* partition, and a distributed system doesn't get to choose whether the network is partition-tolerant, only how it behaves *when* a partition happens. So the real choice is not "CA vs CP vs AP" as three equally available design points; it's: *given that partitions will eventually occur, when one does, do you sacrifice C or sacrifice A?* "CA" systems only exist in the sense of "systems that behave fine as long as no partition happens" — which is not a meaningful design goal for a distributed system, because you don't control whether partitions happen. A true single-node database is trivially "CA" because it has no network to partition, but that's a degenerate case, not a design choice for a distributed system.
 
-Another subtlety: CAP's "C" is specifically **linearizability**, a strong, very particular consistency model — not "consistency" in the loose sense of "the data makes sense" or ACID's "C" (which is about constraint preservation, an unrelated concept). And CAP is only about behavior *during* a partition; a CP system can be perfectly available *when there's no partition* — the "cost" of choosing CP is paid only during the partition window, not permanently, which is a commonly missed nuance in interview answers.
+Another subtlety: CAP's "C" is specifically **linearizability**, a strong, very particular
+consistency model — not "consistency" in the loose sense of "the data makes sense" or ACID's "C"
+(which is about constraint preservation, an unrelated concept). And CAP is only about behavior
+*during* a partition; a CP system can be perfectly available *when there's no partition* — the
+"cost" of choosing CP is paid only during the partition window, not permanently, which is a commonly
+missed nuance in interview answers.
 
 ```
 No partition:  Both CP and AP systems can be fully available AND consistent.
@@ -536,7 +559,9 @@ Write hits: [1]           (W=1, satisfied — fastest possible write)
 Read queries: [3]         (R=1, satisfied — fastest possible read)
 Overlap: NONE — replica [3] never received the write. Stale read possible.
 ```
-This configuration (W=1, R=1) is deliberately used when speed matters more than guaranteed freshness (e.g., a cache-like use case), and it's a common source of the "unexplainable stale read" bug when engineers don't realize they're outside the safe quorum inequality.
+This configuration (W=1, R=1) is deliberately used when speed matters more than guaranteed freshness
+(e.g., a cache-like use case), and it's a common source of the "unexplainable stale read" bug when
+engineers don't realize they're outside the safe quorum inequality.
 
 **Worked example 3 — read-heavy tuning, N=5, W=4, R=1.** W+R=5, not > N=5 (equal, not strictly greater) — actually this does *not* guarantee overlap by the strict inequality; you'd need R=2 minimum for guaranteed overlap (W+R=6>5). This is a common interview trap: candidates assume "big W and small R" is automatically safe, but the arithmetic must be checked precisely, not eyeballed.
 
@@ -822,7 +847,11 @@ Result: Client A's stale write never corrupts storage, even though Client A
         never "knew" it had lost the lock — the resource enforced safety directly.
 ```
 
-This exact scenario — originally described by Martin Kleppmann using a distributed file storage system as the example — is the canonical illustration used in nearly every serious discussion of distributed locking, precisely because it shows that the lock service alone cannot guarantee mutual exclusion of *actions*, only of *lock possession*, and those are not the same thing once GC pauses, slow disks, or network delays are possible.
+This exact scenario — originally described by Martin Kleppmann using a distributed file storage
+system as the example — is the canonical illustration used in nearly every serious discussion of
+distributed locking, precisely because it shows that the lock service alone cannot guarantee mutual
+exclusion of *actions*, only of *lock possession*, and those are not the same thing once GC pauses,
+slow disks, or network delays are possible.
 
 **Concrete failure scenario without fencing.** Without a fencing token, storage in the scenario above would have no way to know Client A's write (step 6) was stale — it would simply accept whatever arrives, potentially overwriting Client B's legitimate, newer write with Client A's outdated one, causing silent data corruption purely because "possessing a lock" was wrongly treated as equivalent to "safe to act."
 
@@ -1154,7 +1183,10 @@ system of record — fulfillment tries to ship an order the order service has no
 record of, a worse failure mode than the first ordering.
 ```
 
-Neither ordering is safe, because there is no atomic operation spanning "write to this database" and "publish to that queue" — they are two genuinely independent systems with independent commit points, and any gap between them (even a few milliseconds) is a window where a crash produces permanently inconsistent state.
+Neither ordering is safe, because there is no atomic operation spanning "write to this database" and
+"publish to that queue" — they are two genuinely independent systems with independent commit points,
+and any gap between them (even a few milliseconds) is a window where a crash produces permanently
+inconsistent state.
 
 **Concrete failure scenario.** Exactly as above: a payments company's "PaymentCompleted" event fails to publish after the payment is successfully recorded in the database (broker was briefly unreachable during a deploy) — the ledger shows the payment as completed, but the downstream service responsible for sending the receipt, updating the user's account tier, and notifying the merchant never receives the event, and the business only discovers the gap when the merchant calls support asking where their payment notification went, potentially days later.
 
@@ -1568,9 +1600,28 @@ After crash + WAL replay recovery:
 
 ## Closing
 
-> **Framing question, revisited:** *What can go wrong because these operations happen on different machines?*
+> **Framing question, revisited:** *What can go wrong because these operations happen on different
+machines?*
 
-Walk back through all 69 topics and notice they answer this one question from every conceivable angle. Partial failures, message loss, and clock skew (Phase 1) are the raw physical realities of "different machines." Consistency models (Phase 2) are formal vocabularies for describing exactly how much of "as if it were one machine" a system is willing to promise. Data distribution (Phase 3) is what happens when you deliberately split state across those different machines for scale, and the mechanics of keeping split state usable. Coordination and consensus (Phase 4) are the machinery built to reclaim, at a cost, the mutual exclusion and agreement a single machine gets for free. Delivery and ordering (Phase 5) confront the fact that even the humble idea of "a queue" stops being simple once the queue's producer and consumer are different machines. Distributed transactions (Phase 6) show what happens when a business operation refuses to respect the boundary between machines, and the patterns built to make that refusal survivable. And time and recovery (Phase 7) confront the last, most philosophically unsettling fact of all: not even "now" and "already happened" are shared truths across machines, and even "back to normal after a crash" requires its own careful protocol to actually mean what it claims.
+Walk back through all 69 topics and notice they answer this one question from every conceivable
+angle. Partial failures, message loss, and clock skew (Phase 1) are the raw physical realities of
+"different machines." Consistency models (Phase 2) are formal vocabularies for describing exactly
+how much of "as if it were one machine" a system is willing to promise. Data distribution (Phase 3)
+is what happens when you deliberately split state across those different machines for scale, and the
+mechanics of keeping split state usable. Coordination and consensus (Phase 4) are the machinery
+built to reclaim, at a cost, the mutual exclusion and agreement a single machine gets for free.
+Delivery and ordering (Phase 5) confront the fact that even the humble idea of "a queue" stops being
+simple once the queue's producer and consumer are different machines. Distributed transactions
+(Phase 6) show what happens when a business operation refuses to respect the boundary between
+machines, and the patterns built to make that refusal survivable. And time and recovery (Phase 7)
+confront the last, most philosophically unsettling fact of all: not even "now" and "already
+happened" are shared truths across machines, and even "back to normal after a crash" requires its
+own careful protocol to actually mean what it claims.
 
-The through-line for a Staff/Principal-level interview isn't reciting these 69 definitions — it's demonstrating, for any new scenario an interviewer invents on the spot, that you can immediately ask the right version of the framing question: *which of these guarantees am I implicitly assuming still holds once this crosses a network boundary, and what does it actually cost to buy that guarantee back if I need it?* That question, asked rigorously and answered with concrete mechanisms rather than hand-waving, is what this entire stage was building toward.
+The through-line for a Staff/Principal-level interview isn't reciting these 69 definitions — it's
+demonstrating, for any new scenario an interviewer invents on the spot, that you can immediately ask
+the right version of the framing question: *which of these guarantees am I implicitly assuming still
+holds once this crosses a network boundary, and what does it actually cost to buy that guarantee
+back if I need it?* That question, asked rigorously and answered with concrete mechanisms rather
+than hand-waving, is what this entire stage was building toward.
 

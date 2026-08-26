@@ -1,8 +1,14 @@
 # Stage 7 (Part B) — LLD Mastery: Practice Problems
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 > **"Can I create software that remains clean when requirements change?"**
 
-This is the question every one of the 13 problems below is testing. An interviewer at PayPal, Oracle, or any large enterprise doesn't care whether you can draw a `ParkingLot` class — they care whether your `ParkingLot` survives the follow-up question "now add EV charging spots and surge pricing" without a rewrite.
+This is the question every one of the 13 problems below is testing. An interviewer at PayPal,
+Oracle, or any large enterprise doesn't care whether you can draw a `ParkingLot` class — they care
+whether your `ParkingLot` survives the follow-up question "now add EV charging spots and surge
+pricing" without a rewrite.
 
 ## The one rule that matters
 
@@ -16,7 +22,9 @@ For every problem, work in this order, every time:
 
 **Never start from "which pattern should I use."** That question produces `FactorySingletonObserverManager` classes that solve a problem nobody has. Start from the variation, and the pattern falls out on its own — that's also how you defend your design when the interviewer pushes back.
 
-All code below is Java, chosen for consistency across all 13 problems (matches typical PayPal/Oracle interview conventions). Every design decision below is a *deliberate* pattern application — the variation is identified first, in writing, before the pattern is named.
+All code below is Java, chosen for consistency across all 13 problems (matches typical PayPal/Oracle
+interview conventions). Every design decision below is a *deliberate* pattern application — the
+variation is identified first, in writing, before the pattern is named.
 
 ---
 
@@ -41,7 +49,10 @@ All code below is Java, chosen for consistency across all 13 problems (matches t
 ## 1. Parking Lot
 
 ### Requirements
-A multi-level parking lot admits motorcycles, cars, and buses; each level has a fixed count of small/medium/large spots. On entry, a vehicle gets a ticket bound to an assigned spot; on exit, it pays based on duration and vehicle type, and the spot frees up. The lot must report real-time availability per level and support adding new levels without touching existing code.
+A multi-level parking lot admits motorcycles, cars, and buses; each level has a fixed count of
+small/medium/large spots. On entry, a vehicle gets a ticket bound to an assigned spot; on exit, it
+pays based on duration and vehicle type, and the spot frees up. The lot must report real-time
+availability per level and support adding new levels without touching existing code.
 
 ### Key entities
 - **ParkingLot** — the single physical facility; owns levels, orchestrates entry/exit. One per process → Singleton.
@@ -54,9 +65,19 @@ A multi-level parking lot admits motorcycles, cars, and buses; each level has a 
 - **EntrancePanel / ExitPanel** — the two interaction points.
 
 ### Design decisions
-The thing that changes over this system's life is **not** the vehicle/spot hierarchy (three vehicle types is a closed, stable set for the interview scope) — it's **assignment policy** and **pricing policy**, both of which product/ops will tweak constantly ("give EVs the nearest spot," "add weekend surge pricing"). That's the axis of variation, so it gets **Strategy** (Part A: Strategy Pattern) on both axes, injected into `ParkingLot` at construction. `ParkingLot` itself is a **Singleton** (Part A: Singleton Pattern) because there is exactly one lot per process and global, uncoordinated instantiation would let two `ParkingLot`s double-book the same spot.
+The thing that changes over this system's life is **not** the vehicle/spot hierarchy (three vehicle
+types is a closed, stable set for the interview scope) — it's **assignment policy** and **pricing
+policy**, both of which product/ops will tweak constantly ("give EVs the nearest spot," "add weekend
+surge pricing"). That's the axis of variation, so it gets **Strategy** (Part A: Strategy Pattern) on
+both axes, injected into `ParkingLot` at construction. `ParkingLot` itself is a **Singleton** (Part
+A: Singleton Pattern) because there is exactly one lot per process and global, uncoordinated
+instantiation would let two `ParkingLot`s double-book the same spot.
 
-Deliberate simplification: `ParkingSpot` is **one concrete class parameterized by a `SpotSize` enum**, not a `SmallSpot`/`MediumSpot`/`LargeSpot` hierarchy — spot behavior doesn't differ by size, only a field does, so subclassing here would be inheritance used for data, not behavior (an anti-pattern flagged in Part A). Vehicle *does* get a small hierarchy because "does this vehicle fit this spot" is genuine polymorphic behavior.
+Deliberate simplification: `ParkingSpot` is **one concrete class parameterized by a `SpotSize`
+enum**, not a `SmallSpot`/`MediumSpot`/`LargeSpot` hierarchy — spot behavior doesn't differ by size,
+only a field does, so subclassing here would be inheritance used for data, not behavior (an anti-
+pattern flagged in Part A). Vehicle *does* get a small hierarchy because "does this vehicle fit this
+spot" is genuine polymorphic behavior.
 
 ### Class diagram
 ```
@@ -211,14 +232,25 @@ public class ParkingLot {
 ### Extension question
 *"How would you add EV charging spots that also need to reserve a charger and bill for electricity used?"*
 
-Add `EV_CHARGING` as a new `SpotSize`-adjacent attribute (or a `boolean hasCharger` flag on `ParkingSpot`) and a `Chargeable` capability rather than a new `Vehicle` subclass hierarchy — an `ElectricCar` is still a `Car` for sizing purposes. Introduce a new `SpotAssignmentStrategy` implementation, `EvAwareStrategy`, that filters for `hasCharger` spots when the vehicle requests one, and a `CompositeFeeStrategy` that adds an energy-usage component on top of the existing hourly `FeeCalculationStrategy`. Because both assignment and pricing were already extracted behind interfaces, this is two new classes and zero changes to `ParkingLot`, `Level`, or `Ticket` — exactly the point of isolating the variation up front.
+Add `EV_CHARGING` as a new `SpotSize`-adjacent attribute (or a `boolean hasCharger` flag on
+`ParkingSpot`) and a `Chargeable` capability rather than a new `Vehicle` subclass hierarchy — an
+`ElectricCar` is still a `Car` for sizing purposes. Introduce a new `SpotAssignmentStrategy`
+implementation, `EvAwareStrategy`, that filters for `hasCharger` spots when the vehicle requests
+one, and a `CompositeFeeStrategy` that adds an energy-usage component on top of the existing hourly
+`FeeCalculationStrategy`. Because both assignment and pricing were already extracted behind
+interfaces, this is two new classes and zero changes to `ParkingLot`, `Level`, or `Ticket` — exactly
+the point of isolating the variation up front.
 
 ---
 
 ## 2. Vending Machine
 
 ### Requirements
-A machine sells items from numbered slots, each with a price and stock count. A customer selects a slot, inserts money (coins/notes, accepted incrementally), the machine dispenses the item and change, or refunds if the item is out of stock or money is insufficient. The whole thing is inherently a sequence of states — idle, has-money, dispensing, out-of-stock — and that sequencing is the part that breaks if it's written as a pile of booleans.
+A machine sells items from numbered slots, each with a price and stock count. A customer selects a
+slot, inserts money (coins/notes, accepted incrementally), the machine dispenses the item and
+change, or refunds if the item is out of stock or money is insufficient. The whole thing is
+inherently a sequence of states — idle, has-money, dispensing, out-of-stock — and that sequencing is
+the part that breaks if it's written as a pile of booleans.
 
 ### Key entities
 - **VendingMachine** — the context; holds current `VendingState`, current balance, selected slot.
@@ -228,7 +260,13 @@ A machine sells items from numbered slots, each with a price and stock count. A 
 - **CoinMechanism / ChangeDispenser** — accepts money, computes change denominations.
 
 ### Design decisions
-The variation here is **behavior changing by current state**, not by a swappable algorithm — inserting a coin means something different depending on whether the machine is idle, mid-transaction, or jammed. That's the textbook signature of **State** (Part A: State Pattern), not Strategy: the transitions themselves are part of the model, and each state decides which transitions are legal. Contrast with the Cache problem below where eviction is a pure interchangeable algorithm — that's Strategy, this is State, and confusing the two is the single most common LLD interview mistake on this problem.
+The variation here is **behavior changing by current state**, not by a swappable algorithm —
+inserting a coin means something different depending on whether the machine is idle, mid-
+transaction, or jammed. That's the textbook signature of **State** (Part A: State Pattern), not
+Strategy: the transitions themselves are part of the model, and each state decides which transitions
+are legal. Contrast with the Cache problem below where eviction is a pure interchangeable algorithm
+— that's Strategy, this is State, and confusing the two is the single most common LLD interview
+mistake on this problem.
 
 ### Class diagram
 ```
@@ -334,14 +372,22 @@ public class VendingMachine {
 ### Extension question
 *"How would you add support for card payments alongside coins?"*
 
-`insertCoin` is really "add tendered funds" — generalize it to a `PaymentMethod` interface (`CoinPayment`, `CardPayment`) that each resolve to a credited amount, and have `HasMoneySelectedState` call `m.addBalance(paymentMethod.charge(...))` instead of taking a raw `int`. States don't change at all — they don't care *how* money arrived, only *how much* and *when* the threshold is crossed — which is exactly the payoff of having isolated state transitions from payment mechanics in the first design pass.
+`insertCoin` is really "add tendered funds" — generalize it to a `PaymentMethod` interface
+(`CoinPayment`, `CardPayment`) that each resolve to a credited amount, and have
+`HasMoneySelectedState` call `m.addBalance(paymentMethod.charge(...))` instead of taking a raw
+`int`. States don't change at all — they don't care *how* money arrived, only *how much* and *when*
+the threshold is crossed — which is exactly the payoff of having isolated state transitions from
+payment mechanics in the first design pass.
 
 ---
 
 ## 3. Elevator System
 
 ### Requirements
-A building has N elevators serving M floors. Users request an elevator from a floor (up/down) and, once inside, select a destination floor. A central controller must decide which elevator answers each hall call, and each elevator must decide the order in which it services its own queued stops (it should not reverse direction mid-run if avoidable — the classic SCAN/LOOK behavior).
+A building has N elevators serving M floors. Users request an elevator from a floor (up/down) and,
+once inside, select a destination floor. A central controller must decide which elevator answers
+each hall call, and each elevator must decide the order in which it services its own queued stops
+(it should not reverse direction mid-run if avoidable — the classic SCAN/LOOK behavior).
 
 ### Key entities
 - **ElevatorController** — receives hall calls, picks an elevator (dispatch policy).
@@ -352,7 +398,14 @@ A building has N elevators serving M floors. Users request an elevator from a fl
 - **Door**, **Display**, **Button** — supporting UI-facing objects.
 
 ### Design decisions
-Two independent axes vary here, so two Strategies (Part A: Strategy Pattern), not one: (1) **dispatch** — which elevator gets a given call, a building-ops decision that changes with traffic patterns and floor zoning; (2) **intra-car scheduling** — the order an elevator services its own stops, which is an algorithmic concern (SCAN vs FCFS) independent of dispatch. Keeping them as two separate interfaces means you can A/B test a new dispatch algorithm without touching how any single elevator sequences its stops. `ElevatorController` also plays **Observer** (Part A: Observer Pattern) implicitly — elevators publish state changes (arrived at floor, door opened) that the controller/display subscribes to, decoupling "an elevator did something" from "who needs to know."
+Two independent axes vary here, so two Strategies (Part A: Strategy Pattern), not one: (1)
+**dispatch** — which elevator gets a given call, a building-ops decision that changes with traffic
+patterns and floor zoning; (2) **intra-car scheduling** — the order an elevator services its own
+stops, which is an algorithmic concern (SCAN vs FCFS) independent of dispatch. Keeping them as two
+separate interfaces means you can A/B test a new dispatch algorithm without touching how any single
+elevator sequences its stops. `ElevatorController` also plays **Observer** (Part A: Observer
+Pattern) implicitly — elevators publish state changes (arrived at floor, door opened) that the
+controller/display subscribes to, decoupling "an elevator did something" from "who needs to know."
 
 ### Class diagram
 ```
@@ -453,14 +506,20 @@ public class ElevatorController {
 ### Extension question
 *"How would you add priority service for a VIP floor (e.g., an executive floor that should always be served within 30 seconds)?"*
 
-Add a `PriorityDispatchStrategy` decorator around the existing `DispatchStrategy` (Part A: Decorator Pattern) that checks if the requested floor is in a `Set<Integer> priorityFloors` and, if so, force-reroutes the nearest idle-or-same-direction car regardless of the base strategy's score; otherwise it delegates to the wrapped strategy unchanged. No change to `Elevator` or `ElevatorController` — the controller still just calls `dispatchStrategy.selectElevator(...)`, unaware it's now wrapped.
+Add a `PriorityDispatchStrategy` decorator around the existing `DispatchStrategy` (Part A: Decorator
+Pattern) that checks if the requested floor is in a `Set<Integer> priorityFloors` and, if so, force-
+reroutes the nearest idle-or-same-direction car regardless of the base strategy's score; otherwise
+it delegates to the wrapped strategy unchanged. No change to `Elevator` or `ElevatorController` —
+the controller still just calls `dispatchStrategy.selectElevator(...)`, unaware it's now wrapped.
 
 ---
 
 ## 4. Library Management System
 
 ### Requirements
-A library catalogs books (possibly multiple copies of the same title), lets members search and check out/return copies, enforces a max-checkout limit and due dates, and charges overdue fines. Members can also place holds on currently-unavailable titles.
+A library catalogs books (possibly multiple copies of the same title), lets members search and check
+out/return copies, enforces a max-checkout limit and due dates, and charges overdue fines. Members
+can also place holds on currently-unavailable titles.
 
 ### Key entities
 - **Book** — the title-level metadata (ISBN, author, title).
@@ -473,7 +532,14 @@ A library catalogs books (possibly multiple copies of the same title), lets memb
 - **LibrarySystem** — facade coordinating checkout/return/hold flows.
 
 ### Design decisions
-The variation is **membership tier rules** (a student gets 5 books for 14 days, faculty gets 20 books for 60 days) and **fine calculation** (flat-per-day vs capped-per-title) — both are policy, both change without touching checkout logic. That's **Strategy** on two independent interfaces (`MembershipPolicy`, `FineCalculationStrategy`), same reasoning as the Parking Lot problem. Separately, when a `BookCopy` is returned and a hold exists, the natural pending-holds queue is best modeled with **Observer**: `BookCopy` notifies interested parties ("this title just became available") rather than `LibrarySystem` polling copy status after every return — this keeps `LibrarySystem` from needing to know about the holds subsystem's internals.
+The variation is **membership tier rules** (a student gets 5 books for 14 days, faculty gets 20
+books for 60 days) and **fine calculation** (flat-per-day vs capped-per-title) — both are policy,
+both change without touching checkout logic. That's **Strategy** on two independent interfaces
+(`MembershipPolicy`, `FineCalculationStrategy`), same reasoning as the Parking Lot problem.
+Separately, when a `BookCopy` is returned and a hold exists, the natural pending-holds queue is best
+modeled with **Observer**: `BookCopy` notifies interested parties ("this title just became
+available") rather than `LibrarySystem` polling copy status after every return — this keeps
+`LibrarySystem` from needing to know about the holds subsystem's internals.
 
 ### Class diagram
 ```
@@ -591,14 +657,22 @@ public class LibrarySystem {
 ### Extension question
 *"How would you support e-books with concurrent digital lending limits (e.g., 3 simultaneous e-book loans per license)?"*
 
-Model `EBookCopy` as a sibling of `BookCopy` implementing a shared `Loanable` interface (`checkout()`, `returnItem()`, `getStatus()`), where an e-book "copy" is really a license slot decremented/incremented instead of a single physical item. `LibrarySystem.checkout` already operates against the abstraction it's given, so it takes a `Loanable` instead of a concrete `BookCopy` — one interface extraction, no change to `Member`, `MembershipPolicy`, or `FineCalculationStrategy` (e-books just get their own no-op or reduced fine strategy instance).
+Model `EBookCopy` as a sibling of `BookCopy` implementing a shared `Loanable` interface
+(`checkout()`, `returnItem()`, `getStatus()`), where an e-book "copy" is really a license slot
+decremented/incremented instead of a single physical item. `LibrarySystem.checkout` already operates
+against the abstraction it's given, so it takes a `Loanable` instead of a concrete `BookCopy` — one
+interface extraction, no change to `Member`, `MembershipPolicy`, or `FineCalculationStrategy`
+(e-books just get their own no-op or reduced fine strategy instance).
 
 ---
 
 ## 5. ATM
 
 ### Requirements
-An ATM authenticates a card+PIN, then supports balance inquiry, cash withdrawal (dispensed in available denominations, subject to per-transaction and daily limits), and deposit. The interaction is a strict sequence — card inserted → PIN entered → menu → transaction → card ejected — where each step only allows specific next actions.
+An ATM authenticates a card+PIN, then supports balance inquiry, cash withdrawal (dispensed in
+available denominations, subject to per-transaction and daily limits), and deposit. The interaction
+is a strict sequence — card inserted → PIN entered → menu → transaction → card ejected — where each
+step only allows specific next actions.
 
 ### Key entities
 - **ATM** — the context; holds current `ATMState`, cash inventory.
@@ -609,7 +683,17 @@ An ATM authenticates a card+PIN, then supports balance inquiry, cash withdrawal 
 - **Transaction** — record of the operation performed.
 
 ### Design decisions
-Exactly like the Vending Machine, an ATM's behavior is gated by **where it is in a fixed sequence** — you cannot withdraw cash before authenticating, cannot re-authenticate with a card still mid-transaction. That's **State** (Part A: State Pattern) again, and it's worth explicitly telling the interviewer *why* it's State and not a `switch` on an enum: each state needs to reject a different subset of operations and transition differently, and a `switch` scatters that logic at every call site instead of colocating it per state. `CashDispenser`'s minimal-notes-for-amount computation is a pure algorithm with **no variation named in these requirements**, so it stays a plain method — no Strategy is manufactured for it (adding one would be exactly the kind of speculative flexibility the framing question up top is against). `BankService` is a boundary interface so the ATM's state machine can be tested without a real bank — that's dependency inversion, not a "pattern" per se, but the same isolation instinct.
+Exactly like the Vending Machine, an ATM's behavior is gated by **where it is in a fixed sequence**
+— you cannot withdraw cash before authenticating, cannot re-authenticate with a card still mid-
+transaction. That's **State** (Part A: State Pattern) again, and it's worth explicitly telling the
+interviewer *why* it's State and not a `switch` on an enum: each state needs to reject a different
+subset of operations and transition differently, and a `switch` scatters that logic at every call
+site instead of colocating it per state. `CashDispenser`'s minimal-notes-for-amount computation is a
+pure algorithm with **no variation named in these requirements**, so it stays a plain method — no
+Strategy is manufactured for it (adding one would be exactly the kind of speculative flexibility the
+framing question up top is against). `BankService` is a boundary interface so the ATM's state
+machine can be tested without a real bank — that's dependency inversion, not a "pattern" per se, but
+the same isolation instinct.
 
 ### Class diagram
 ```
@@ -725,14 +809,23 @@ public class ATM {
 ### Extension question
 *"How would you add a daily withdrawal limit shared across all ATMs for a given card?"*
 
-This is a state-*sharing* concern, not a state-*machine* concern, so it doesn't touch the `ATMState` hierarchy at all — push it into `BankService`: `debit()` becomes responsible for checking and updating a per-card daily-used counter server-side (the source of truth must be centralized since multiple ATMs share the same account), and `AuthenticatedState.selectWithdraw` just propagates whatever exception `bank.debit()` throws when the limit is exceeded. This is exactly why `BankService` was made a boundary interface up front — the limit is core-banking business logic, not ATM hardware logic, and the two must not be conflated.
+This is a state-*sharing* concern, not a state-*machine* concern, so it doesn't touch the `ATMState`
+hierarchy at all — push it into `BankService`: `debit()` becomes responsible for checking and
+updating a per-card daily-used counter server-side (the source of truth must be centralized since
+multiple ATMs share the same account), and `AuthenticatedState.selectWithdraw` just propagates
+whatever exception `bank.debit()` throws when the limit is exceeded. This is exactly why
+`BankService` was made a boundary interface up front — the limit is core-banking business logic, not
+ATM hardware logic, and the two must not be conflated.
 
 ---
 
 ## 6. Coffee Vending Machine
 
 ### Requirements
-A machine brews multiple beverages (espresso, latte, cappuccino, black coffee), each requiring different quantities of ingredients (water, milk, coffee beans, sugar) from shared, finite tanks. Selecting a drink that lacks sufficient ingredients must fail clearly; a machine operator can refill tanks; new beverage recipes should be addable without changing the brewing engine.
+A machine brews multiple beverages (espresso, latte, cappuccino, black coffee), each requiring
+different quantities of ingredients (water, milk, coffee beans, sugar) from shared, finite tanks.
+Selecting a drink that lacks sufficient ingredients must fail clearly; a machine operator can refill
+tanks; new beverage recipes should be addable without changing the brewing engine.
 
 ### Key entities
 - **CoffeeMachine** — orchestrates tank state + recipe execution.
@@ -743,7 +836,17 @@ A machine brews multiple beverages (espresso, latte, cappuccino, black coffee), 
 - **DispenseUnit** — actually depletes tanks and outputs the drink.
 
 ### Design decisions
-This problem is deceptively similar to Vending Machine #2, but the axis of variation here is **not** sequencing — it's "what set of ingredients does a given drink consume," which is closed, data-driven variation. The clean fit is **Factory Method / simple factory** (Part A: Factory Pattern) to produce `Recipe` objects by name, so `CoffeeMachine` never has an `if (drink.equals("latte"))` ladder — adding oat-milk latte is a new `Recipe` registered in the factory's table, not a new branch in the brewing method. `Recipe` validation-then-consumption against `IngredientTank`s is a **Template Method**-shaped flow (check availability → deduct → brew) that stays identical across all drinks — one method in `CoffeeMachine`, parameterized by the `Recipe` data, rather than duplicated per drink type. No State pattern is needed here because there's no multi-step external interaction sequence like the ATM/Vending problems — it's a single request/response action, so resist the urge to force-fit State just because it worked for #2 and #5.
+This problem is deceptively similar to Vending Machine #2, but the axis of variation here is **not**
+sequencing — it's "what set of ingredients does a given drink consume," which is closed, data-driven
+variation. The clean fit is **Factory Method / simple factory** (Part A: Factory Pattern) to produce
+`Recipe` objects by name, so `CoffeeMachine` never has an `if (drink.equals("latte"))` ladder —
+adding oat-milk latte is a new `Recipe` registered in the factory's table, not a new branch in the
+brewing method. `Recipe` validation-then-consumption against `IngredientTank`s is a **Template
+Method**-shaped flow (check availability → deduct → brew) that stays identical across all drinks —
+one method in `CoffeeMachine`, parameterized by the `Recipe` data, rather than duplicated per drink
+type. No State pattern is needed here because there's no multi-step external interaction sequence
+like the ATM/Vending problems — it's a single request/response action, so resist the urge to force-
+fit State just because it worked for #2 and #5.
 
 ### Class diagram
 ```
@@ -837,14 +940,23 @@ public class CoffeeMachine {
 ### Extension question
 *"How would you support a 'custom drink' mode where a user picks their own sugar/milk levels at the kiosk?"*
 
-Add a `RecipeBuilder` (Part A: Builder Pattern) that lets the UI layer accumulate ingredient choices step by step (`.water(30).milk(120).sugar(2).build()`) and produces a `Recipe` object on the fly — `CoffeeMachine.brew` doesn't care whether a `Recipe` came from the factory's static catalog or a builder, since it only depends on the `Recipe` interface/shape. This is why `Recipe` was kept as plain data rather than something baked into `RecipeFactory` — decoupling recipe *construction* from recipe *consumption* is what makes the custom-drink feature additive.
+Add a `RecipeBuilder` (Part A: Builder Pattern) that lets the UI layer accumulate ingredient choices
+step by step (`.water(30).milk(120).sugar(2).build()`) and produces a `Recipe` object on the fly —
+`CoffeeMachine.brew` doesn't care whether a `Recipe` came from the factory's static catalog or a
+builder, since it only depends on the `Recipe` interface/shape. This is why `Recipe` was kept as
+plain data rather than something baked into `RecipeFactory` — decoupling recipe *construction* from
+recipe *consumption* is what makes the custom-drink feature additive.
 
 ---
 
 ## 7. Logger Framework (mini Log4j/SLF4J)
 
 ### Requirements
-Application code logs messages at a severity level (`DEBUG`, `INFO`, `WARN`, `ERROR`); the framework filters by a configured minimum level, formats each message, and writes it to one or more destinations (console, file, network) — all configurable per-logger without recompiling application code. Adding a new destination or format later must not require touching call sites like `logger.info("...")`.
+Application code logs messages at a severity level (`DEBUG`, `INFO`, `WARN`, `ERROR`); the framework
+filters by a configured minimum level, formats each message, and writes it to one or more
+destinations (console, file, network) — all configurable per-logger without recompiling application
+code. Adding a new destination or format later must not require touching call sites like
+`logger.info("...")`.
 
 ### Key entities
 - **Logger** — the facade application code calls (`debug/info/warn/error`).
@@ -855,7 +967,16 @@ Application code logs messages at a severity level (`DEBUG`, `INFO`, `WARN`, `ER
 - **LoggerConfig / LoggerFactory** — resolves a named logger to its level + appenders (often hierarchical, like real Log4j, but a flat map is enough for interview scope).
 
 ### Design decisions
-Two independent things vary: **where output goes** (console vs file vs network) and **how it's formatted** (plain text vs JSON vs pattern) — that's two orthogonal Strategy interfaces (Part A: Strategy Pattern), `LogAppender` and `LogFormatter`, composed rather than combined into one, so a `FileAppender` can use either formatter without a `FileJsonAppender`/`FilePlainAppender` class explosion. A single log call fanning out to *multiple* appenders (console **and** file **and** a remote sink, simultaneously) is naturally **Observer** (Part A: Observer Pattern) — `Logger` doesn't call one destination, it notifies all registered appenders that a message occurred, and each decides independently whether/how to persist it. `LoggerFactory` returning the same configured `Logger` instance per name is a lightweight **Singleton**-per-key (registry pattern) so `getLogger("com.paypal.Service")` from two call sites shares config.
+Two independent things vary: **where output goes** (console vs file vs network) and **how it's
+formatted** (plain text vs JSON vs pattern) — that's two orthogonal Strategy interfaces (Part A:
+Strategy Pattern), `LogAppender` and `LogFormatter`, composed rather than combined into one, so a
+`FileAppender` can use either formatter without a `FileJsonAppender`/`FilePlainAppender` class
+explosion. A single log call fanning out to *multiple* appenders (console **and** file **and** a
+remote sink, simultaneously) is naturally **Observer** (Part A: Observer Pattern) — `Logger` doesn't
+call one destination, it notifies all registered appenders that a message occurred, and each decides
+independently whether/how to persist it. `LoggerFactory` returning the same configured `Logger`
+instance per name is a lightweight **Singleton**-per-key (registry pattern) so
+`getLogger("com.paypal.Service")` from two call sites shares config.
 
 ### Class diagram
 ```
@@ -956,14 +1077,21 @@ public class LoggerFactory {
 ### Extension question
 *"How would you add async logging so slow appenders (e.g., network) don't block the calling thread?"*
 
-Wrap the existing appender list in a single `AsyncAppender implements LogAppender` that holds an internal `BlockingQueue<LogMessage>` plus a background thread draining it into the real appenders — `Logger.log` still just calls `appender.append(msg)` on what it thinks is one appender, unaware it now returns immediately. This is a **Decorator** applied to `LogAppender` (Part A: Decorator Pattern), and it's only possible cleanly because appenders were already behind an interface rather than hardcoded into `Logger`.
+Wrap the existing appender list in a single `AsyncAppender implements LogAppender` that holds an
+internal `BlockingQueue<LogMessage>` plus a background thread draining it into the real appenders —
+`Logger.log` still just calls `appender.append(msg)` on what it thinks is one appender, unaware it
+now returns immediately. This is a **Decorator** applied to `LogAppender` (Part A: Decorator
+Pattern), and it's only possible cleanly because appenders were already behind an interface rather
+than hardcoded into `Logger`.
 
 ---
 
 ## 8. In-Memory Cache (with pluggable eviction)
 
 ### Requirements
-A fixed-capacity key-value cache supports `get`/`put` in O(1) average time and, when full, evicts an entry according to a configurable policy (LRU, LFU, FIFO) chosen at construction time — swapping the policy must not require changing `Cache`'s public API or callers.
+A fixed-capacity key-value cache supports `get`/`put` in O(1) average time and, when full, evicts an
+entry according to a configurable policy (LRU, LFU, FIFO) chosen at construction time — swapping the
+policy must not require changing `Cache`'s public API or callers.
 
 ### Key entities
 - **Cache<K,V>** — public API (`get`, `put`, `size`), owns the backing store and delegates eviction decisions.
@@ -972,7 +1100,16 @@ A fixed-capacity key-value cache supports `get`/`put` in O(1) average time and, 
 - (Optional) **CacheEntry<V>** — value + metadata if a policy needs it (e.g., frequency count for LFU), though most policies can keep their own bookkeeping internally rather than polluting the entry.
 
 ### Design decisions
-This is the canonical **Strategy pattern** (Part A: Strategy Pattern) problem — the prompt literally names the variation for you: eviction policy. The discipline worth demonstrating to an interviewer is keeping `Cache` **completely ignorant** of *how* a policy decides what to evict; `Cache` only knows the `EvictionPolicy` contract (record an access, record an insertion, ask for a candidate to evict). This means LRU can be backed by a `LinkedHashMap`-style doubly-linked list, LFU by a frequency-bucketed structure, and FIFO by a plain queue — three totally different internal data structures — without `Cache` or its callers ever noticing. Resist adding a `CacheBuilder` or `EvictionPolicyFactory` here unless the interviewer specifically asks for dynamic policy selection by string name — for a fixed, compile-time-known policy, constructor injection is sufficient and a factory would be unrequested ceremony.
+This is the canonical **Strategy pattern** (Part A: Strategy Pattern) problem — the prompt literally
+names the variation for you: eviction policy. The discipline worth demonstrating to an interviewer
+is keeping `Cache` **completely ignorant** of *how* a policy decides what to evict; `Cache` only
+knows the `EvictionPolicy` contract (record an access, record an insertion, ask for a candidate to
+evict). This means LRU can be backed by a `LinkedHashMap`-style doubly-linked list, LFU by a
+frequency-bucketed structure, and FIFO by a plain queue — three totally different internal data
+structures — without `Cache` or its callers ever noticing. Resist adding a `CacheBuilder` or
+`EvictionPolicyFactory` here unless the interviewer specifically asks for dynamic policy selection
+by string name — for a fixed, compile-time-known policy, constructor injection is sufficient and a
+factory would be unrequested ceremony.
 
 ### Class diagram
 ```
@@ -1062,14 +1199,22 @@ public class Cache<K, V> {
 ### Extension question
 *"How would you make the cache thread-safe for concurrent reads and writes?"*
 
-Wrap `get`/`put` bodies in a single `ReentrantReadWriteLock` (read lock for `get`'s common path when it doesn't need to mutate policy state significantly, write lock for `put` and any eviction) — or, simpler and often the better lazy answer for an interview, note that `Cache` composes a `Map` and an `EvictionPolicy` and a coarse `synchronized` on both methods is the correct starting point (`ponytail`-style: don't reach for fine-grained locking until profiling shows contention). The eviction policy interface doesn't change either way — thread-safety is a `Cache`-level concern layered on top, not something that leaks into `EvictionPolicy` implementations.
+Wrap `get`/`put` bodies in a single `ReentrantReadWriteLock` (read lock for `get`'s common path when
+it doesn't need to mutate policy state significantly, write lock for `put` and any eviction) — or,
+simpler and often the better lazy answer for an interview, note that `Cache` composes a `Map` and an
+`EvictionPolicy` and a coarse `synchronized` on both methods is the correct starting point
+(`ponytail`-style: don't reach for fine-grained locking until profiling shows contention). The
+eviction policy interface doesn't change either way — thread-safety is a `Cache`-level concern
+layered on top, not something that leaks into `EvictionPolicy` implementations.
 
 ---
 
 ## 9. Task Scheduler
 
 ### Requirements
-Clients submit tasks (a unit of work plus optional priority, optional delay, optional recurrence) to be executed by a pool of workers; the scheduler must support one-off, delayed, and recurring tasks, respect priority ordering, retry on failure up to a limit, and allow cancellation before execution.
+Clients submit tasks (a unit of work plus optional priority, optional delay, optional recurrence) to
+be executed by a pool of workers; the scheduler must support one-off, delayed, and recurring tasks,
+respect priority ordering, retry on failure up to a limit, and allow cancellation before execution.
 
 ### Key entities
 - **Task** — the work unit (`Runnable`-like `execute()`), id, priority, state (`PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`).
@@ -1081,7 +1226,17 @@ Clients submit tasks (a unit of work plus optional priority, optional delay, opt
 - **TaskScheduler** — facade: `submit`, `cancel`, `schedule(delay)`, `scheduleRecurring(policy)`.
 
 ### Design decisions
-Three independent axes vary, so three small Strategy interfaces rather than one bloated `TaskConfig`: (1) **when it recurs** (`RecurrencePolicy`), (2) **how failures are retried** (`RetryPolicy` — fixed attempts vs exponential backoff), (3) implicitly, **execution ordering**, handled structurally by a `PriorityBlockingQueue` rather than a Strategy since "compare by time-then-priority" is a single stable rule, not something ops will swap at runtime. This mirrors the Elevator problem's lesson: don't collapse genuinely orthogonal variations into one interface just because they both configure the same `Task` — a `CronRecurrence` should be swappable without touching retry logic and vice versa. `Task` itself is a natural **Command** (Part A: Command Pattern) — it encapsulates "a request to do something" as an object that can be queued, delayed, retried, or cancelled independently of who created it or when it runs, which is exactly Command's purpose (decoupling the invoker from the executor).
+Three independent axes vary, so three small Strategy interfaces rather than one bloated
+`TaskConfig`: (1) **when it recurs** (`RecurrencePolicy`), (2) **how failures are retried**
+(`RetryPolicy` — fixed attempts vs exponential backoff), (3) implicitly, **execution ordering**,
+handled structurally by a `PriorityBlockingQueue` rather than a Strategy since "compare by time-
+then-priority" is a single stable rule, not something ops will swap at runtime. This mirrors the
+Elevator problem's lesson: don't collapse genuinely orthogonal variations into one interface just
+because they both configure the same `Task` — a `CronRecurrence` should be swappable without
+touching retry logic and vice versa. `Task` itself is a natural **Command** (Part A: Command
+Pattern) — it encapsulates "a request to do something" as an object that can be queued, delayed,
+retried, or cancelled independently of who created it or when it runs, which is exactly Command's
+purpose (decoupling the invoker from the executor).
 
 ### Class diagram
 ```
@@ -1199,14 +1354,25 @@ public class TaskScheduler {
 ### Extension question
 *"How would you make this scheduler survive a process restart (durable scheduling)?"*
 
-Swap the in-memory `PriorityBlockingQueue`/`ConcurrentHashMap` for a persisted store (a DB table polled by `dispatchReadyTasks`, or a durable queue like SQS with delay-seconds) behind the same `TaskScheduler` public API — `submit`/`schedule`/`cancel` signatures don't change, only what backs `queue` and `byId`. Because `Task` was already a serializable Command object (id + execute logic) rather than a raw closure, it's the natural unit to persist; the one real design change is that `Task.execute()` implementations must become idempotent, since durable delivery implies at-least-once execution — worth flagging to the interviewer as the actual hard part, not the storage swap itself.
+Swap the in-memory `PriorityBlockingQueue`/`ConcurrentHashMap` for a persisted store (a DB table
+polled by `dispatchReadyTasks`, or a durable queue like SQS with delay-seconds) behind the same
+`TaskScheduler` public API — `submit`/`schedule`/`cancel` signatures don't change, only what backs
+`queue` and `byId`. Because `Task` was already a serializable Command object (id + execute logic)
+rather than a raw closure, it's the natural unit to persist; the one real design change is that
+`Task.execute()` implementations must become idempotent, since durable delivery implies at-least-
+once execution — worth flagging to the interviewer as the actual hard part, not the storage swap
+itself.
 
 ---
 
 ## 10. Splitwise (Expense Sharing) — Debt Simplification
 
 ### Requirements
-Users belong to groups and record shared expenses (paid by one user, split among several — equally, by exact amounts, or by percentage). At any point, a user should be able to see "who owes whom" — and critically, the system should **simplify** the debt graph so that, e.g., if A owes B $10 and B owes C $10, the system nets it to "A owes C $10" instead of two separate transfers. This is the deep part of the problem — get the algorithm right, not just the class names.
+Users belong to groups and record shared expenses (paid by one user, split among several — equally,
+by exact amounts, or by percentage). At any point, a user should be able to see "who owes whom" —
+and critically, the system should **simplify** the debt graph so that, e.g., if A owes B $10 and B
+owes C $10, the system nets it to "A owes C $10" instead of two separate transfers. This is the deep
+part of the problem — get the algorithm right, not just the class names.
 
 ### Key entities
 - **User** — id, name.
@@ -1218,9 +1384,13 @@ Users belong to groups and record shared expenses (paid by one user, split among
 - **DebtSimplifier** — the algorithm that reduces the pairwise balance graph to a minimal set of settling transactions.
 
 ### Design decisions
-The split-type variation (equal/exact/percent) is a clean **Strategy** (Part A: Strategy Pattern) — `Expense.addSplits(SplitStrategy, participants)` delegates the "how much does each person owe" computation, and adding "split by shares" (e.g., roommates splitting rent 2:1:1) later is a new `SplitStrategy` implementation, zero changes to `Expense` or `Ledger`.
+The split-type variation (equal/exact/percent) is a clean **Strategy** (Part A: Strategy Pattern) —
+`Expense.addSplits(SplitStrategy, participants)` delegates the "how much does each person owe"
+computation, and adding "split by shares" (e.g., roommates splitting rent 2:1:1) later is a new
+`SplitStrategy` implementation, zero changes to `Expense` or `Ledger`.
 
-The **debt simplification** is the part worth going deep on, because it's a genuine graph/greedy algorithm, not just a pattern-naming exercise:
+The **debt simplification** is the part worth going deep on, because it's a genuine graph/greedy
+algorithm, not just a pattern-naming exercise:
 
 **Problem restated:** given a set of net balances per user (positive = is owed money, negative = owes money), find the *minimum number of transactions* that settles all debts.
 
@@ -1356,14 +1526,22 @@ public class DebtSimplifier {
 ### Extension question
 *"How would you support settlement *within a group only* when a user is in multiple groups (no cross-group netting)?"*
 
-Scope the `Ledger`'s `netBalance` map, and therefore the `DebtSimplifier.simplify` call, per `Group` instead of globally — `Ledger` becomes `Map<Group, Map<User, Double>>`, and `recordExpense` routes into the balance map for `expense.getGroup()`. The `DebtSimplifier` algorithm itself is unchanged; it already operates on "whatever balance map you hand it," which is exactly why keeping it a pure function of `Map<User, Double> -> List<Transaction>` (no hidden dependency on a global `Ledger` state) pays off the moment scoping requirements shift.
+Scope the `Ledger`'s `netBalance` map, and therefore the `DebtSimplifier.simplify` call, per `Group`
+instead of globally — `Ledger` becomes `Map<Group, Map<User, Double>>`, and `recordExpense` routes
+into the balance map for `expense.getGroup()`. The `DebtSimplifier` algorithm itself is unchanged;
+it already operates on "whatever balance map you hand it," which is exactly why keeping it a pure
+function of `Map<User, Double> -> List<Transaction>` (no hidden dependency on a global `Ledger`
+state) pays off the moment scoping requirements shift.
 
 ---
 
 ## 11. Chess Game
 
 ### Requirements
-Two players alternate moves on an 8x8 board; each piece type has distinct legal-move rules; the engine must detect check, checkmate, and stalemate, reject illegal moves (including moves that leave one's own king in check), and support special rules (castling, en passant, pawn promotion) without a monolithic `if piece == "pawn"` move validator.
+Two players alternate moves on an 8x8 board; each piece type has distinct legal-move rules; the
+engine must detect check, checkmate, and stalemate, reject illegal moves (including moves that leave
+one's own king in check), and support special rules (castling, en passant, pawn promotion) without a
+monolithic `if piece == "pawn"` move validator.
 
 ### Key entities
 - **Board** — 8x8 grid of `Square`s, each optionally holding a `Piece`.
@@ -1374,7 +1552,18 @@ Two players alternate moves on an 8x8 board; each piece type has distinct legal-
 - **MoveValidator** — cross-cutting rule: "does this move leave my own king in check" (applies after any piece's raw move generation).
 
 ### Design decisions
-The obvious, load-bearing variation is **how each piece moves** — this is the single cleanest real-world case for polymorphism over conditionals: each `Piece` subclass implements `getLegalMoves(Board, Position)` on its own, and `Game` never asks "what type of piece is this" to decide movement rules (Part A: this *is* the canonical Open/Closed Principle example, more fundamental than any single GoF pattern, though it pairs naturally with **Template Method** if you factor "generate candidate moves, then filter out ones exposing your king" into a shared base method). Move history with the ability to undo naturally wants **Command** (Part A: Command Pattern) — a `Move` object that knows how to `execute()` and `undo()` itself, which is exactly what's needed for undo/redo, check-detection-by-simulation ("try the move, see if king is in check, undo if not legal"), and PGN-style replay. Board state transitions (in-check, checkmate, normal play, stalemate) are a good secondary candidate for **State** if the interviewer wants game-flow control (whose turn, is game over) modeled explicitly rather than as booleans on `Game`.
+The obvious, load-bearing variation is **how each piece moves** — this is the single cleanest real-
+world case for polymorphism over conditionals: each `Piece` subclass implements
+`getLegalMoves(Board, Position)` on its own, and `Game` never asks "what type of piece is this" to
+decide movement rules (Part A: this *is* the canonical Open/Closed Principle example, more
+fundamental than any single GoF pattern, though it pairs naturally with **Template Method** if you
+factor "generate candidate moves, then filter out ones exposing your king" into a shared base
+method). Move history with the ability to undo naturally wants **Command** (Part A: Command Pattern)
+— a `Move` object that knows how to `execute()` and `undo()` itself, which is exactly what's needed
+for undo/redo, check-detection-by-simulation ("try the move, see if king is in check, undo if not
+legal"), and PGN-style replay. Board state transitions (in-check, checkmate, normal play, stalemate)
+are a good secondary candidate for **State** if the interviewer wants game-flow control (whose turn,
+is game over) modeled explicitly rather than as booleans on `Game`.
 
 ### Class diagram
 ```
@@ -1511,14 +1700,28 @@ public class Game {
 ### Extension question
 *"How would you add support for a chess *variant* (e.g., Chess960 with randomized back-rank starting positions, or a 'no castling' house rule)?"*
 
-Extract board setup into a `BoardInitializationStrategy` (Part A: Strategy Pattern) — `StandardSetup` vs `Chess960Setup` — so `Game`'s constructor takes a strategy instead of hardcoding the back rank; extract castling/en passant legality into pluggable `SpecialMoveRule` checks consulted alongside each piece's own `getCandidateMoves`, so a "house rules" config can simply omit the castling rule from the active rule set. Because move generation was already decentralized per-`Piece` rather than living in one giant `Game.isLegalMove` method, adding or removing a rule module doesn't require touching `Pawn`, `Rook`, etc.
+Extract board setup into a `BoardInitializationStrategy` (Part A: Strategy Pattern) —
+`StandardSetup` vs `Chess960Setup` — so `Game`'s constructor takes a strategy instead of hardcoding
+the back rank; extract castling/en passant legality into pluggable `SpecialMoveRule` checks
+consulted alongside each piece's own `getCandidateMoves`, so a "house rules" config can simply omit
+the castling rule from the active rule set. Because move generation was already decentralized
+per-`Piece` rather than living in one giant `Game.isLegalMove` method, adding or removing a rule
+module doesn't require touching `Pawn`, `Rook`, etc.
 
 ---
 
 ## 12. Cab Booking (LLD)
 
 ### Requirements
-A rider requests a ride from a pickup to a drop location; the system matches an available nearby driver, tracks ride lifecycle (`REQUESTED` → `ACCEPTED` → `IN_PROGRESS` → `COMPLETED`/`CANCELLED`), computes fare based on distance/time/vehicle-tier, and processes payment at completion. **This is deliberately the class-model view** — one process, one JVM's worth of objects modeling riders, drivers, rides, and pricing. It is *not* the distributed, multi-service, geo-sharded matching architecture covered in the Ride-Sharing HLD design elsewhere in this course — no service boundaries, no message queues, no geospatial index sharding here; those concerns live at the HLD layer, and conflating the two is the most common mistake candidates make when asked this question at the LLD round.
+A rider requests a ride from a pickup to a drop location; the system matches an available nearby
+driver, tracks ride lifecycle (`REQUESTED` → `ACCEPTED` → `IN_PROGRESS` → `COMPLETED`/`CANCELLED`),
+computes fare based on distance/time/vehicle-tier, and processes payment at completion. **This is
+deliberately the class-model view** — one process, one JVM's worth of objects modeling riders,
+drivers, rides, and pricing. It is *not* the distributed, multi-service, geo-sharded matching
+architecture covered in the Ride-Sharing HLD design elsewhere in this course — no service
+boundaries, no message queues, no geospatial index sharding here; those concerns live at the HLD
+layer, and conflating the two is the most common mistake candidates make when asked this question at
+the LLD round.
 
 ### Key entities
 - **Rider**, **Driver** — user-role entities; `Driver` additionally has `location`, `availability`, `vehicle`.
@@ -1530,7 +1733,18 @@ A rider requests a ride from a pickup to a drop location; the system matches an 
 - **PaymentProcessor** (interface) — boundary to an external payment gateway, invoked at ride completion.
 
 ### Design decisions
-This intentionally reuses the exact same two shapes already justified twice above: **State** for the ride lifecycle (accepting a completed ride, or starting a ride that was never accepted, must be structurally impossible — same reasoning as ATM/Vending) and **Strategy** for the two policies that change independently of each other and of the ride's lifecycle (matching algorithm, fare formula). The one new wrinkle versus the HLD version of this problem: at LLD scope, `DriverMatchingStrategy.findNearestDriver` can legitimately just linear-scan an in-memory `List<Driver>` — that's the correct, lazy, in-scope answer; do **not** reach for a geospatial index (quadtree/geohash) here, that complexity belongs to the HLD design where driver counts are millions and the constraint is cross-machine lookup latency, not algorithmic elegance. Naming that boundary explicitly to the interviewer ("at this scale a linear scan behind the interface is fine; the interface is what lets us swap in a geo-index later without changing `Ride`") is exactly the senior/staff signal this problem is testing for.
+This intentionally reuses the exact same two shapes already justified twice above: **State** for the
+ride lifecycle (accepting a completed ride, or starting a ride that was never accepted, must be
+structurally impossible — same reasoning as ATM/Vending) and **Strategy** for the two policies that
+change independently of each other and of the ride's lifecycle (matching algorithm, fare formula).
+The one new wrinkle versus the HLD version of this problem: at LLD scope,
+`DriverMatchingStrategy.findNearestDriver` can legitimately just linear-scan an in-memory
+`List<Driver>` — that's the correct, lazy, in-scope answer; do **not** reach for a geospatial index
+(quadtree/geohash) here, that complexity belongs to the HLD design where driver counts are millions
+and the constraint is cross-machine lookup latency, not algorithmic elegance. Naming that boundary
+explicitly to the interviewer ("at this scale a linear scan behind the interface is fine; the
+interface is what lets us swap in a geo-index later without changing `Ride`") is exactly the
+senior/staff signal this problem is testing for.
 
 ### Class diagram
 ```
@@ -1667,14 +1881,24 @@ public class Ride {
 ### Extension question
 *"How would you support ride-pooling (two riders sharing one ride with independent drop points)?"*
 
-`Ride` currently assumes one `pickup`/`drop` pair; generalize to a `List<Leg>` (each leg: rider, pickup, drop, individual fare share) with the `RideState` machine driving the *pool* as a whole (still one `IN_PROGRESS` ride object) while `FareCalculationStrategy` gains a pooled variant that discounts each leg based on shared-distance overlap. The state machine itself doesn't grow new states — pooling is a data-shape change to what a `Ride` contains, not a lifecycle change to how it progresses — which is a good example of recognizing when a requirement change is *not* a pattern-shape change at all, just a model change.
+`Ride` currently assumes one `pickup`/`drop` pair; generalize to a `List<Leg>` (each leg: rider,
+pickup, drop, individual fare share) with the `RideState` machine driving the *pool* as a whole
+(still one `IN_PROGRESS` ride object) while `FareCalculationStrategy` gains a pooled variant that
+discounts each leg based on shared-distance overlap. The state machine itself doesn't grow new
+states — pooling is a data-shape change to what a `Ride` contains, not a lifecycle change to how it
+progresses — which is a good example of recognizing when a requirement change is *not* a pattern-
+shape change at all, just a model change.
 
 ---
 
 ## 13. Notification Framework
 
 ### Requirements
-The system needs to send notifications through multiple channels (email, SMS, push, in-app) triggered by application events (order shipped, password reset, promotional blast); users have per-channel preferences (opted out of SMS, say); a single logical notification may fan out to several channels at once, and adding a new channel (e.g., WhatsApp) later must not touch existing event-triggering code.
+The system needs to send notifications through multiple channels (email, SMS, push, in-app)
+triggered by application events (order shipped, password reset, promotional blast); users have per-
+channel preferences (opted out of SMS, say); a single logical notification may fan out to several
+channels at once, and adding a new channel (e.g., WhatsApp) later must not touch existing event-
+triggering code.
 
 ### Key entities
 - **Notification** — payload: title, body, recipient, metadata (template variables).
@@ -1685,7 +1909,18 @@ The system needs to send notifications through multiple channels (email, SMS, pu
 - **NotificationDispatcher** — the subject that event producers publish to; channels (wrapped in preference checks) subscribe as observers.
 
 ### Design decisions
-This problem is explicitly built to combine three patterns cleanly, and naming *which piece each one solves* is the interview-winning move: **Observer** (Part A: Observer Pattern) decouples *event producers* ("an order shipped") from *notification logic* — `OrderService` publishes an event and has zero knowledge that email/SMS/push even exist, exactly like the Elevator controller/display relationship. **Strategy** (Part A: Strategy Pattern) is the shape of `NotificationChannel` itself — sending is one interface, many interchangeable delivery mechanisms, chosen per-recipient based on `UserPreferences` rather than hardcoded. **Factory Method** (Part A: Factory Pattern) produces the channel-appropriate rendering of a generic `Notification`, so the templating logic for "how does a push notification's payload differ from an email's" lives in one place per channel instead of leaking into `NotificationDispatcher`. The reason all three coexist without being redundant: each answers a *different* "what varies" question — who triggers it, how it's delivered, and how it's formatted — and conflating any two into one interface is where this design would start to leak.
+This problem is explicitly built to combine three patterns cleanly, and naming *which piece each one
+solves* is the interview-winning move: **Observer** (Part A: Observer Pattern) decouples *event
+producers* ("an order shipped") from *notification logic* — `OrderService` publishes an event and
+has zero knowledge that email/SMS/push even exist, exactly like the Elevator controller/display
+relationship. **Strategy** (Part A: Strategy Pattern) is the shape of `NotificationChannel` itself —
+sending is one interface, many interchangeable delivery mechanisms, chosen per-recipient based on
+`UserPreferences` rather than hardcoded. **Factory Method** (Part A: Factory Pattern) produces the
+channel-appropriate rendering of a generic `Notification`, so the templating logic for "how does a
+push notification's payload differ from an email's" lives in one place per channel instead of
+leaking into `NotificationDispatcher`. The reason all three coexist without being redundant: each
+answers a *different* "what varies" question — who triggers it, how it's delivered, and how it's
+formatted — and conflating any two into one interface is where this design would start to leak.
 
 ### Class diagram
 ```
@@ -1796,12 +2031,28 @@ public class NotificationDispatcher {
 ### Extension question
 *"How would you add retry-with-backoff for channels that fail (e.g., the email provider is temporarily down), without slowing down the other channels?"*
 
-Wrap each `NotificationChannel` in a `RetryingChannelDecorator implements NotificationChannel` (Part A: Decorator Pattern) that catches send failures and retries per a configured `RetryPolicy` (the same interface introduced in the Task Scheduler problem — reuse, don't reinvent), and dispatch each subscribed channel's `send()` on its own thread/task submitted to an executor so one slow/retrying channel doesn't block delivery to the others. `NotificationDispatcher.dispatch` doesn't change at all — it already treats every subscriber as an opaque `NotificationChannel`, which is the entire payoff of having gone through Observer instead of a hardcoded list of `if (email) ... if (sms) ...` calls.
+Wrap each `NotificationChannel` in a `RetryingChannelDecorator implements NotificationChannel` (Part
+A: Decorator Pattern) that catches send failures and retries per a configured `RetryPolicy` (the
+same interface introduced in the Task Scheduler problem — reuse, don't reinvent), and dispatch each
+subscribed channel's `send()` on its own thread/task submitted to an executor so one slow/retrying
+channel doesn't block delivery to the others. `NotificationDispatcher.dispatch` doesn't change at
+all — it already treats every subscriber as an opaque `NotificationChannel`, which is the entire
+payoff of having gone through Observer instead of a hardcoded list of `if (email) ... if (sms) ...`
+calls.
 
 ---
 
 ## Closing the loop
 
-Thirteen problems, and the same five-step process every time: pin the requirements, name the entities, find the axis of change, let the pattern fall out, then diagram and code it. Notice how few *distinct* patterns actually got used — Strategy and State did most of the work, Observer and Command showed up where events or undo-able actions were the real shape, Factory and Decorator appeared only where construction or optional wrapping genuinely varied. That's not a coincidence: real systems reuse a small pattern vocabulary constantly, and a candidate who reaches for a *new* pattern on every problem to look impressive is demonstrating the opposite of what these problems test.
+Thirteen problems, and the same five-step process every time: pin the requirements, name the
+entities, find the axis of change, let the pattern fall out, then diagram and code it. Notice how
+few *distinct* patterns actually got used — Strategy and State did most of the work, Observer and
+Command showed up where events or undo-able actions were the real shape, Factory and Decorator
+appeared only where construction or optional wrapping genuinely varied. That's not a coincidence:
+real systems reuse a small pattern vocabulary constantly, and a candidate who reaches for a *new*
+pattern on every problem to look impressive is demonstrating the opposite of what these problems
+test.
 
-> **"Can I create software that remains clean when requirements change?"** — every "extension question" above answered yes, and in every case the answer was "because the axis of change was already isolated behind an interface before the question was asked." That's the whole skill.
+> **"Can I create software that remains clean when requirements change?"** — every "extension
+question" above answered yes, and in every case the answer was "because the axis of change was
+already isolated behind an interface before the question was asked." That's the whole skill.

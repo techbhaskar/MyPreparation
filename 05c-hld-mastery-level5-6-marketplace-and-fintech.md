@@ -1,10 +1,22 @@
 # Stage 5 (Part C) — HLD Mastery: Level 5 Marketplace Systems & Level 6 FinTech Systems
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
-> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing architectures?*
+> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing
+architectures?*
 
-Every design below is built from the same small set of primitives you already know: load balancers, stateless services, a queue, a cache, a primary datastore with an explicit consistency model, an index for search/geo, and idempotency keys wherever money or state mutation is involved. The skill being tested is not "have you seen this exact system" — it's "can you pick the right consistency model, the right lock/queue/cache trade-off, and the right failure story for *this* combination of constraints." Read each design asking: *which primitive is load-bearing here, and what breaks if I swap it out?*
+Every design below is built from the same small set of primitives you already know: load balancers,
+stateless services, a queue, a cache, a primary datastore with an explicit consistency model, an
+index for search/geo, and idempotency keys wherever money or state mutation is involved. The skill
+being tested is not "have you seen this exact system" — it's "can you pick the right consistency
+model, the right lock/queue/cache trade-off, and the right failure story for *this* combination of
+constraints." Read each design asking: *which primitive is load-bearing here, and what breaks if I
+swap it out?*
 
-FinTech systems (Level 6) get extra depth because this candidate is targeting PayPal-style interviews, where ledger correctness, idempotency, and reconciliation are asked directly and evaluated harshly.
+FinTech systems (Level 6) get extra depth because this candidate is targeting PayPal-style
+interviews, where ledger correctness, idempotency, and reconciliation are asked directly and
+evaluated harshly.
 
 ---
 
@@ -70,7 +82,8 @@ GET  /orders/{orderId}
 GET  /orders?userId=...&status=shipped
 POST /orders/{orderId}/cancel
 ```
-Idempotency key on `pay` is non-negotiable — client retries on timeout must not double-charge or double-create orders.
+Idempotency key on `pay` is non-negotiable — client retries on timeout must not double-charge or
+double-create orders.
 
 ### Data Model
 
@@ -87,7 +100,8 @@ orders(order_id PK, user_id, status, total_cents, currency, created_at, version)
 order_items(order_id FK, sku, qty, unit_price_cents)
 payments(payment_id PK, order_id FK, idempotency_key UNIQUE, status, processor_ref)
 ```
-`idempotency_key UNIQUE` at the DB layer is the actual double-charge guard, not just an app-level check.
+`idempotency_key UNIQUE` at the DB layer is the actual double-charge guard, not just an app-level
+check.
 
 ### High-Level Design
 
@@ -133,7 +147,12 @@ Solution: **Saga pattern** with compensating actions, orchestrated by the order 
 4. Convert inventory reservation → decrement.
 5. Persist order row, mark `CONFIRMED`.
 
-If step 3 fails: release reservation (step 1's compensation), mark order `FAILED`, return actionable error. If step 5's DB write fails after payment captured (rare but must be handled): a reconciliation job polls "captured payments without a confirmed order" every few minutes and either completes the order or triggers a refund. This is the same pattern used everywhere in fintech (see Refund/Reconciliation designs) — **money-moving steps are ordered so the reversible step happens first and the irreversible step (capture) happens last**, minimizing the compensation surface.
+If step 3 fails: release reservation (step 1's compensation), mark order `FAILED`, return actionable
+error. If step 5's DB write fails after payment captured (rare but must be handled): a
+reconciliation job polls "captured payments without a confirmed order" every few minutes and either
+completes the order or triggers a refund. This is the same pattern used everywhere in fintech (see
+Refund/Reconciliation designs) — **money-moving steps are ordered so the reversible step happens
+first and the irreversible step (capture) happens last**, minimizing the compensation surface.
 
 **Second hard problem: cart consistency across devices.** Use Redis as source of truth with a monotonically increasing `version` per cart; client sends last-known version, server does last-write-wins per item with version check, and merges conflicting adds (sum quantities) rather than overwriting — this matches user expectation ("I added it on two devices, I want both") better than LWW-only.
 
@@ -190,7 +209,10 @@ GET  /inventory/{sku}/warehouses      -> [{warehouse_id, available, distance}]
 
 ### Data Model
 
-Chose **relational DB with row-level locking / optimistic concurrency** (PostgreSQL) over a NoSQL KV store for stock counters, *specifically because oversell prevention needs atomic conditional decrements with strong consistency* — this is the one place in the whole marketplace stack where you actively want to sacrifice throughput for correctness.
+Chose **relational DB with row-level locking / optimistic concurrency** (PostgreSQL) over a NoSQL KV
+store for stock counters, *specifically because oversell prevention needs atomic conditional
+decrements with strong consistency* — this is the one place in the whole marketplace stack where you
+actively want to sacrifice throughput for correctness.
 
 ```sql
 stock(sku, warehouse_id, on_hand, reserved, available GENERATED (on_hand - reserved),
@@ -199,7 +221,8 @@ stock(sku, warehouse_id, on_hand, reserved, available GENERATED (on_hand - reser
 reservations(reservation_id PK, sku, warehouse_id, qty, status ENUM(HELD,COMMITTED,RELEASED,EXPIRED),
              checkout_session_id UNIQUE, created_at, expires_at)
 ```
-`checkout_session_id UNIQUE` makes reservation creation idempotent — retries from the checkout saga don't double-reserve.
+`checkout_session_id UNIQUE` makes reservation creation idempotent — retries from the checkout saga
+don't double-reserve.
 
 ### High-Level Design
 
@@ -241,7 +264,10 @@ Three viable strategies, in order of what I'd actually reach for:
 
 3. **In-memory reservation via Redis `DECRBY` with Lua script** for extreme-hot items, with async write-behind to Postgres for durability: `EVAL "if redis.call('get',KEYS[1]) >= ARGV[1] then return redis.call('decrby',...) else return -1 end"`. Redis single-threaded execution gives atomicity for free and can do 100K+ ops/sec on one key. Risk: a Redis crash before write-behind flushes loses reservations — mitigate with AOF persistence and treating Postgres as the periodic reconciliation source of truth (Redis count must never diverge upward from Postgres, only be a cache of it).
 
-For a PayPal/enterprise interview, the expected answer is #1 as the default, #2 as the "what do you do for a Taylor Swift ticket drop" follow-up, and a clear statement that **pessimistic row locks (`SELECT ... FOR UPDATE`) are the wrong first move** — they serialize writers and collapse throughput under exactly the contention pattern this problem is testing for.
+For a PayPal/enterprise interview, the expected answer is #1 as the default, #2 as the "what do you
+do for a Taylor Swift ticket drop" follow-up, and a clear statement that **pessimistic row locks
+(`SELECT ... FOR UPDATE`) are the wrong first move** — they serialize writers and collapse
+throughput under exactly the contention pattern this problem is testing for.
 
 **Second hard problem: reservation expiry reliability.** A reservation whose TTL fires but whose release never executes leaks stock forever. Don't rely solely on a Redis TTL callback (keyspace notifications can be missed on Redis restarts). Use a belt-and-suspenders approach: TTL-based fast path for the common case, plus a periodic sweeper job (`WHERE status='HELD' AND expires_at < now()`) as the guaranteed backstop — the sweeper is the source of truth, the TTL callback is just a latency optimization.
 
@@ -293,14 +319,20 @@ GET  /availability/{roomTypeId}?from=..&to=..   -> per-night remaining count
 
 ### Data Model
 
-The naive "one row per room per night" table works but is enormous and makes range queries (checkin→checkout overlap) awkward. Two better patterns:
+The naive "one row per room per night" table works but is enormous and makes range queries
+(checkin→checkout overlap) awkward. Two better patterns:
 
 **Option A — Nightly inventory counter (hotel-style, N identical rooms):**
 ```sql
 room_type_inventory(room_type_id, stay_date, total_rooms, booked_count,
                      PRIMARY KEY(room_type_id, stay_date))
 ```
-A booking for `[checkin, checkout)` becomes a range UPDATE across each date in the range, all inside one transaction: `UPDATE room_type_inventory SET booked_count = booked_count + 1 WHERE room_type_id=? AND stay_date=ANY(?) AND booked_count < total_rooms` for all dates, checking `rowcount == num_nights` before committing. This is chosen over exclusion constraints for the hotel case specifically because "N identical interchangeable rooms" is a *counter* problem per night, not a range-overlap problem per unit.
+A booking for `[checkin, checkout)` becomes a range UPDATE across each date in the range, all inside
+one transaction: `UPDATE room_type_inventory SET booked_count = booked_count + 1 WHERE
+room_type_id=? AND stay_date=ANY(?) AND booked_count < total_rooms` for all dates, checking
+`rowcount == num_nights` before committing. This is chosen over exclusion constraints for the hotel
+case specifically because "N identical interchangeable rooms" is a *counter* problem per night, not
+a range-overlap problem per unit.
 
 **Option B — Exclusion constraint on time ranges (appointment-style, 1 specific resource):**
 ```sql
@@ -308,9 +340,14 @@ CREATE EXTENSION btree_gist;
 bookings(booking_id PK, resource_id, time_range TSTZRANGE, status,
          EXCLUDE USING gist (resource_id WITH =, time_range WITH &&) WHERE (status='CONFIRMED'))
 ```
-PostgreSQL's `EXCLUDE` constraint with `btree_gist` **guarantees at the database level** that no two confirmed bookings for the same `resource_id` can have overlapping `time_range` — this is the single cleanest technique for double-booking prevention and is exactly the kind of DB-native answer a staff interview wants to see instead of hand-rolled app-level locking.
+PostgreSQL's `EXCLUDE` constraint with `btree_gist` **guarantees at the database level** that no two
+confirmed bookings for the same `resource_id` can have overlapping `time_range` — this is the single
+cleanest technique for double-booking prevention and is exactly the kind of DB-native answer a staff
+interview wants to see instead of hand-rolled app-level locking.
 
-DB choice: **PostgreSQL** for both — need ACID transactions, range types, and exclusion constraints; NoSQL stores generally lack native range-overlap constraints, forcing you to reimplement this logic (badly) in application code.
+DB choice: **PostgreSQL** for both — need ACID transactions, range types, and exclusion constraints;
+NoSQL stores generally lack native range-overlap constraints, forcing you to reimplement this logic
+(badly) in application code.
 
 ### High-Level Design
 
@@ -346,7 +383,10 @@ DB choice: **PostgreSQL** for both — need ACID transactions, range types, and 
 
 **Hardest problem: preventing double-booking under concurrent holds for overlapping ranges, at reasonable latency.**
 
-This is harder than the e-commerce inventory problem because inventory is "N units of a fungible thing," while a hotel *specific room* or *appointment slot* is a range-overlap check — a naive `SELECT count(*) WHERE overlaps` followed by an `INSERT` has a classic TOCTOU race: two concurrent transactions can both read "0 overlapping bookings" before either commits.
+This is harder than the e-commerce inventory problem because inventory is "N units of a fungible
+thing," while a hotel *specific room* or *appointment slot* is a range-overlap check — a naive
+`SELECT count(*) WHERE overlaps` followed by an `INSERT` has a classic TOCTOU race: two concurrent
+transactions can both read "0 overlapping bookings" before either commits.
 
 Three approaches, and why the third is the one to lead with in an interview:
 
@@ -356,7 +396,10 @@ Three approaches, and why the third is the one to lead with in an interview:
 
 3. **Database-native exclusion constraints** (Option B, PostgreSQL `EXCLUDE USING gist`): the database itself rejects the second INSERT if it overlaps an existing CONFIRMED/HELD range for the same resource — no race window exists because the constraint check and the insert are atomic at the storage engine level, unlike an app-level check-then-insert. This is the correct answer for single-resource range-based booking (a specific hotel room instance, a doctor's specific slot) and the one that best demonstrates staff-level DB knowledge: **push the invariant into the schema, don't reimplement it in application code with locks that are easy to get subtly wrong** (e.g., forgetting to lock in a consistent order across two resources, causing deadlocks).
 
-For hotels specifically, most real systems use Option A (nightly counters) because rooms of the same type are interchangeable — you don't care *which* physical room 204 vs 205 the guest gets, just that count doesn't exceed total. Reach for Option B when the resource is truly a single non-substitutable unit (one doctor, one court, one specific unique room).
+For hotels specifically, most real systems use Option A (nightly counters) because rooms of the same
+type are interchangeable — you don't care *which* physical room 204 vs 205 the guest gets, just that
+count doesn't exceed total. Reach for Option B when the resource is truly a single non-substitutable
+unit (one doctor, one court, one specific unique room).
 
 **Second hard problem: hold expiry must be enforced by the same mechanism as confirmation**, otherwise you get "phantom availability" — a hold that logically expired but whose row is still counted as occupied until a sweeper runs. Mitigate with a short TTL (5–10 min, matches typical checkout flow duration) and a sweeper that runs every 30–60s; treat the sweeper as the authority (same pattern as inventory management, Design #2) — any read of "is this slot free" during the pending-expiry gap should treat still-HELD-but-past-expiry rows as free (`WHERE status='HELD' AND expires_at > now()`).
 
@@ -470,7 +513,13 @@ Key design decisions:
 - **Offer expiry and fallback**: send offer to top-3 candidates simultaneously with a 15s accept window (not sequential — sequential is too slow and loses partners to boredom/other apps); first accept wins, others get "offer taken." If nobody accepts, widen the radius and retry.
 
 **Second hard problem: real-time location tracking at 100K writes/sec without melting the DB.**
-Location pings are high-volume but low-value individually and highly perishable (only the latest matters for live tracking) — this is the textbook case for **not** writing every ping to a durable relational store. Approach: partner app streams location over a persistent WebSocket/gRPC connection to a location gateway; gateway writes only the *latest* position to Redis (in-memory, ephemeral, overwrite-in-place, no history needed for live tracking) and asynchronously batches pings to a time-series-friendly store (Cassandra/S3) for analytics/ETA-model training, decoupled from the live-tracking hot path entirely.
+Location pings are high-volume but low-value individually and highly perishable (only the latest
+matters for live tracking) — this is the textbook case for **not** writing every ping to a durable
+relational store. Approach: partner app streams location over a persistent WebSocket/gRPC connection
+to a location gateway; gateway writes only the *latest* position to Redis (in-memory, ephemeral,
+overwrite-in-place, no history needed for live tracking) and asynchronously batches pings to a time-
+series-friendly store (Cassandra/S3) for analytics/ETA-model training, decoupled from the live-
+tracking hot path entirely.
 
 ### Scaling the Design
 - Partition Redis Geo by city/region — a "nearby partners" query never needs to span cities, so this shards cleanly with no cross-shard queries.
@@ -578,13 +627,31 @@ Rider App                                        Driver App
 
 **Hardest problem #1: geo-indexing for sub-second nearest-driver queries at massive scale, with a granularity that supports both matching AND surge pricing consistently.**
 
-This is why **H3** (or a similar hierarchical hex grid) is the answer of choice over plain geohash for ride-sharing specifically, more so than for food delivery: ride-sharing needs the *same* spatial partitioning scheme for two different purposes — nearest-driver search (fine granularity, small cells) and surge-zone definition (coarser granularity, cells should roughly correspond to "a neighborhood," and be fairly uniform in area so surge feels geographically fair rather than arbitrary along cell boundaries). H3 supports this natively via its **resolution hierarchy**: use resolution 9 (~0.1 km² cells) for driver-matching k-ring searches, and aggregate up to resolution 7 (~5 km² cells) for surge computation, using the same underlying index — you don't maintain two separate geo systems. Geohash can be made to work but its rectangular, latitude-distorted cells make "uniform neighborhood size" harder to reason about, which is exactly why Uber built H3 in the first place — worth saying this explicitly in an interview to show you know *why* H3 exists, not just its name.
+This is why **H3** (or a similar hierarchical hex grid) is the answer of choice over plain geohash
+for ride-sharing specifically, more so than for food delivery: ride-sharing needs the *same* spatial
+partitioning scheme for two different purposes — nearest-driver search (fine granularity, small
+cells) and surge-zone definition (coarser granularity, cells should roughly correspond to "a
+neighborhood," and be fairly uniform in area so surge feels geographically fair rather than
+arbitrary along cell boundaries). H3 supports this natively via its **resolution hierarchy**: use
+resolution 9 (~0.1 km² cells) for driver-matching k-ring searches, and aggregate up to resolution 7
+(~5 km² cells) for surge computation, using the same underlying index — you don't maintain two
+separate geo systems. Geohash can be made to work but its rectangular, latitude-distorted cells make
+"uniform neighborhood size" harder to reason about, which is exactly why Uber built H3 in the first
+place — worth saying this explicitly in an interview to show you know *why* H3 exists, not just its
+name.
 
-Matching mechanics: given a rider's H3 cell at resolution 9, do a `kRing(cell, k=1)` (7 cells: center + 6 neighbors) to find candidate drivers; if too few, expand `k=2`, `k=3`. Score candidates by a weighted function of `(ETA to pickup, driver rating, driver's current trip-completion streak)` rather than pure distance — pure-nearest can create a "always the same unlucky driver gets short trips" fairness problem at the fleet level, which is a real production concern worth naming.
+Matching mechanics: given a rider's H3 cell at resolution 9, do a `kRing(cell, k=1)` (7 cells:
+center + 6 neighbors) to find candidate drivers; if too few, expand `k=2`, `k=3`. Score candidates
+by a weighted function of `(ETA to pickup, driver rating, driver's current trip-completion streak)`
+rather than pure distance — pure-nearest can create a "always the same unlucky driver gets short
+trips" fairness problem at the fleet level, which is a real production concern worth naming.
 
 **Hardest problem #2: surge pricing — computing it correctly, updating it frequently without flapping, and guaranteeing the rider sees the actual price they'll be charged.**
 
-Surge multiplier per H3 cell ≈ f(active ride requests in cell over last N min, available idle drivers in cell) — a live supply/demand ratio, computed as a streaming aggregation (Kafka Streams / Flink windowed job) over `ride.requested` and `driver.availability` events, written to Redis every 60-90s. Two correctness requirements that matter more than the pricing formula itself:
+Surge multiplier per H3 cell ≈ f(active ride requests in cell over last N min, available idle
+drivers in cell) — a live supply/demand ratio, computed as a streaming aggregation (Kafka Streams /
+Flink windowed job) over `ride.requested` and `driver.availability` events, written to Redis every
+60-90s. Two correctness requirements that matter more than the pricing formula itself:
 
 - **Price lock-in**: once a rider is quoted a surge-inclusive fare and confirms within a short window (e.g., 60s), that exact multiplier is pinned to the ride record at request time — recalculating surge mid-negotiation and charging a *different* number than what was shown is both a terrible UX and, for a fintech-adjacent interview, exactly the kind of "silent bait-and-switch" correctness bug an interviewer is probing for. Store `surge_multiplier` denormalized onto the `rides` row at creation time; never re-derive it from the live surge table at billing time.
 - **Smoothing to prevent flapping**: naive per-window recompute can oscillate (surge spikes 3x for one minute because 5 ride requests landed in a small cell, then drops) which erodes rider trust. Apply an exponential moving average across windows and cap the rate of change per update cycle (e.g., max ±0.2x per recompute) rather than jumping straight to the raw instantaneous ratio.
@@ -607,7 +674,15 @@ Surge multiplier per H3 cell ≈ f(active ride requests in cell over last N min,
 
 ## 6. Payment Gateway
 
-> **Gateway vs. Processor, stated plainly (this distinction gets asked directly):** a **payment gateway** is the merchant-facing front door — it captures card/payment details securely (often via a hosted field or SDK so the merchant's servers never touch raw PANs), tokenizes them, performs basic fraud/format checks, and *routes* the transaction onward. A **payment processor** (Design #7) is the back-end engine that actually talks to card networks/banks and moves money. Stripe/Braintree/PayPal's own checkout are gateways; Visa/Mastercard's network plus the acquiring bank relationship is the processing layer underneath. A gateway can sit in front of multiple processors and choose which one to route to (for cost, reliability, or geographic reasons) — that routing flexibility is a big part of a gateway's value.
+> **Gateway vs. Processor, stated plainly (this distinction gets asked directly):** a **payment
+gateway** is the merchant-facing front door — it captures card/payment details securely (often via a
+hosted field or SDK so the merchant's servers never touch raw PANs), tokenizes them, performs basic
+fraud/format checks, and *routes* the transaction onward. A **payment processor** (Design #7) is the
+back-end engine that actually talks to card networks/banks and moves money.
+Stripe/Braintree/PayPal's own checkout are gateways; Visa/Mastercard's network plus the acquiring
+bank relationship is the processing layer underneath. A gateway can sit in front of multiple
+processors and choose which one to route to (for cost, reliability, or geographic reasons) — that
+routing flexibility is a big part of a gateway's value.
 
 ### Requirements
 
@@ -643,7 +718,9 @@ POST /v1/charges/{id}/void
 GET  /v1/charges/{id}
 POST /v1/webhooks/subscribe     { merchantId, url, events:[...] }   -- async status updates to merchant
 ```
-Note the split: `charges` create an **authorization** (funds held, not moved); a separate `capture` call actually moves money — this two-step pattern is standard and matters a lot for the refund/reconciliation designs later.
+Note the split: `charges` create an **authorization** (funds held, not moved); a separate `capture`
+call actually moves money — this two-step pattern is standard and matters a lot for the
+refund/reconciliation designs later.
 
 ### Data Model
 
@@ -656,7 +733,10 @@ charges(charge_id PK, merchant_id, token_id, amount_cents, currency, status,
 
 charge_events(event_id PK, charge_id FK, event_type, payload_jsonb, created_at)  -- append-only audit trail
 ```
-DB choice: **PostgreSQL** for `charges`/`tokens` — needs the `idempotency_key UNIQUE` constraint enforced transactionally (this is *the* mechanism preventing double-charges, not an app-level check which has a race window). `charge_events` can live in the same DB or a separate append-only store (Kafka + cold storage) since it's write-heavy and read-rarely (only for disputes/audits).
+DB choice: **PostgreSQL** for `charges`/`tokens` — needs the `idempotency_key UNIQUE` constraint
+enforced transactionally (this is *the* mechanism preventing double-charges, not an app-level check
+which has a race window). `charge_events` can live in the same DB or a separate append-only store
+(Kafka + cold storage) since it's write-heavy and read-rarely (only for disputes/audits).
 
 **Card vault**: raw PAN, if stored at all (many gateways don't store it themselves and instead rely on the processor/network token vaults), sits in a separate, minimally-scoped, HSM-encrypted vault service — isolating PCI scope to one small service rather than the whole platform is the entire point of tokenization architecturally, not just a compliance checkbox.
 
@@ -710,7 +790,11 @@ The mechanism is **tokenization + iframe/hosted-field isolation**:
 - The merchant's server only ever sees and stores the token — a value useless outside the gateway's own system, meaningless to an attacker who breaches the merchant.
 - This is why a data breach at a merchant using proper tokenization is a much smaller incident than a breach at a merchant who — against PCI rules — captures raw PANs on their own servers.
 
-A second, complementary layer: **network tokenization** (EMVCo tokens issued by the card networks themselves, e.g., Visa Token Service) — the gateway can further exchange its own token for a network token before routing to the processor, which also improves auth rates (issuers trust network tokens more) and allows card-on-file updates without the merchant re-collecting card details when a card is reissued (token continuity).
+A second, complementary layer: **network tokenization** (EMVCo tokens issued by the card networks
+themselves, e.g., Visa Token Service) — the gateway can further exchange its own token for a network
+token before routing to the processor, which also improves auth rates (issuers trust network tokens
+more) and allows card-on-file updates without the merchant re-collecting card details when a card is
+reissued (token continuity).
 
 **Second hard problem: idempotent authorization under network uncertainty.** A merchant's `POST /v1/charges` call can time out on their end while the gateway actually succeeded — the merchant doesn't know if it worked. Naive retry double-charges. Fix: `idempotency_key` (client-generated UUID, unique per logical attempt) is required on every charge request; the DB enforces uniqueness transactionally, and a retried request with the same key returns the *original* result (whatever it was — approved, declined, or still-processing) rather than re-executing. Critically, the idempotency check and the charge-record insert must happen in the same transaction, not as a separate "check then insert" pair, or you reintroduce the exact race you're trying to close.
 
@@ -766,7 +850,8 @@ POST /internal/settlement/runs                                        (scheduled
 
 ### Data Model
 
-This is where the **ledger** (Design #9) becomes load-bearing rather than optional — a processor's core data model *is* a ledger.
+This is where the **ledger** (Design #9) becomes load-bearing rather than optional — a processor's
+core data model *is* a ledger.
 
 ```sql
 transactions(txn_id PK, merchant_account_id, amount_cents, currency, status
@@ -780,7 +865,9 @@ ledger_entries(entry_id PK, txn_id FK, account_id, direction ENUM(DEBIT,CREDIT),
 settlement_batches(batch_id PK, merchant_account_id, period_start, period_end, total_amount_cents, status)
 settlement_batch_items(batch_id FK, txn_id FK)
 ```
-DB choice: **PostgreSQL/relational** — this layer's entire value proposition is ACID correctness for money movement; a document store or eventually-consistent store is actively wrong here. Horizontal scale is achieved by sharding (by `merchant_account_id` or region), not by relaxing consistency.
+DB choice: **PostgreSQL/relational** — this layer's entire value proposition is ACID correctness for
+money movement; a document store or eventually-consistent store is actively wrong here. Horizontal
+scale is achieved by sharding (by `merchant_account_id` or region), not by relaxing consistency.
 
 ### High-Level Design
 
@@ -898,7 +985,11 @@ accounts(account_id PK, user_id, currency, cached_balance_cents, cached_balance_
 ledger_entries(entry_id PK, account_id, txn_id, direction ENUM(DEBIT,CREDIT), amount_cents, created_at)
 -- append-only, immutable, source of truth (full detail in Design #9)
 ```
-DB choice: **PostgreSQL**, same reasoning as the processor — this is a money-correctness system, ACID transactions are required to keep `cached_balance_cents` and `ledger_entries` from ever diverging. The wallet service's `transfer` operation is a single DB transaction that writes two ledger entries (debit sender, credit receiver) **and** updates both accounts' cached balances atomically.
+DB choice: **PostgreSQL**, same reasoning as the processor — this is a money-correctness system,
+ACID transactions are required to keep `cached_balance_cents` and `ledger_entries` from ever
+diverging. The wallet service's `transfer` operation is a single DB transaction that writes two
+ledger entries (debit sender, credit receiver) **and** updates both accounts' cached balances
+atomically.
 
 ### High-Level Design
 
@@ -933,7 +1024,10 @@ Client
 
 **Hardest problem: guaranteeing no negative balance under concurrent transfers, without serializing all activity on a popular account.**
 
-The naive approach — read balance, check in application code, write debit — has the same race condition oversell has in inventory management: two concurrent transfers can both read "balance = $100," both think a $70 debit is fine, and overdraw to -$40. The fix is the same family of solution as Design #2's conditional atomic update:
+The naive approach — read balance, check in application code, write debit — has the same race
+condition oversell has in inventory management: two concurrent transfers can both read "balance =
+$100," both think a $70 debit is fine, and overdraw to -$40. The fix is the same family of solution
+as Design #2's conditional atomic update:
 
 ```sql
 UPDATE accounts
@@ -941,9 +1035,22 @@ SET cached_balance_cents = cached_balance_cents - :amount
 WHERE account_id = :senderId AND cached_balance_cents >= :amount;
 -- check affected row count == 1; if 0, insufficient funds, abort transaction
 ```
-This single atomic conditional UPDATE, inside the same transaction as the ledger inserts, is what actually prevents overdraft — the database's row lock serializes concurrent attempts on the *same* account without requiring an app-level lock, and the `WHERE` clause makes "check-then-act" atomic instead of two separate steps.
+This single atomic conditional UPDATE, inside the same transaction as the ledger inserts, is what
+actually prevents overdraft — the database's row lock serializes concurrent attempts on the *same*
+account without requiring an app-level lock, and the `WHERE` clause makes "check-then-act" atomic
+instead of two separate steps.
 
-For a **hot destination account** (e.g., a payroll account crediting 100,000 employees, or a popular merchant receiving a burst of payments) — credits don't have the overdraft risk (you can't "over-credit" incorrectly in the same dangerous way), so this is less severe than hot-SKU/hot-sender contention, but the row lock on the destination account row is still a throughput ceiling. Mitigate the same way as Design #2's sharded counters: if the pattern is "many small credits into one account," consider **deferred/batched balance aggregation** — write ledger entries immediately (fast, append-only, no contention since each entry is a new row) and update `cached_balance_cents` via a periodic or count-triggered batch reconciliation job instead of on every single credit, accepting that `cached_balance_cents` for that one hot account is briefly a few seconds stale while `ledger_entries` (the source of truth) is always current. This is the practical version of the ledger design's "derive vs. store" trade-off playing out under load.
+For a **hot destination account** (e.g., a payroll account crediting 100,000 employees, or a popular
+merchant receiving a burst of payments) — credits don't have the overdraft risk (you can't "over-
+credit" incorrectly in the same dangerous way), so this is less severe than hot-SKU/hot-sender
+contention, but the row lock on the destination account row is still a throughput ceiling. Mitigate
+the same way as Design #2's sharded counters: if the pattern is "many small credits into one
+account," consider **deferred/batched balance aggregation** — write ledger entries immediately
+(fast, append-only, no contention since each entry is a new row) and update `cached_balance_cents`
+via a periodic or count-triggered batch reconciliation job instead of on every single credit,
+accepting that `cached_balance_cents` for that one hot account is briefly a few seconds stale while
+`ledger_entries` (the source of truth) is always current. This is the practical version of the
+ledger design's "derive vs. store" trade-off playing out under load.
 
 **Second hard problem: idempotent transfers across two accounts without deadlock.** If two concurrent transfers happen to touch the same pair of accounts in opposite order (A→B and B→A simultaneously), naive row locking (`SELECT FOR UPDATE` on sender, then receiver) can deadlock. Fix: **always acquire locks in a fixed, consistent order** — e.g., always lock the account with the lower `account_id` first regardless of whether it's sender or receiver — which eliminates the circular-wait condition that causes deadlocks. This is a small, easy-to-miss detail that's a great signal of experience in an interview.
 
@@ -965,7 +1072,8 @@ For a **hot destination account** (e.g., a payroll account crediting 100,000 emp
 
 ## 9. Ledger
 
-> This is the question most likely to be asked directly and evaluated harshly at a company like PayPal — treat it as the centerpiece of this whole document.
+> This is the question most likely to be asked directly and evaluated harshly at a company like
+PayPal — treat it as the centerpiece of this whole document.
 
 ### Requirements
 
@@ -1031,7 +1139,11 @@ account_balances(              -- materialized/cached, NOT source of truth
   updated_at
 )
 ```
-DB choice: **PostgreSQL** (or a specialized ledger database like a purpose-built event-sourced store) — the double-entry balance invariant and append-only guarantee are most reliably enforced with real ACID transactions, DB-level grants (revoke UPDATE/DELETE on `ledger_entries` entirely — the *database* enforces immutability, not just application code that could have a bug), and a `CHECK`/trigger-enforced sum-to-zero constraint per transaction.
+DB choice: **PostgreSQL** (or a specialized ledger database like a purpose-built event-sourced
+store) — the double-entry balance invariant and append-only guarantee are most reliably enforced
+with real ACID transactions, DB-level grants (revoke UPDATE/DELETE on `ledger_entries` entirely —
+the *database* enforces immutability, not just application code that could have a bug), and a
+`CHECK`/trigger-enforced sum-to-zero constraint per transaction.
 
 ### High-Level Design
 
@@ -1062,7 +1174,14 @@ Wallet Svc, Payment Processor, Refund Svc, Fee Engine, ...  (every money-moving 
 
 **Hardest problem #1: idempotent posting under retries, without double-crediting or double-debiting the same economic event.**
 
-The mechanism is the `transaction_id` as **primary key** on `postings`, not merely a unique index checked separately — this collapses "check if exists" and "insert" into one atomic operation via the database's own conflict handling (`INSERT ... ON CONFLICT DO NOTHING` or catching the PK violation), removing the TOCTOU race that a separate check-then-insert would have. The upstream service (wallet, processor, etc.) is responsible for choosing a stable `transaction_id` — typically derived from its own idempotency key or the underlying business event ID — so that *retrying the same business operation* naturally reuses the same ledger `transaction_id`, and posting is safe to retry indefinitely.
+The mechanism is the `transaction_id` as **primary key** on `postings`, not merely a unique index
+checked separately — this collapses "check if exists" and "insert" into one atomic operation via the
+database's own conflict handling (`INSERT ... ON CONFLICT DO NOTHING` or catching the PK violation),
+removing the TOCTOU race that a separate check-then-insert would have. The upstream service (wallet,
+processor, etc.) is responsible for choosing a stable `transaction_id` — typically derived from its
+own idempotency key or the underlying business event ID — so that *retrying the same business
+operation* naturally reuses the same ledger `transaction_id`, and posting is safe to retry
+indefinitely.
 
 **Hardest problem #2: balance derivation vs. stored balance — the classic trade-off, and how to actually get both correctness and speed.**
 
@@ -1070,7 +1189,9 @@ Two pure approaches, both with a real cost:
 - **Pure derivation**: balance = `SELECT SUM(...)` over all `ledger_entries` for an account, always. This is *always correct by construction* (a stored value can never drift from the truth if there is no stored value) but gets slower as history grows — summing millions of entries for a long-lived account on every balance check is not viable at the QPS a wallet balance endpoint sees.
 - **Pure stored balance**: an `account_balances.balance_cents` field updated on every posting, read directly. Fast, but now you have two representations of the truth that can drift apart (a bug, a partial failure, a bypassed code path) with no self-healing mechanism.
 
-The answer used in every real ledger system (and the one to state confidently in an interview): **stored balance as a materialized, transactionally-maintained cache of the ledger, treated as derived data that must always be reconstructible from source, never as an independent write path.**
+The answer used in every real ledger system (and the one to state confidently in an interview):
+**stored balance as a materialized, transactionally-maintained cache of the ledger, treated as
+derived data that must always be reconstructible from source, never as an independent write path.**
 - `account_balances` is updated *only* inside the same DB transaction that inserts the `ledger_entries` it reflects — never by an independent "update balance" call from elsewhere.
 - `last_applied_sequence_no` on `account_balances` records exactly which entries are reflected, enabling **incremental catch-up**: if the materialized balance is ever suspected to have drifted (bug, manual data fix, migration), it can be rebuilt by summing `ledger_entries WHERE sequence_no > last_applied_sequence_no` rather than resumming the entire history — this is the practical trick that makes "derive when in doubt, cache for speed" affordable even for old, high-volume accounts.
 - A periodic **integrity job** independently recomputes balances from raw `ledger_entries` (can run on a read replica, off the hot path) and alerts if it diverges from `account_balances` — this is a real production safety net that's worth naming explicitly; a staff-level answer treats drift detection as a first-class system component, not an afterthought.
@@ -1132,7 +1253,11 @@ refunds(refund_id PK, charge_id FK, amount_cents, status, reason,
 -- The critical constraint, enforced transactionally, not just checked in app code:
 -- SUM(refunds.amount_cents WHERE charge_id = X AND status != FAILED) <= charges.captured_amount_cents
 ```
-DB choice: **PostgreSQL**, same charges/transactions DB as the processor (Design #7) — a refund is fundamentally a query-then-constrain operation against the original transaction's captured amount, and doing this cross-database would reintroduce exactly the kind of distributed-transaction problem this whole document teaches you to avoid via saga patterns; keeping refunds co-located with the transaction they reference sidesteps that entirely.
+DB choice: **PostgreSQL**, same charges/transactions DB as the processor (Design #7) — a refund is
+fundamentally a query-then-constrain operation against the original transaction's captured amount,
+and doing this cross-database would reintroduce exactly the kind of distributed-transaction problem
+this whole document teaches you to avoid via saga patterns; keeping refunds co-located with the
+transaction they reference sidesteps that entirely.
 
 ### High-Level Design
 
@@ -1167,14 +1292,21 @@ Merchant/CS Agent/Customer
 
 **Hardest problem: preventing over-refund under concurrent partial-refund requests, exactly analogous to the oversell and overdraft problems seen in Designs #2 and #8 — same shape, different domain.**
 
-This is worth naming explicitly in an interview: three completely different domains (inventory, wallet balance, refunds) all reduce to the identical concurrency pattern — **"validate remaining capacity, then consume some of it, atomically, without a check-then-act race."** The fix is the same family of solution every time:
+This is worth naming explicitly in an interview: three completely different domains (inventory,
+wallet balance, refunds) all reduce to the identical concurrency pattern — **"validate remaining
+capacity, then consume some of it, atomically, without a check-then-act race."** The fix is the same
+family of solution every time:
 ```sql
 UPDATE charges
 SET remaining_refundable_cents = remaining_refundable_cents - :amount
 WHERE charge_id = :id AND remaining_refundable_cents >= :amount;
 -- 0 rows affected => reject: amount exceeds what's left refundable
 ```
-maintained as a denormalized column on `charges` specifically so this becomes one atomic conditional UPDATE rather than a `SUM(refunds...)` aggregate query followed by a separate insert (which reopens the race window between the sum and the insert). Recognizing "I've seen this shape before" across inventory/wallet/refunds is a much stronger interview signal than solving each one from scratch as if unrelated.
+maintained as a denormalized column on `charges` specifically so this becomes one atomic conditional
+UPDATE rather than a `SUM(refunds...)` aggregate query followed by a separate insert (which reopens
+the race window between the sum and the insert). Recognizing "I've seen this shape before" across
+inventory/wallet/refunds is a much stronger interview signal than solving each one from scratch as
+if unrelated.
 
 **Second hard problem: reconciling a refund against an original transaction that itself might not be in a terminal state** — e.g., refunding a transaction that hasn't fully settled yet, or refunding a transaction that's simultaneously under chargeback dispute. Handle by making refund eligibility a function of the charge's *status*, not just its amount: only `CAPTURED` or `SETTLED` charges are refundable; a charge already in `DISPUTED` (chargeback) status is routed to a different resolution flow rather than allowing a refund to layer on top of an active dispute (which would otherwise double-return funds to the customer — once via chargeback, once via refund). This is exactly the kind of edge case that separates a thorough answer from a superficial one at a fintech-focused interview.
 
@@ -1242,7 +1374,11 @@ reconciliation_mismatches(
   resolution_notes, created_at, resolved_at
 )
 ```
-DB choice: **PostgreSQL** for the matching/mismatch tables (needs relational joins between internal transactions and external records, plus transactional status updates as items get resolved); the raw external file ingestion can land first in object storage (S3) for auditability/replay before being parsed into `external_records` — never parse-and-discard the raw file, since a parsing bug discovered later needs to be re-run against the original source.
+DB choice: **PostgreSQL** for the matching/mismatch tables (needs relational joins between internal
+transactions and external records, plus transactional status updates as items get resolved); the raw
+external file ingestion can land first in object storage (S3) for auditability/replay before being
+parsed into `external_records` — never parse-and-discard the raw file, since a parsing bug
+discovered later needs to be re-run against the original source.
 
 ### High-Level Design
 
@@ -1289,13 +1425,27 @@ Processor/Bank ──(daily settlement file, SFTP/API)──▶ ┌────�
 
 **Hardest problem: matching records across two systems that don't share a primary key, at volume, without either missing real mismatches or drowning the manual queue in false positives.**
 
-The matching key itself is the foundation: this is *why* Design #7 (processor) stores `processor_ref` on every transaction at authorization time — without a shared reference ID established at the point of initial contact with the external system, matching degrades to fuzzy heuristics (amount + approximate timestamp + merchant ID), which is unreliable at any real volume. **The single highest-leverage design decision in the whole reconciliation problem is ensuring the reference ID is captured and stored at the point of the original transaction, not reconstructed later.**
+The matching key itself is the foundation: this is *why* Design #7 (processor) stores
+`processor_ref` on every transaction at authorization time — without a shared reference ID
+established at the point of initial contact with the external system, matching degrades to fuzzy
+heuristics (amount + approximate timestamp + merchant ID), which is unreliable at any real volume.
+**The single highest-leverage design decision in the whole reconciliation problem is ensuring the
+reference ID is captured and stored at the point of the original transaction, not reconstructed
+later.**
 
-Given a reliable join key, the matching engine becomes a large batch join (external_records LEFT JOIN internal_transactions ON processor_ref, and the reverse), classified into exactly four buckets:
-1. **Present in both, amounts and status agree** → matched, no action.
-2. **Present internally, missing externally** → either a timing lag (external file just hasn't caught up — very common, expected, should auto-resolve if it clears within a defined SLA window on the next day's run) or a real problem (we think we charged someone, the processor has no record — potentially a phantom transaction that needs to be reversed).
-3. **Present externally, missing internally** → we're missing a record of money that moved — often the more serious category, since it suggests either a lost webhook/event or a genuine unauthorized transaction; escalate to manual review by default rather than auto-resolving, since the cost of missing a genuine anomaly here is higher than the annoyance of a review queue item.
-4. **Present in both, amount or status disagrees** → almost always requires manual review; auto-resolve only for well-characterized patterns like currency-rounding differences below a fixed cent threshold.
+Given a reliable join key, the matching engine becomes a large batch join (external_records LEFT
+JOIN internal_transactions ON processor_ref, and the reverse), classified into exactly four buckets:
+1. **Present in both, amounts and status agree** → matched, no action. 2. **Present internally,
+missing externally** → either a timing lag (external file just hasn't caught up — very common,
+expected, should auto-resolve if it clears within a defined SLA window on the next day's run) or a
+real problem (we think we charged someone, the processor has no record — potentially a phantom
+transaction that needs to be reversed). 3. **Present externally, missing internally** → we're
+missing a record of money that moved — often the more serious category, since it suggests either a
+lost webhook/event or a genuine unauthorized transaction; escalate to manual review by default
+rather than auto-resolving, since the cost of missing a genuine anomaly here is higher than the
+annoyance of a review queue item. 4. **Present in both, amount or status disagrees** → almost always
+requires manual review; auto-resolve only for well-characterized patterns like currency-rounding
+differences below a fixed cent threshold.
 
 **Auto-resolution rules must be conservative and narrowly scoped, reviewed periodically, and every auto-resolution must still be logged** (never silently discarded) — the failure mode to actively design against is an auto-resolution rule that's slightly too broad and starts silently swallowing real discrepancies, which is worse than having no automation at all because it erodes the very trust the reconciliation system exists to provide. A good pattern: auto-resolution rules ship with a "shadow mode" period where they're evaluated and logged but don't actually close the mismatch, so their false-positive rate can be measured against manual review outcomes before they're trusted to auto-close.
 
@@ -1412,7 +1562,11 @@ Payment Gateway (Design #6)
 
 **Hardest problem: the sync vs. async scoring trade-off, and how to get the benefits of both without either blowing the checkout latency budget or missing sophisticated fraud that only shows up in slower, richer analysis.**
 
-The core tension: the best fraud signals often require either heavy computation (deep models, cross-account graph analysis) or data that simply isn't available yet at authorization time (e.g., "did this card get disputed" — that's information from days later). But checkout can't wait for that. The resolution is a **tiered/cascading architecture**, not a single scoring step, and being explicit about *why* each tier exists is the actual interview signal:
+The core tension: the best fraud signals often require either heavy computation (deep models, cross-
+account graph analysis) or data that simply isn't available yet at authorization time (e.g., "did
+this card get disputed" — that's information from days later). But checkout can't wait for that. The
+resolution is a **tiered/cascading architecture**, not a single scoring step, and being explicit
+about *why* each tier exists is the actual interview signal:
 
 - **Tier 0 — Rules (µs-ms)**: deterministic, fully explainable, handles the highest-confidence cases (known-bad blocklist, hard velocity caps) without touching ML at all. This tier exists because a huge fraction of real fraud (and a huge fraction of clearly-legitimate traffic) doesn't need a model to classify correctly, and rules are trivially auditable for compliance in a way ML scores aren't.
 - **Tier 1 — Lightweight synchronous ML (5-20ms)**: a model chosen specifically for inference speed (gradient-boosted trees or a small linear/logistic model over precomputed features) over raw accuracy — this is a deliberate trade of some model sophistication for a hard latency ceiling, because a checkout flow that takes 3 extra seconds loses more to abandonment than a slightly-better model gains in fraud caught. Feature *computation* is never done inline here; only feature *lookup* from the pre-materialized online store is, which is what keeps this tier fast.

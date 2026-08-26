@@ -1,8 +1,16 @@
 # Senior/Staff System Design — Study Guide Index
+Last updated: 2026-08-27
 
-Target: Group-1 companies (PayPal, Oracle, TCS, and similar enterprise-scale interviews).
+_A compact roadmap and study guide for senior engineering interviews._
 
-This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5 and 7 were each split into multiple files so every topic could get full depth without one file becoming unmanageable — the stage numbering and content coverage still match the original plan exactly.
+**Target audience:** Group-1 companies (PayPal, Oracle, TCS, and similar enterprise-scale interviews)
+
+_Last updated: 2026-08-27_
+
+This curriculum follows the 9-stage roadmap (HLD before LLD). Stages 5 and 7 are split into multiple
+files so each topic can get full depth without making individual files unmanageable.
+
+---
 
 ## Foundation
 
@@ -11,6 +19,8 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 | 1 — Architecture Building Blocks | [01-architecture-building-blocks.md](01-architecture-building-blocks.md) | Networking/request flow, caching & data stores, messaging, coordination, traffic protection, specialized infra, observability |
 | 2 — Distributed Systems Fundamentals | [02-distributed-systems-fundamentals.md](02-distributed-systems-fundamentals.md) | Mental model & fallacies, consistency, data distribution, coordination/concurrency, delivery/ordering, distributed transactions, time & recovery |
 | 3 — Reliability, Resilience & Production Engineering | [03-reliability-resilience-production-engineering.md](03-reliability-resilience-production-engineering.md) | Failure thinking, dependency/overload protection, HA, DR, production observability, incident thinking |
+
+---
 
 ## Architecture
 
@@ -22,6 +32,8 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 | 5 — HLD Mastery (Level 5–6) | [05c-hld-mastery-level5-6-marketplace-and-fintech.md](05c-hld-mastery-level5-6-marketplace-and-fintech.md) | E-commerce, Inventory, Booking, Food Delivery, Ride Sharing, Payment Gateway, Payment Processor, Wallet, Ledger, Refunds, Reconciliation, Fraud Pipeline — **read this one closely for PayPal-style interviews** |
 | 5 — HLD Mastery (Level 7) | [05d-hld-mastery-level7-large-scale-architecture.md](05d-hld-mastery-level7-large-scale-architecture.md) | YouTube/Netflix, Google Drive, Uber, Amazon-like platform, Multi-region architecture |
 
+---
+
 ## Software Design
 
 | Stage | File | Covers |
@@ -30,6 +42,8 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 | 7 — LLD Mastery (Patterns) | [07a-lld-design-patterns.md](07a-lld-design-patterns.md) | All 17 GoF patterns (Creational/Structural/Behavioral) with motivating problem, code, UML, trade-offs, symptom→pattern table |
 | 7 — LLD Mastery (Practice Problems) | [07b-lld-practice-problems.md](07b-lld-practice-problems.md) | Parking Lot, Vending Machine, Elevator, Library System, ATM, Coffee Machine, Logger, Cache, Task Scheduler, Splitwise, Chess, Cab Booking, Notification Framework |
 
+---
+
 ## Seniority & Interview
 
 | Stage | File | Covers |
@@ -37,16 +51,21 @@ This curriculum follows the 9-stage roadmap agreed on (HLD before LLD). Stages 5
 | 8 — Staff/Principal Architecture | [08-staff-principal-architecture.md](08-staff-principal-architecture.md) | Trade-off thinking, scale-tier evolution (1K→100M), migration strategy, multi-region, governance/ADRs, security architecture, cost & ops |
 | 9 — Interview Mastery | [09-interview-mastery.md](09-interview-mastery.md) | Opening/whiteboarding technique, stock challenge questions with model answers, recovery tactics, company-style mocks, full mock structure + scoring rubric |
 
+---
+
 ## Supplementary Deep Dives
 
 | Topic | File | Covers |
 |---|---|---|
-| Kafka Deep Dive | [kafka-deep-dive.md](kafka-deep-dive.md) | Full 35-lesson Kafka curriculum (~36,700 words). Fundamentals (topics/partitions/partition-key choice, offsets, consumer groups) → Internals (replication/ACKs/ISR/leader election, KRaft, producer/consumer internals, log segments, page cache, zero copy, batching, compression) → Enterprise/reliability patterns (idempotent producer, transactions/exactly-once, Kafka Connect, Schema Registry, Kafka Streams, ksqlDB, DLQ, retry topics, Kafka-specific Outbox/Saga, event sourcing, CDC/Debezium, MirrorMaker 2) → running it at scale (multi-region, security, monitoring, production case studies). Goes far beyond Stage 1's Kafka overview; read it alongside or after Stage 1 Phase 3 if Kafka is likely to come up in depth (e.g. PayPal-style interviews). |
-| Spring Boot Microservices Deep Dive | [spring-boot-microservices-deep-dive.md](spring-boot-microservices-deep-dive.md) | 17-topic deep dive (~36,700 words) for Java/Spring Boot backgrounds. Foundations (auto-configuration, DI/IoC, REST APIs, Spring Data JPA & transactions incl. the `@Transactional` self-invocation trap, testing pyramid + Testcontainers) → Microservices with Spring Cloud (Eureka/Consul, Spring Cloud Gateway, Config Server, RestTemplate/WebClient/OpenFeign, Resilience4j circuit breakers, Strangler Fig/Sidecar/database-per-service decomposition) → Production, Security & Kafka (Actuator + liveness/readiness, Micrometer metrics/tracing, Spring Security/OAuth2/JWT, Spring Kafka plumbing — cross-referenced against `kafka-deep-dive.md`'s Kafka-side lessons rather than repeating them —, Docker/Kubernetes deployment, and a closing synthesis of recurring interview traps). |
-| Core Java & JVM Deep Dive | [java-core-jvm-deep-dive.md](java-core-jvm-deep-dive.md) | 24-topic deep dive (~58,000 words) — the language/JVM layer underneath Stage 6/7's OOP/SOLID/patterns and the Spring Boot doc's framework-level concurrency, deliberately scoped not to repeat either. Modern Language Features & Collections Internals (lambdas, Stream API, Optional, records/sealed classes/pattern matching, HashMap/ConcurrentHashMap internals) → Concurrency Core (iterator semantics, Comparable/Comparator, Java Memory Model, locks, ExecutorService & thread-pool sizing, CompletableFuture) → JVM Memory, GC & Class Loading (CAS/lock-free programming, deadlock/livelock/starvation, virtual threads & structured concurrency, memory areas, GC algorithms, classloading) → Generics, I/O & Performance (JIT compilation, type erasure/PECS, exception handling, blocking I/O vs NIO, serialization/reflection, JMH/JFR profiling). |
+| Kafka Deep Dive | [kafka-deep-dive.md](kafka-deep-dive.md) | Full 35-lesson Kafka curriculum (~36,700 words). Fundamentals → Internals → Enterprise/reliability patterns → running it at scale. Read alongside or after Stage 1 Phase 3 for deep Kafka interview prep. |
+| Spring Boot Microservices Deep Dive | [spring-boot-microservices-deep-dive.md](spring-boot-microservices-deep-dive.md) | 17-topic deep dive for Java/Spring Boot backgrounds. Foundations → Microservices → Production & Security (cross-referenced with Kafka doc). |
+| Core Java & JVM Deep Dive | [java-core-jvm-deep-dive.md](java-core-jvm-deep-dive.md) | 24-topic deep dive — language/JVM fundamentals underpinning LLD and framework-level concurrency and performance. |
+
+---
 
 ## Suggested reading order
 
-Read top-to-bottom in the table order above — each stage is written to build on the one before it (Stage 4 assumes Stages 1–3; Stage 5's designs assume Stage 4's checklist; Stage 7 assumes Stage 6's OOP/SOLID grounding; Stage 9 assumes everything else).
+Read top-to-bottom in the table order above — each stage builds on the previous ones.
 
-For PayPal/Visa-style interviews specifically, treat **05c** and **08's trade-off section** as the highest-leverage material, then run the PayPal-style mock prompt at the end of **09**.
+For PayPal/Visa-style interviews, prioritize **05c** and the trade-offs in **08**, then run the
+PayPal-style mock in **09**.

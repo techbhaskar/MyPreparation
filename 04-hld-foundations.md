@@ -1,10 +1,24 @@
 # Stage 4 — HLD Foundations
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
 > **Framing question:** *How do I go from ambiguous requirements to a defensible architecture?*
 
-This is the first stage where you stop reciting vocabulary (Stage 1: caching, CAP, consistency models), stop reasoning about isolated building blocks (Stage 2: databases, queues, load balancers), and stop analyzing other people's systems (Stage 3: case studies) — and instead **build one yourself, live, in front of an interviewer, starting from nothing but a one-sentence prompt.**
+This is the first stage where you stop reciting vocabulary (Stage 1: caching, CAP, consistency
+models), stop reasoning about isolated building blocks (Stage 2: databases, queues, load balancers),
+and stop analyzing other people's systems (Stage 3: case studies) — and instead **build one
+yourself, live, in front of an interviewer, starting from nothing but a one-sentence prompt.**
 
-Every phase below is a muscle you will use in every HLD interview you ever take, from a 45-minute new-grad screen to a 90-minute Staff-level onsite loop. The phases are sequential on purpose — skipping one (especially Phase 1 or Phase 2) is the single most common reason strong engineers get weak HLD scores. We will run **two threads** through the whole document as worked examples: a **URL shortener** (simple, good for showing the full method cleanly) and a **ride-sharing pickup service** (complex, good for showing how the method scales up to multi-service systems). Cross-references to caching, consistency, and specific data stores point back at Stage 1 (Building Blocks) and Stage 2 (Infra Deep Dives) — this stage assumes that vocabulary and spends its budget on *judgment and sequencing*.
+Every phase below is a muscle you will use in every HLD interview you ever take, from a 45-minute
+new-grad screen to a 90-minute Staff-level onsite loop. The phases are sequential on purpose —
+skipping one (especially Phase 1 or Phase 2) is the single most common reason strong engineers get
+weak HLD scores. We will run **two threads** through the whole document as worked examples: a **URL
+shortener** (simple, good for showing the full method cleanly) and a **ride-sharing pickup service**
+(complex, good for showing how the method scales up to multi-service systems). Cross-references to
+caching, consistency, and specific data stores point back at Stage 1 (Building Blocks) and Stage 2
+(Infra Deep Dives) — this stage assumes that vocabulary and spends its budget on *judgment and
+sequencing*.
 
 ---
 
@@ -78,7 +92,10 @@ Every phase below is a muscle you will use in every HLD interview you ever take,
 
 **What it means in an interview context.** Functional requirements (FRs) are the verbs your system must support — the concrete actions a user or another system performs. In an interview, the FR list is the contract you and the interviewer agree on before any box gets drawn. Every subsequent decision (data model, API shape, service boundary) should trace back to an FR. If you can't point to which FR justifies a component, you probably shouldn't have drawn it yet.
 
-The trap at senior level isn't forgetting to ask for FRs — it's **accepting too many of them**. Interviewers deliberately give an open-ended prompt ("design a ride-sharing pickup service") to see whether you'll try to build Uber's entire product surface in 45 minutes, or whether you'll scope down to a defensible core and say so explicitly.
+The trap at senior level isn't forgetting to ask for FRs — it's **accepting too many of them**.
+Interviewers deliberately give an open-ended prompt ("design a ride-sharing pickup service") to see
+whether you'll try to build Uber's entire product surface in 45 minutes, or whether you'll scope
+down to a defensible core and say so explicitly.
 
 **Step-by-step method.**
 1. Restate the prompt in your own words in one sentence.
@@ -180,36 +197,36 @@ The trap at senior level isn't forgetting to ask for FRs — it's **accepting to
 
 ### The First 5 Minutes: A Full Clarifying-Question Script
 
-This is the script a strong senior/staff candidate actually runs, near-verbatim, in the opening minutes of an HLD interview. Adapt names/nouns to the prompt; the structure is reusable for any system.
+This is the script a strong senior/staff candidate actually runs, near-verbatim, in the opening
+minutes of an HLD interview. Adapt names/nouns to the prompt; the structure is reusable for any
+system.
 
 > **1. Restate and scope the problem.**
-> "So we're designing [system] — let me make sure I have the core use case right: [one-sentence restatement]. Is that the right scope, or is there a narrower/broader version you want me to focus on?"
->
-> **2. Core functional requirements.**
-> "What are the must-have actions? For [system], I'm assuming: [list 2-4]. Anything I'm missing, and is there anything on this list that's actually out of scope for today?"
->
-> **3. Users and scale.**
-> "Roughly how many users / requests are we designing for — are we talking thousands, millions, or hundreds of millions of daily active users? Is traffic steady or spiky (e.g., time-of-day peaks, viral spikes, seasonal)?"
->
-> **4. Read/write shape.**
-> "Is this read-heavy, write-heavy, or roughly balanced? [state your guess and ask them to confirm/correct]"
->
-> **5. Consistency vs. availability.**
-> "If a partition or node failure happens, do we prefer staying available with possibly-stale data, or rejecting requests to stay strictly consistent? Does that answer differ between [operation A] and [operation B]?" — e.g., "does it differ between placing an order and viewing a product page?"
->
-> **6. Latency expectations.**
-> "Is there a target latency, e.g., p99 under X ms for [core read/write]? Is this global (multi-region) or single-region for now?"
->
-> **7. Data retention / compliance.**
-> "Any compliance constraints — PII, data residency, retention/deletion requirements? Any regulatory context I should design around (this matters a lot in fintech/payments contexts)?"
->
-> **8. Existing systems / constraints.**
-> "Are we greenfield, or integrating with/replacing an existing system? Any technology constraints — must use, must avoid?"
->
-> **9. Confirm priority.**
-> "Given time, I'll design [Must-have core flow] in depth first, then come back to [Should-haves] if we have time — does that match what you want to see?"
+> "So we're designing [system] — let me make sure I have the core use case right: [one-sentence
+restatement]. Is that the right scope, or is there a narrower/broader version you want me to focus
+on?" > > **2. Core functional requirements.** > "What are the must-have actions? For [system], I'm
+assuming: [list 2-4]. Anything I'm missing, and is there anything on this list that's actually out
+of scope for today?" > > **3. Users and scale.** > "Roughly how many users / requests are we
+designing for — are we talking thousands, millions, or hundreds of millions of daily active users?
+Is traffic steady or spiky (e.g., time-of-day peaks, viral spikes, seasonal)?" > > **4. Read/write
+shape.** > "Is this read-heavy, write-heavy, or roughly balanced? [state your guess and ask them to
+confirm/correct]" > > **5. Consistency vs. availability.** > "If a partition or node failure
+happens, do we prefer staying available with possibly-stale data, or rejecting requests to stay
+strictly consistent? Does that answer differ between [operation A] and [operation B]?" — e.g., "does
+it differ between placing an order and viewing a product page?" > > **6. Latency expectations.** >
+"Is there a target latency, e.g., p99 under X ms for [core read/write]? Is this global (multi-
+region) or single-region for now?" > > **7. Data retention / compliance.** > "Any compliance
+constraints — PII, data residency, retention/deletion requirements? Any regulatory context I should
+design around (this matters a lot in fintech/payments contexts)?" > > **8. Existing systems /
+constraints.** > "Are we greenfield, or integrating with/replacing an existing system? Any
+technology constraints — must use, must avoid?" > > **9. Confirm priority.** > "Given time, I'll
+design [Must-have core flow] in depth first, then come back to [Should-haves] if we have time — does
+that match what you want to see?"
 
-Notice the pattern: **restate → FRs → scale → read/write shape → consistency/latency NFRs → constraints → priority confirmation.** This order matters — scale (step 3) must come before you can meaningfully answer read/write ratio or latency targets, and consistency/latency (steps 5-6) should come before you draw a single box, because they determine which boxes you'll draw.
+Notice the pattern: **restate → FRs → scale → read/write shape → consistency/latency NFRs →
+constraints → priority confirmation.** This order matters — scale (step 3) must come before you can
+meaningfully answer read/write ratio or latency targets, and consistency/latency (steps 5-6) should
+come before you draw a single box, because they determine which boxes you'll draw.
 
 ---
 
@@ -325,7 +342,8 @@ Notice the pattern: **restate → FRs → scale → read/write shape → consist
 
 ### Fully Worked Example: Social Feed System
 
-Let's run one complete, start-to-finish capacity estimation with every step shown, for a Twitter/Instagram-style social feed.
+Let's run one complete, start-to-finish capacity estimation with every step shown, for a
+Twitter/Instagram-style social feed.
 
 **Given/assumed:** DAU = 50 million. Each user posts an average of 0.2 times/day. Each user opens their feed 8 times/day, and each feed load fetches 20 posts. Each post record averages 300 bytes (text + metadata; media stored separately in blob storage and out of scope here). Data retained for 5 years. Read:write ratio and peak factor to be derived.
 
@@ -1013,6 +1031,12 @@ Use this as a literal mental runbook, in order, during any HLD interview:
 
 ---
 
-> **Framing question, revisited:** *How do I go from ambiguous requirements to a defensible architecture?*
->
-> The answer this stage teaches is: **you don't skip steps, and you narrate every one of them.** Requirements before numbers, numbers before contracts, contracts before schemas, schemas before service boundaries, boundaries before scaling mechanics, and a deliberate self-review before you call it done. A defensible architecture isn't the one with the most boxes or the fanciest technology named — it's the one where every box, every arrow, and every technology choice can be traced back, out loud, to a requirement, a number, or a stated trade-off. That traceability *is* the skill this stage builds, and it is exactly what carries forward into Stage 5 and beyond as the systems you're asked to design grow larger and more open-ended.
+> **Framing question, revisited:** *How do I go from ambiguous requirements to a defensible
+architecture?* > > The answer this stage teaches is: **you don't skip steps, and you narrate every
+one of them.** Requirements before numbers, numbers before contracts, contracts before schemas,
+schemas before service boundaries, boundaries before scaling mechanics, and a deliberate self-review
+before you call it done. A defensible architecture isn't the one with the most boxes or the fanciest
+technology named — it's the one where every box, every arrow, and every technology choice can be
+traced back, out loud, to a requirement, a number, or a stated trade-off. That traceability *is* the
+skill this stage builds, and it is exactly what carries forward into Stage 5 and beyond as the
+systems you're asked to design grow larger and more open-ended.

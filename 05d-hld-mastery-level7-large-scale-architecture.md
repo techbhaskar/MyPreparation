@@ -1,8 +1,17 @@
 # Stage 5 (Part D) — HLD Mastery: Level 7 Large-Scale Architecture
+Last updated: 2026-08-27
+_Overview and notes._
+Last updated: 2026-08-27
 
-> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing architectures?*
+> **Framing question:** *Can I combine the building blocks appropriately instead of memorizing
+architectures?*
 
-Every system below is built from the same primitives you already know: load balancers, consistent hashing, sharded databases, queues, caches, CDNs, consensus, and idempotency. Nothing here is a new primitive. What changes at "Level 7" is composition — how many of these primitives you must stack correctly, in what order, and which one becomes the bottleneck first. Read each design asking "which building blocks did they pick, and why not the alternative?" rather than "what does a video platform look like?"
+Every system below is built from the same primitives you already know: load balancers, consistent
+hashing, sharded databases, queues, caches, CDNs, consensus, and idempotency. Nothing here is a new
+primitive. What changes at "Level 7" is composition — how many of these primitives you must stack
+correctly, in what order, and which one becomes the bottleneck first. Read each design asking "which
+building blocks did they pick, and why not the alternative?" rather than "what does a video platform
+look like?"
 
 ## Table of Contents
 
@@ -45,13 +54,18 @@ Assume YouTube-scale numbers:
 720,000 hours/day × 1 hour ≈ 6 GB/hour average bitrate → ~4.3 PB/day raw ingest.
 
 **Transcoded storage (post fan-out):**
-Each video is transcoded into ~10 renditions (144p to 4K) × 2 codecs (H.264 for compat, AV1/VP9 for efficiency) ≈ 15-20x storage multiplier on the *kept* renditions, but AV1 is ~40% smaller than H.264, so net multiplier for storage footprint ≈ 8-10x source size.
-→ ~35-40 PB/day added to the storage tier before any retention/de-dup optimizations (unpopular tail videos may only fully transcode lazily).
+Each video is transcoded into ~10 renditions (144p to 4K) × 2 codecs (H.264 for compat, AV1/VP9 for
+efficiency) ≈ 15-20x storage multiplier on the *kept* renditions, but AV1 is ~40% smaller than
+H.264, so net multiplier for storage footprint ≈ 8-10x source size. → ~35-40 PB/day added to the
+storage tier before any retention/de-dup optimizations (unpopular tail videos may only fully
+transcode lazily).
 
 **Egress bandwidth (the dominant cost driver):**
-1 billion hours/day watched × average bitrate 3 Mbps (mixed resolution mix weighted toward mobile/SD) ÷ 8 bits/byte
-= 1B hours × 3600s × 3 Mbps / 8 = ~1.35 exabytes/day of egress.
-At peak (evenings, ~3x average), instantaneous egress bandwidth ≈ 1.35 EB/day × 3 / 86400s × 8 bits ≈ **~450 Tbps at peak** — this is why virtually 100% of playback traffic must be served from CDN edge caches, not origin.
+1 billion hours/day watched × average bitrate 3 Mbps (mixed resolution mix weighted toward
+mobile/SD) ÷ 8 bits/byte = 1B hours × 3600s × 3 Mbps / 8 = ~1.35 exabytes/day of egress. At peak
+(evenings, ~3x average), instantaneous egress bandwidth ≈ 1.35 EB/day × 3 / 86400s × 8 bits ≈ **~450
+Tbps at peak** — this is why virtually 100% of playback traffic must be served from CDN edge caches,
+not origin.
 
 **Concurrent streams:** if 50M people are watching at any peak instant at avg 3 Mbps → 150 Tbps sustained just from that slice — origin infrastructure could never serve this directly; CDN cache hit ratio at the edge must be >95%.
 
@@ -68,7 +82,8 @@ POST   /v1/videos/{videoId}/watch-events  -> {position, bufferEvents, bitrateSwi
 GET    /v1/recommendations?userId=...&surface=home
 GET    /v1/search?q=...
 ```
-Key design choice: playback is **manifest + segment**, never a single monolithic file URL — this is what makes ABR possible (client switches segment quality mid-stream).
+Key design choice: playback is **manifest + segment**, never a single monolithic file URL — this is
+what makes ABR possible (client switches segment quality mid-stream).
 
 ### Data Model
 
@@ -92,7 +107,8 @@ ViewCountCounter (video_id, approx_count)  -- sharded counter, HLL/CRDT-backed,
 Recommendation is NOT a table — it's a served output of an offline-trained
 model + an online feature store, described in Deep Dive below.
 ```
-Video metadata lives in a sharded relational/NoSQL store keyed by `video_id`; the actual bytes live in blob storage (S3-class), never in the metadata DB.
+Video metadata lives in a sharded relational/NoSQL store keyed by `video_id`; the actual bytes live
+in blob storage (S3-class), never in the metadata DB.
 
 ### High-Level Design
 
@@ -153,7 +169,9 @@ Video metadata lives in a sharded relational/NoSQL store keyed by `video_id`; th
 **(b) Recommendation System (high level).** Two-stage funnel, because ranking millions of candidate videos per request with a heavy model is infeasible in real time:
 1. **Candidate generation** (recall stage): from millions of videos, cheaply narrow to hundreds using collaborative filtering / embedding similarity (user embedding vs. video embedding, ANN lookup) plus heuristics (subscriptions, trending, same-channel).
 2. **Ranking** (precision stage): a heavier model (gradient-boosted trees or a neural ranker) scores the hundreds of candidates using rich features — watch history, session context, predicted watch-time, click-through likelihood — and returns a final ordered list.
-Feature freshness matters more than model sophistication at this scale: an online feature store (recent watch events, session signals) feeds the ranker so recommendations react within minutes, while the heavy embedding models retrain offline (daily/hourly batches).
+Feature freshness matters more than model sophistication at this scale: an online feature store
+(recent watch events, session signals) feeds the ranker so recommendations react within minutes,
+while the heavy embedding models retrain offline (daily/hourly batches).
 
 ### Scaling the Design
 
@@ -171,7 +189,12 @@ Feature freshness matters more than model sophistication at this scale: an onlin
 
 ### Multi-Region Considerations
 
-Video bytes are inherently region-agnostic once in the CDN (edge caches everywhere), but origin storage and metadata benefit from being placed near the *upload* region (most creators and most early viewers are geographically correlated) and replicated asynchronously to other regions for durability and to seed distant CDN pulls faster. DRM licensing and content availability (geo-blocking for licensing reasons — very real for Netflix) is enforced at the manifest/license-service layer per viewer region, not at the CDN layer.
+Video bytes are inherently region-agnostic once in the CDN (edge caches everywhere), but origin
+storage and metadata benefit from being placed near the *upload* region (most creators and most
+early viewers are geographically correlated) and replicated asynchronously to other regions for
+durability and to seed distant CDN pulls faster. DRM licensing and content availability (geo-
+blocking for licensing reasons — very real for Netflix) is enforced at the manifest/license-service
+layer per viewer region, not at the CDN layer.
 
 ### Trade-offs
 
@@ -227,7 +250,9 @@ GET    /v1/changes?since=cursor         -> incremental change feed (sync engine
 POST   /v1/files/{fileId}/share          -> {principal, role[viewer|commenter|editor]}
 DELETE /v1/files/{fileId}/share/{principal}
 ```
-The **`/chunks/check`** endpoint before upload is the crux of both dedup and bandwidth efficiency — client never uploads bytes the server already has, whether from this user's own prior version or from a *different* user's identical content.
+The **`/chunks/check`** endpoint before upload is the crux of both dedup and bandwidth efficiency —
+client never uploads bytes the server already has, whether from this user's own prior version or
+from a *different* user's identical content.
 
 ### Data Model
 
@@ -252,7 +277,9 @@ ChangeLog (change_id [monotonic per-account cursor], account_id, file_id,
            change_type, version_id, timestamp)
   -- the sync engine's source of truth for "what changed since cursor X"
 ```
-Content-addressing (`chunk_hash` as primary key) is what makes cross-user, cross-file deduplication essentially free: two users uploading the same PDF end up with `FileVersion` rows pointing at the same `Chunk` rows, `ref_count` incremented, zero extra bytes stored.
+Content-addressing (`chunk_hash` as primary key) is what makes cross-user, cross-file deduplication
+essentially free: two users uploading the same PDF end up with `FileVersion` rows pointing at the
+same `Chunk` rows, `ref_count` incremented, zero extra bytes stored.
 
 ### High-Level Design
 
@@ -294,7 +321,9 @@ Content-addressing (`chunk_hash` as primary key) is what makes cross-user, cross
 **(b) Conflict Resolution.** Two devices edit the same file while offline, then both reconnect. The server enforces optimistic concurrency: `commit` includes the `parentVersionId` the client based its edit on; if `current_version_id` on the server no longer matches that parent (someone else committed first), the commit is rejected as a conflict rather than silently overwritten — this is the same compare-and-swap pattern used in optimistic locking anywhere. Resolution strategies, in increasing sophistication:
 - **Last-write-wins with conflict copy** (what Drive/Dropbox actually do for opaque binary files): the losing device's version is preserved as `"filename (conflicted copy, Device B, 2026-08-24).ext"` rather than discarded — never silently drop user data even on a "conflict," because you cannot safely auto-merge arbitrary binary content.
 - **Operational Transform / CRDT-based merge**: for structured, collaboratively-edited documents (Google Docs sits on top of Drive's storage layer but uses OT/CRDTs at the *document* layer, not the file-sync layer, to merge concurrent character-level edits without conflict copies). This only works because the data model is structured (text with positions), not opaque bytes.
-The key insight for the interview: file-sync conflict resolution (coarse, versioned, "make a copy") and document-collaboration conflict resolution (fine-grained, operational, "merge intents") are different problems solved at different layers — don't conflate them.
+The key insight for the interview: file-sync conflict resolution (coarse, versioned, "make a copy")
+and document-collaboration conflict resolution (fine-grained, operational, "merge intents") are
+different problems solved at different layers — don't conflate them.
 
 ### Scaling the Design
 
@@ -311,7 +340,13 @@ The key insight for the interview: file-sync conflict resolution (coarse, versio
 
 ### Multi-Region Considerations
 
-Metadata and chunk indexes for an account are typically pinned to the account's home region (data residency and latency for the owner), with the blob store replicated cross-region for durability. Shared files crossing accounts in different regions/residency zones (e.g., a EU user shares a file with a US user) can require special handling — either the content is replicated to a jurisdiction acceptable to both, or the sharing is restricted, depending on data-residency policy (GDPR-class constraints). This is expanded generally in [Section 5](#5-multi-region-architecture--standalone-deep-dive).
+Metadata and chunk indexes for an account are typically pinned to the account's home region (data
+residency and latency for the owner), with the blob store replicated cross-region for durability.
+Shared files crossing accounts in different regions/residency zones (e.g., a EU user shares a file
+with a US user) can require special handling — either the content is replicated to a jurisdiction
+acceptable to both, or the sharing is restricted, depending on data-residency policy (GDPR-class
+constraints). This is expanded generally in [Section 5](#5-multi-region-architecture--standalone-
+deep-dive).
 
 ### Trade-offs
 
@@ -422,7 +457,11 @@ SurgeCell (h3_cell_id, multiplier, computed_at)
 
 ### Deep Dive
 
-Because dispatch matching internals (candidate search radius expansion, batched vs. greedy matching, driver-side accept/reject race conditions) and surge pricing internals (supply/demand ratio computation, price smoothing to avoid driver gaming/whiplash) are both covered in full depth in the dedicated **Ride Sharing System Design** file, the one hard sub-problem worth expanding here — because it's specific to the *platform-composition* view rather than any single subsystem — is:
+Because dispatch matching internals (candidate search radius expansion, batched vs. greedy matching,
+driver-side accept/reject race conditions) and surge pricing internals (supply/demand ratio
+computation, price smoothing to avoid driver gaming/whiplash) are both covered in full depth in the
+dedicated **Ride Sharing System Design** file, the one hard sub-problem worth expanding here —
+because it's specific to the *platform-composition* view rather than any single subsystem — is:
 
 **Keeping the geospatial index consistent with trip state under high churn.** A driver's status flips between `online → matched → on_trip → online` many times per shift, and their location index entry must reflect the correct *availability*, not just position — a driver mid-trip must never be returned as a match candidate even if geographically close. This is solved by co-locating a lightweight status flag with the location entry itself (not requiring a join against the durable `Driver` table on every matching query, which would be far too slow at this QPS) and updating both atomically from the same event stream: the Trip Service publishes state-change events (matched, trip-started, trip-ended) that the Location Ingest layer subscribes to and applies directly to the in-memory index, so a single source of truth (the event log) drives two derived views (durable trip records, and the fast-path availability flag in the geo index) without requiring the matching hot path to ever query the slow durable store.
 
@@ -440,7 +479,14 @@ Because dispatch matching internals (candidate search radius expansion, batched 
 
 ### Multi-Region Considerations
 
-Ride-sharing is naturally **regionally partitioned by physical geography** — a trip in Tokyo has zero interaction with dispatch state in São Paulo. This makes it one of the more forgiving multi-region cases: each metro/region can run largely independent dispatch and pricing (active-active by geography, not by replica of the same data), with only account/profile/payment-method data needing global replication. The hard part is at region boundaries (a trip crossing a data-residency boundary, or a rider traveling and opening the app in a new region) — handled by routing the request to the region owning that geography rather than trying to replicate the entire live geospatial index globally.
+Ride-sharing is naturally **regionally partitioned by physical geography** — a trip in Tokyo has
+zero interaction with dispatch state in São Paulo. This makes it one of the more forgiving multi-
+region cases: each metro/region can run largely independent dispatch and pricing (active-active by
+geography, not by replica of the same data), with only account/profile/payment-method data needing
+global replication. The hard part is at region boundaries (a trip crossing a data-residency
+boundary, or a rider traveling and opening the app in a new region) — handled by routing the request
+to the region owning that geography rather than trying to replicate the entire live geospatial index
+globally.
 
 ### Trade-offs
 
@@ -565,7 +611,8 @@ RecommendationCandidateSet (user_id or session_id, surface, candidate_skus[],
 
 ### Deep Dive
 
-The two hardest problems specific to the *platform-composition* view (as opposed to the order/inventory internals already covered elsewhere) are:
+The two hardest problems specific to the *platform-composition* view (as opposed to the
+order/inventory internals already covered elsewhere) are:
 
 **(a) Keeping Search/Catalog (eventually consistent, highly cached) from lying about Inventory (strongly consistent).** These two subsystems deliberately have different consistency models, which creates a real UX problem: search can show an item as "in stock" a few seconds after it actually sold out (CDC lag + cache TTL). The platform solves this by treating the search/catalog "in stock" flag as advisory only — it's good enough to decide whether to *show* a buy button, but the actual reservation always re-checks the authoritative Inventory Ledger at add-to-cart/checkout time. This is the standard pattern: optimize the 99% read path for speed with a slightly stale view, and push the correctness check to the much lower-volume write path where strong consistency is affordable. Trying to make the browse path strongly consistent with inventory would require every product-page view to hit the strongly-consistent store — that store would need to handle search-level QPS (hundreds of thousands/sec) instead of order-level QPS (orders of magnitude lower), which is both unnecessary and would make the inventory system itself the bottleneck for browsing.
 
@@ -586,7 +633,12 @@ The two hardest problems specific to the *platform-composition* view (as opposed
 
 ### Multi-Region Considerations
 
-Catalog and search are naturally globally replicable (read-mostly, eventually consistent) and benefit from regional read replicas/CDN-fronted caches close to shoppers. Inventory and orders are typically anchored to the region/warehouse network actually fulfilling the order (a US warehouse's stock isn't relevant to an EU shopper), so this system tends toward **regional sharding by fulfillment geography** for the write-heavy core, combined with **global active-active replication** for the read-heavy catalog/search layer — a hybrid that's explored generally in Section 5.
+Catalog and search are naturally globally replicable (read-mostly, eventually consistent) and
+benefit from regional read replicas/CDN-fronted caches close to shoppers. Inventory and orders are
+typically anchored to the region/warehouse network actually fulfilling the order (a US warehouse's
+stock isn't relevant to an EU shopper), so this system tends toward **regional sharding by
+fulfillment geography** for the write-heavy core, combined with **global active-active replication**
+for the read-heavy catalog/search layer — a hybrid that's explored generally in Section 5.
 
 ### Trade-offs
 
@@ -597,7 +649,10 @@ Catalog and search are naturally globally replicable (read-mostly, eventually co
 
 ## 5. Multi-Region Architecture — Standalone Deep Dive
 
-This section treats multi-region design as a topic in its own right, because interviewers increasingly ask it independent of any specific product ("design this so it survives a region outage with 99.99% availability") — you need the vocabulary and trade-off map even without a product wrapper.
+This section treats multi-region design as a topic in its own right, because interviewers
+increasingly ask it independent of any specific product ("design this so it survives a region outage
+with 99.99% availability") — you need the vocabulary and trade-off map even without a product
+wrapper.
 
 ### Requirements
 
@@ -630,11 +685,14 @@ Read APIs should expose a consistency hint where it matters:
   GET /v1/account/balance?consistency=strong   -> routed to home region
   GET /v1/account/balance?consistency=eventual -> served from local region replica
 ```
-Exposing a consistency knob (rather than hiding it) lets each caller decide whether it needs the authoritative (slower, cross-region) answer or the fast local one — this mirrors the catalog-vs-inventory split in Section 4, generalized as an explicit API contract.
+Exposing a consistency knob (rather than hiding it) lets each caller decide whether it needs the
+authoritative (slower, cross-region) answer or the fast local one — this mirrors the catalog-vs-
+inventory split in Section 4, generalized as an explicit API contract.
 
 ### Data Model
 
-Multi-region data modeling is really about **partitioning strategy** per dataset, not a single schema:
+Multi-region data modeling is really about **partitioning strategy** per dataset, not a single
+schema:
 
 ```
 Strategy 1 — Single-master per record, geo-routed writes ("data locality by owner")
@@ -655,7 +713,8 @@ Strategy 3 — Regionally-scoped data, no cross-region replication needed
   (Section 3) — deliberately NOT replicated globally because the data's
   usefulness doesn't outlive the region/session anyway.
 ```
-The single biggest multi-region data-modeling mistake is applying one strategy to all data — real systems mix all three per dataset, exactly as Sections 1-4 each did implicitly.
+The single biggest multi-region data-modeling mistake is applying one strategy to all data — real
+systems mix all three per dataset, exactly as Sections 1-4 each did implicitly.
 
 ### High-Level Design
 
@@ -691,7 +750,9 @@ The single biggest multi-region data-modeling mistake is applying one strategy t
 **(a) Active-Active vs. Active-Passive.**
 - **Active-passive**: one region serves all traffic; a standby region replicates data but serves nothing until failover. Simpler (no multi-writer conflict problem at all) but wastes the standby's capacity, and failover has a non-zero RTO (DNS propagation, promoting the standby, verifying data currency) — often tens of seconds to minutes, which can be too slow for a 99.99% target if outages happen more than once a year (52 minutes/year budget is easily consumed by a couple of slow failovers).
 - **Active-active**: all regions serve live traffic simultaneously. Better latency (users always hit a nearby active region, not just "nearest of one active + N cold standbys") and better failure tolerance (losing one region simply removes it from the routing pool, no failover procedure needed — the other regions were already serving traffic). The cost: you now have a genuine multi-writer consistency problem for any data writable from more than one region, which is the crux of part (b).
-For the worked 99.99%/150ms SLA in this section: **active-active is effectively required**, because active-passive's failover latency risk and the single-active-region's inability to be near every global user both violate the stated targets independently.
+For the worked 99.99%/150ms SLA in this section: **active-active is effectively required**, because
+active-passive's failover latency risk and the single-active-region's inability to be near every
+global user both violate the stated targets independently.
 
 **(b) Conflict Resolution Across Regions.** When the same logical record can be written in two regions before either write has propagated to the other, you need a merge strategy:
 - **Last-Write-Wins (LWW)**: attach a timestamp (ideally a hybrid logical clock, not raw wall-clock, since wall clocks drift across regions) to every write; on conflict, the later timestamp wins, the other is discarded. Simple, but **silently loses data** — acceptable only when losing the losing write is truly harmless (e.g., "last viewed timestamp," a presence flag). Never acceptable for financial balances or anything a user would notice disappearing.
@@ -713,15 +774,29 @@ For the worked 99.99%/150ms SLA in this section: **active-active is effectively 
 
 ### Scaling the Design
 
-Scaling a multi-region architecture is less about adding regions (typically capped at a handful, chosen deliberately for coverage) and more about scaling *within* each region using everything from Sections 1-4 (sharding, caching, queues), plus scaling the cross-region replication pipes themselves as data volume grows — this usually means partitioning replication streams per dataset/shard rather than one monolithic cross-region link, so a burst in one dataset's write volume doesn't starve replication for unrelated data.
+Scaling a multi-region architecture is less about adding regions (typically capped at a handful,
+chosen deliberately for coverage) and more about scaling *within* each region using everything from
+Sections 1-4 (sharding, caching, queues), plus scaling the cross-region replication pipes themselves
+as data volume grows — this usually means partitioning replication streams per dataset/shard rather
+than one monolithic cross-region link, so a burst in one dataset's write volume doesn't starve
+replication for unrelated data.
 
 ### Failure Handling
 
-Already covered in depth above (active-active failover, split-brain mitigation, fencing tokens, idempotency backstop) — the general principle: **assume any single region can vanish at any time, and design so that "vanish" is a routing-table update, not an incident.**
+Already covered in depth above (active-active failover, split-brain mitigation, fencing tokens,
+idempotency backstop) — the general principle: **assume any single region can vanish at any time,
+and design so that "vanish" is a routing-table update, not an incident.**
 
 ### Multi-Region Considerations
 
-This section *is* the multi-region considerations — but one point applies universally across Sections 1-4: **data residency law (e.g., GDPR) can override pure latency/availability optimization.** If EU user data must legally stay within EU infrastructure, the "route to nearest healthy region" rule gets constrained to "route to nearest healthy region *within the permitted residency set*" — sometimes meaning an EU user cannot fail over to a US region even if it's technically healthy and reachable, which can mean data-residency-constrained users have a *lower* effective availability than the global number, a nuance worth stating explicitly in an interview rather than glossing over.
+This section *is* the multi-region considerations — but one point applies universally across
+Sections 1-4: **data residency law (e.g., GDPR) can override pure latency/availability
+optimization.** If EU user data must legally stay within EU infrastructure, the "route to nearest
+healthy region" rule gets constrained to "route to nearest healthy region *within the permitted
+residency set*" — sometimes meaning an EU user cannot fail over to a US region even if it's
+technically healthy and reachable, which can mean data-residency-constrained users have a *lower*
+effective availability than the global number, a nuance worth stating explicitly in an interview
+rather than glossing over.
 
 ### Trade-offs
 
@@ -733,6 +808,16 @@ This section *is* the multi-region considerations — but one point applies univ
 
 ## 6. Closing: The Framing Question, Revisited
 
-Every design above reused the same small set of ideas, recombined: shard by the key that keeps hot paths local; separate the hot/ephemeral path from the durable/authoritative path; make writes idempotent; decouple through queues/events wherever a caller shouldn't wait; filter-then-rank when a candidate space is too large to score exhaustively; match consistency strength to the actual cost of being wrong, dataset by dataset, not uniformly. None of that is domain-specific to video, files, rides, e-commerce, or geography — it is the same toolbox, assembled differently because each system's *bottleneck* (egress bandwidth, sync bandwidth, matching latency, oversell risk, speed-of-light latency) is different.
+Every design above reused the same small set of ideas, recombined: shard by the key that keeps hot
+paths local; separate the hot/ephemeral path from the durable/authoritative path; make writes
+idempotent; decouple through queues/events wherever a caller shouldn't wait; filter-then-rank when a
+candidate space is too large to score exhaustively; match consistency strength to the actual cost of
+being wrong, dataset by dataset, not uniformly. None of that is domain-specific to video, files,
+rides, e-commerce, or geography — it is the same toolbox, assembled differently because each
+system's *bottleneck* (egress bandwidth, sync bandwidth, matching latency, oversell risk, speed-of-
+light latency) is different.
 
-> **Can I combine the building blocks appropriately instead of memorizing architectures?** If you can look at a new, unfamiliar system and correctly guess which of these five bottleneck-shapes it resembles most — and which two or three primitives address that specific bottleneck — you've answered yes.
+> **Can I combine the building blocks appropriately instead of memorizing architectures?** If you
+can look at a new, unfamiliar system and correctly guess which of these five bottleneck-shapes it
+resembles most — and which two or three primitives address that specific bottleneck — you've
+answered yes.
