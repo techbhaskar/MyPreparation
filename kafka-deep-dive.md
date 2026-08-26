@@ -77,7 +77,46 @@ LEVEL 7 - Architecture
 40. PayPal
 ```
 
-**Note:** This document covers Lessons 1–18 (everything through Compression) as actually taught in the session — the deep, worked-example version of Levels 1 through most of Level 5. Lessons 19–35 (Idempotent Producer, Transactions, Kafka Connect, Schema Registry, Streams, ksqlDB, DLQ, Outbox, Saga, CDC, multi-region, security, etc.) were scoped as next steps but not yet covered in this session — see the "What's Next" section at the end.
+**Note:** This document has since been extended to cover the full 35-lesson arc — see the Table of Contents below and the "Document Scope" section at the end.
+
+---
+
+## Table of Contents
+
+- [Lesson 1 — Why Kafka Exists](#lesson-1-why-kafka-exists)
+- [Lesson 2 — What is an Event?](#lesson-2-what-is-an-event)
+- [Lesson 3 — Topics & Partitions (The Heart of Kafka)](#lesson-3-topics-partitions-the-heart-of-kafka)
+- [Lesson 4 – Producer, Broker, Topic, Partition, Consumer (End-to-End Journey)](#lesson-4-producer-broker-topic-partition-consumer-end-to-end-journey)
+- [Lesson 5 – Offsets (The Secret Behind Kafka)](#lesson-5-offsets-the-secret-behind-kafka)
+- [Lesson 6 – Consumer Groups](#lesson-6-consumer-groups)
+- [Lesson 7 – Brokers, Replication, Leader & Followers](#lesson-7-brokers-replication-leader-followers)
+- [Lesson 8 – ACKs & ISR (How Kafka Prevents Data Loss)](#lesson-8-acks-isr-how-kafka-prevents-data-loss)
+- [Lesson 9 – Leader Election](#lesson-9-leader-election)
+- [Lesson 10 – Producer Internals](#lesson-10-producer-internals)
+- [Lesson 11 – KRaft vs ZooKeeper](#lesson-11-kraft-vs-zookeeper)
+- [Lesson 13 – Consumer Internals](#lesson-13-consumer-internals)
+- [Lesson 14 – Log Segments](#lesson-14-log-segments)
+- [Lesson 15 – Page Cache (Kafka's Secret Weapon)](#lesson-15-page-cache-kafkas-secret-weapon)
+- [Lesson 16 – Zero Copy](#lesson-16-zero-copy)
+- [Lesson 17 – Batching (Deep Dive)](#lesson-17-batching-deep-dive)
+- [Lesson 18 – Compression (The Final Performance Piece)](#lesson-18-compression-the-final-performance-piece)
+- [Lesson 19 – Idempotent Producer](#lesson-19-idempotent-producer)
+- [Lesson 20 – Transactions & Exactly-Once Semantics](#lesson-20-transactions-exactly-once-semantics)
+- [Lesson 21 – Kafka Connect](#lesson-21-kafka-connect)
+- [Lesson 22 – Schema Registry (Avro, Protobuf, JSON Schema)](#lesson-22-schema-registry-avro-protobuf-json-schema)
+- [Lesson 23 – Kafka Streams](#lesson-23-kafka-streams)
+- [Lesson 24 – ksqlDB](#lesson-24-ksqldb)
+- [Lesson 25 – Dead Letter Queues (DLQ)](#lesson-25-dead-letter-queues-dlq)
+- [Lesson 26 – Retry Topics](#lesson-26-retry-topics)
+- [Lesson 27 – Outbox Pattern (Kafka-Specific Implementation)](#lesson-27-outbox-pattern-kafka-specific-implementation)
+- [Lesson 28 – Saga Pattern (Kafka-Specific Implementation)](#lesson-28-saga-pattern-kafka-specific-implementation)
+- [Lesson 29 – Event Sourcing](#lesson-29-event-sourcing)
+- [Lesson 30 – Change Data Capture (CDC) with Debezium](#lesson-30-change-data-capture-cdc-with-debezium)
+- [Lesson 31 – MirrorMaker 2](#lesson-31-mirrormaker-2)
+- [Lesson 32 – Multi-Region Kafka](#lesson-32-multi-region-kafka)
+- [Lesson 33 – Kafka Security (SSL/TLS, SASL, ACLs)](#lesson-33-kafka-security-ssltls-sasl-acls)
+- [Lesson 34 – Kafka Monitoring & Performance Tuning](#lesson-34-kafka-monitoring-performance-tuning)
+- [Lesson 35 – Real Production Case Studies (PayPal, Uber, Netflix, LinkedIn)](#lesson-35-real-production-case-studies-paypal-uber-netflix-linkedin)
 
 ---
 

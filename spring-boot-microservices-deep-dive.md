@@ -10,6 +10,28 @@ This document is organized as 17 topics across three arcs:
 
 ---
 
+## Table of Contents
+
+- [Topic 1 — Spring Boot Fundamentals](#topic-1-spring-boot-fundamentals)
+- [Topic 2 — Dependency Injection & the IoC Container](#topic-2-dependency-injection-the-ioc-container)
+- [Topic 3 — Building REST APIs with Spring Boot](#topic-3-building-rest-apis-with-spring-boot)
+- [Topic 4 — Spring Data JPA & Transactions](#topic-4-spring-data-jpa-transactions)
+- [Topic 5 — Testing Spring Boot Applications](#topic-5-testing-spring-boot-applications)
+- [Topic 6 — Service Discovery (Eureka / Consul)](#topic-6-service-discovery-eureka-consul)
+- [Topic 7 — API Gateway with Spring Cloud Gateway](#topic-7-api-gateway-with-spring-cloud-gateway)
+- [Topic 8 — Centralized Configuration with Spring Cloud Config](#topic-8-centralized-configuration-with-spring-cloud-config)
+- [Topic 9 — Inter-Service Communication: RestTemplate/WebClient vs OpenFeign](#topic-9-inter-service-communication-resttemplatewebclient-vs-openfeign)
+- [Topic 10 — Resilience Patterns with Resilience4j](#topic-10-resilience-patterns-with-resilience4j)
+- [Topic 11 — Microservices Decomposition Patterns in Practice](#topic-11-microservices-decomposition-patterns-in-practice)
+- [Topic 12 — Spring Boot Actuator & Production Readiness](#topic-12-spring-boot-actuator-production-readiness)
+- [Topic 13 — Observability: Metrics, Tracing, and Structured Logging](#topic-13-observability-metrics-tracing-and-structured-logging)
+- [Topic 14 — Spring Security: Authentication & Authorization](#topic-14-spring-security-authentication-authorization)
+- [Topic 15 — Spring Kafka Integration](#topic-15-spring-kafka-integration)
+- [Topic 16 — Dockerizing and Deploying Spring Boot to Kubernetes](#topic-16-dockerizing-and-deploying-spring-boot-to-kubernetes)
+- [Topic 17 — Common Spring Boot Interview Traps (Synthesis)](#topic-17-common-spring-boot-interview-traps-synthesis)
+
+---
+
 ## Topic 1 — Spring Boot Fundamentals
 
 Spring Boot is not a new framework sitting beside Spring — it is an opinionated packaging of the Spring Framework that eliminates the two things that made pre-2014 Spring projects painful: manual bean wiring via XML (or verbose `@Configuration` classes) and the requirement to build a WAR file, hand it to an operations team, and deploy it into an externally managed Tomcat or WebLogic instance. If you worked on a payments platform a decade ago, the deployment story looked like this: a `web.xml`, a `DispatcherServlet` entry, a hand-assembled `applicationContext.xml` wiring together your `DataSource`, your `TransactionManager`, your `PaymentGatewayClient`, and a WAR that got copied into `$CATALINA_HOME/webapps` on a shared app server that also hosted three other teams' services. A misconfigured library version on that shared Tomcat could take down unrelated services. Spring Boot's core insight is that the JVM ecosystem had matured to the point where embedding the servlet container inside the application — rather than deploying the application into the container — was both simpler and more aligned with how you actually want to run microservices: one process, one port, one deployable artifact, `java -jar payment-service.jar` and it's up. This is what "fat jar" or "über jar" packaging via `spring-boot-maven-plugin` or the Gradle equivalent gives you: your compiled classes, all your transitive dependencies, and an embedded Tomcat (default), Jetty, or Undertow, all bundled into a single executable JAR with its own `main()` method that calls `SpringApplication.run()`.
