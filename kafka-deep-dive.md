@@ -83,42 +83,44 @@ LEVEL 7 - Architecture
 
 ## Table of Contents
 
-- [Lesson 1 — Why Kafka Exists](#lesson-1-why-kafka-exists)
-- [Lesson 2 — What is an Event?](#lesson-2-what-is-an-event)
-- [Lesson 3 — Topics & Partitions (The Heart of Kafka)](#lesson-3-topics-partitions-the-heart-of-kafka)
-- [Lesson 4 – Producer, Broker, Topic, Partition, Consumer (End-to-End Journey)](#lesson-4-producer-broker-topic-partition-consumer-end-to-end-journey)
-- [Lesson 5 – Offsets (The Secret Behind Kafka)](#lesson-5-offsets-the-secret-behind-kafka)
-- [Lesson 6 – Consumer Groups](#lesson-6-consumer-groups)
-- [Lesson 7 – Brokers, Replication, Leader & Followers](#lesson-7-brokers-replication-leader-followers)
-- [Lesson 8 – ACKs & ISR (How Kafka Prevents Data Loss)](#lesson-8-acks-isr-how-kafka-prevents-data-loss)
-- [Lesson 9 – Leader Election](#lesson-9-leader-election)
-- [Lesson 10 – Producer Internals](#lesson-10-producer-internals)
-- [Lesson 11 – KRaft vs ZooKeeper](#lesson-11-kraft-vs-zookeeper)
-- [Lesson 13 – Consumer Internals](#lesson-13-consumer-internals)
-- [Lesson 14 – Log Segments](#lesson-14-log-segments)
-- [Lesson 15 – Page Cache (Kafka's Secret Weapon)](#lesson-15-page-cache-kafkas-secret-weapon)
-- [Lesson 16 – Zero Copy](#lesson-16-zero-copy)
-- [Lesson 17 – Batching (Deep Dive)](#lesson-17-batching-deep-dive)
-- [Lesson 18 – Compression (The Final Performance Piece)](#lesson-18-compression-the-final-performance-piece)
-- [Lesson 19 – Idempotent Producer](#lesson-19-idempotent-producer)
-- [Lesson 20 – Transactions & Exactly-Once Semantics](#lesson-20-transactions-exactly-once-semantics)
-- [Lesson 21 – Kafka Connect](#lesson-21-kafka-connect)
-- [Lesson 22 – Schema Registry (Avro, Protobuf, JSON Schema)](#lesson-22-schema-registry-avro-protobuf-json-schema)
-- [Lesson 23 – Kafka Streams](#lesson-23-kafka-streams)
-- [Lesson 24 – ksqlDB](#lesson-24-ksqldb)
-- [Lesson 25 – Dead Letter Queues (DLQ)](#lesson-25-dead-letter-queues-dlq)
-- [Lesson 26 – Retry Topics](#lesson-26-retry-topics)
-- [Lesson 27 – Outbox Pattern (Kafka-Specific Implementation)](#lesson-27-outbox-pattern-kafka-specific-implementation)
-- [Lesson 28 – Saga Pattern (Kafka-Specific Implementation)](#lesson-28-saga-pattern-kafka-specific-implementation)
-- [Lesson 29 – Event Sourcing](#lesson-29-event-sourcing)
-- [Lesson 30 – Change Data Capture (CDC) with Debezium](#lesson-30-change-data-capture-cdc-with-debezium)
-- [Lesson 31 – MirrorMaker 2](#lesson-31-mirrormaker-2)
-- [Lesson 32 – Multi-Region Kafka](#lesson-32-multi-region-kafka)
-- [Lesson 33 – Kafka Security (SSL/TLS, SASL, ACLs)](#lesson-33-kafka-security-ssltls-sasl-acls)
-- [Lesson 34 – Kafka Monitoring & Performance Tuning](#lesson-34-kafka-monitoring-performance-tuning)
-- [Lesson 35 – Real Production Case Studies (PayPal, Uber, Netflix, LinkedIn)](#lesson-35-real-production-case-studies-paypal-uber-netflix-linkedin)
+- [Lesson 1 — Why Kafka Exists](#lesson-1)
+- [Lesson 2 — What is an Event?](#lesson-2)
+- [Lesson 3 — Topics & Partitions (The Heart of Kafka)](#lesson-3)
+- [Lesson 4 – Producer, Broker, Topic, Partition, Consumer (End-to-End Journey)](#lesson-4)
+- [Lesson 5 – Offsets (The Secret Behind Kafka)](#lesson-5)
+- [Lesson 6 – Consumer Groups](#lesson-6)
+- [Lesson 7 – Brokers, Replication, Leader & Followers](#lesson-7)
+- [Lesson 8 – ACKs & ISR (How Kafka Prevents Data Loss)](#lesson-8)
+- [Lesson 9 – Leader Election](#lesson-9)
+- [Lesson 10 – Producer Internals](#lesson-10)
+- [Lesson 11 – KRaft vs ZooKeeper](#lesson-11)
+- [Lesson 13 – Consumer Internals](#lesson-13)
+- [Lesson 14 – Log Segments](#lesson-14)
+- [Lesson 15 – Page Cache (Kafka's Secret Weapon)](#lesson-15)
+- [Lesson 16 – Zero Copy](#lesson-16)
+- [Lesson 17 – Batching (Deep Dive)](#lesson-17)
+- [Lesson 18 – Compression (The Final Performance Piece)](#lesson-18)
+- [Lesson 19 – Idempotent Producer](#lesson-19)
+- [Lesson 20 – Transactions & Exactly-Once Semantics](#lesson-20)
+- [Lesson 21 – Kafka Connect](#lesson-21)
+- [Lesson 22 – Schema Registry (Avro, Protobuf, JSON Schema)](#lesson-22)
+- [Lesson 23 – Kafka Streams](#lesson-23)
+- [Lesson 24 – ksqlDB](#lesson-24)
+- [Lesson 25 – Dead Letter Queues (DLQ)](#lesson-25)
+- [Lesson 26 – Retry Topics](#lesson-26)
+- [Lesson 27 – Outbox Pattern (Kafka-Specific Implementation)](#lesson-27)
+- [Lesson 28 – Saga Pattern (Kafka-Specific Implementation)](#lesson-28)
+- [Lesson 29 – Event Sourcing](#lesson-29)
+- [Lesson 30 – Change Data Capture (CDC) with Debezium](#lesson-30)
+- [Lesson 31 – MirrorMaker 2](#lesson-31)
+- [Lesson 32 – Multi-Region Kafka](#lesson-32)
+- [Lesson 33 – Kafka Security (SSL/TLS, SASL, ACLs)](#lesson-33)
+- [Lesson 34 – Kafka Monitoring & Performance Tuning](#lesson-34)
+- [Lesson 35 – Real Production Case Studies (PayPal, Uber, Netflix, LinkedIn)](#lesson-35)
 
 ---
+
+<a id="lesson-1"></a>
 
 ## Lesson 1 — Why Kafka Exists
 
@@ -810,6 +812,8 @@ If you understand events deeply, Topics, Partitions, Producers, Consumers, Repli
 
 ---
 
+<a id="lesson-2"></a>
+
 ## Lesson 2 — What is an Event?
 
 An **event** represents **something that has already happened**.
@@ -1334,6 +1338,8 @@ A strong answer:
 5. **The key influences partitioning, while the value carries the business data.**
 
 ---
+
+<a id="lesson-3"></a>
 
 ## Lesson 3 — Topics & Partitions (The Heart of Kafka)
 
@@ -2045,6 +2051,8 @@ Kafka isn't difficult because of its API surface (a handful of classes) — it's
 
 ---
 
+<a id="lesson-4"></a>
+
 ## Lesson 4 – Producer, Broker, Topic, Partition, Consumer (End-to-End Journey)
 
 So far we've learned:
@@ -2260,6 +2268,8 @@ A **Consumer** is responsible for: reading events, processing business logic, tr
 
 ---
 
+<a id="lesson-5"></a>
+
 ## Lesson 5 – Offsets (The Secret Behind Kafka)
 
 One of the **most frequently asked Kafka interview topics**. Understanding offsets explains why Kafka can replay messages, why consumers restart safely, why multiple consumers can read the same event, and why Kafka doesn't delete messages after consumption.
@@ -2330,6 +2340,8 @@ This is why offset commit timing matters:
 
 ---
 
+<a id="lesson-6"></a>
+
 ## Lesson 6 – Consumer Groups
 
 Consider a topic with 4 partitions and one consumer, Consumer A — it simply reads all four. As traffic grows (say 5M payments/day, 100M notifications/day), one consumer becomes too slow, so a second consumer is added.
@@ -2387,6 +2399,8 @@ But adding (or removing) a consumer triggers a **Rebalance**: current partition 
 
 ---
 
+<a id="lesson-7"></a>
+
 ## Lesson 7 – Brokers, Replication, Leader & Followers
 
 This lesson answers: **how does Kafka ensure no payment is lost if a server crashes?**
@@ -2420,6 +2434,8 @@ When the leader receives a write, does it immediately tell the producer SUCCESS?
 **Staff Engineer setup for the next lesson:** RF=3, producer sends Payment #5001, the leader writes it, one follower has replicated it, the second follower is lagging due to a network blip. Should Kafka ack the producer now, or wait for the slow follower? The answer hinges on **ACKs** and **ISR (In-Sync Replicas)** — the single most important reliability topic in Kafka, worth 30–40 minutes in a real Staff Engineer interview.
 
 ---
+
+<a id="lesson-8"></a>
 
 ## Lesson 8 – ACKs & ISR (How Kafka Prevents Data Loss)
 
@@ -2498,6 +2514,8 @@ If `acks=1` and the leader crashes before any follower replicates, the message i
 
 ---
 
+<a id="lesson-9"></a>
+
 ## Lesson 9 – Leader Election
 
 If the leader broker for a partition dies, who chooses the new leader? Not the producer, not the consumer, not a follower — Kafka designates one special broker as the **Controller**, and the Controller performs leader election.
@@ -2519,6 +2537,8 @@ If the leader broker for a partition dies, who chooses the new leader? Not the p
 **Staff Engineer combination scenario** (ties together Replication + ISR + ACKs + Leader Election): RF=3, `acks=all`, `min.insync.replicas=2`. The leader stores Payment5001, Follower1 has replicated it, Follower2 has not, and then the leader crashes. (1) Is Payment5001 lost? No — Follower1 (in the ISR) has it, so `acks=all` already waited for that replication before returning SUCCESS. (2) Can Broker2 (Follower1) become leader? Yes — it's in the ISR and has the data. (3) Will the producer retry? No — it already received SUCCESS, correctly, because the data really is durable.
 
 ---
+
+<a id="lesson-10"></a>
 
 ## Lesson 10 – Producer Internals
 
@@ -2582,6 +2602,8 @@ Application → Serializer → Partitioner → Producer Buffer → Batch → Sen
 
 ---
 
+<a id="lesson-11"></a>
+
 ## Lesson 11 – KRaft vs ZooKeeper
 
 Someone has to track cluster **metadata** — which brokers are alive, which broker leads which partition, what topics and consumer groups exist, ACLs. This is *data about Kafka*, distinct from the business data flowing through topics.
@@ -2623,6 +2645,8 @@ Does modern Kafka need ZooKeeper? No — **Kafka 4.x is fully KRaft-based**. KRa
 Instead of a separate ZooKeeper ensemble, KRaft stores metadata as its own internal append-only log/topic — metadata changes (topic created, broker registered, leader changed, partition added) are just records in that log, replicated the same way ordinary Kafka data is. `Producer → Broker → ZooKeeper` becomes `Producer → Broker → Metadata Log`, all inside one system.
 
 ---
+
+<a id="lesson-13"></a>
 
 ## Lesson 13 – Consumer Internals
 
@@ -2687,6 +2711,8 @@ It's easy to think `poll()` only fetches records. It also sends heartbeats, main
 
 ---
 
+<a id="lesson-14"></a>
+
 ## Lesson 14 – Log Segments
 
 A payment platform doing 5M payments/day accumulates ≈1.8 billion records/year. If Kafka stored an entire partition as one giant file, two things break: (1) finding offset 987,654,321 would mean scanning from the start — far too slow — and (2) deleting data past a 7-day retention window would mean rewriting almost the whole multi-terabyte file.
@@ -2726,6 +2752,8 @@ Each segment has a matching `.index` file (a sparse map of `offset → byte posi
 
 ---
 
+<a id="lesson-15"></a>
+
 ## Lesson 15 – Page Cache (Kafka's Secret Weapon)
 
 When `producer.send()` writes a payment, does Kafka write straight to the physical disk? **Not immediately.** The real path is `Application → Operating System → Page Cache (RAM) → Background Flush → SSD/HDD`. Kafka writes land in RAM first.
@@ -2756,6 +2784,8 @@ Linux — not Kafka — decides when to `flush()`/`fsync()` page cache to disk. 
 
 ---
 
+<a id="lesson-16"></a>
+
 ## Lesson 16 – Zero Copy
 
 Most developers cite batching, partitioning, and compression as why Kafka is fast — few mention **Zero Copy**, arguably as important as any of those.
@@ -2785,6 +2815,8 @@ Linux's `sendfile()` system call transfers bytes **directly from the page cache 
 **Staff Engineer framing:** serving 1 million consumers requesting data already sitting in page cache means Kafka can tell Linux "send these bytes" with no object creation, no deserialization, and no extra memory copy per consumer — one of the core reasons Kafka sustains millions of reads/sec. The performance pipeline built so far: `Append-Only Log → Sequential Disk Writes → Log Segments → Page Cache → Zero Copy` — each optimization removes a different bottleneck from the one before it.
 
 ---
+
+<a id="lesson-17"></a>
 
 ## Lesson 17 – Batching (Deep Dive)
 
@@ -2821,6 +2853,8 @@ The producer buffers records rather than sending immediately, and flushes a batc
 **Staff Engineer tuning scenario:** a UPI-scale platform at 250,000 payments/sec, `linger.ms=0`, `batch.size=16KB`, CPU pinned at 95%, millions of network packets. The right first move isn't "add more brokers" — it's: measure the workload, and if the latency budget allows, nudge `linger.ms` up slightly (e.g. 0 → 5ms) to form larger batches, cutting network overhead and improving compression; only reach for `batch.size` tuning next, and only scale brokers/partitions if the bottleneck survives both of those — infrastructure scaling is the expensive, last-resort lever, not the first one.
 
 ---
+
+<a id="lesson-18"></a>
 
 ## Lesson 18 – Compression (The Final Performance Piece)
 
@@ -2913,6 +2947,8 @@ Every stage in this pipeline exists to remove one specific bottleneck — partit
 
 ---
 
+<a id="lesson-19"></a>
+
 ## Lesson 19 – Idempotent Producer
 
 Lesson 8 established the "acknowledged but lost message" failure — `acks=1`, leader crashes before a follower replicates, and the producer walks away believing SUCCESS when the data never durably existed. `acks=all` fixes that specific failure. But fixing message *loss* exposes a different, quieter failure: message **duplication**.
@@ -3004,6 +3040,8 @@ A payment platform needs both, at different layers: the idempotent producer prev
 **Staff Engineer scenario:** A payments team enables `enable.idempotence=true`, declares "we now have exactly-once payment processing," and ships it. Three weeks later, a customer is charged twice for the same order. Debugging reveals the producer pod crashed mid-flight during a rolling deployment and Kubernetes restarted it — the retry that caused the duplicate charge happened *after* the restart, with a fresh PID, so the broker had no sequence-number history to compare against and accepted the resend as a brand-new record. The fix isn't a bigger idempotence setting — there isn't one — it's recognizing the guarantee's actual boundary: idempotence covers in-session retries, not cross-restart retries, so the checkout flow needed an application-level idempotency key (generated once, client-side, before the first attempt) with a unique constraint on `orderId` at the point the charge is recorded, exactly the pattern that protects against duplicate delivery regardless of what caused it — network blip, producer retry, or a pod restart.
 
 ---
+
+<a id="lesson-20"></a>
 
 ## Lesson 20 – Transactions & Exactly-Once Semantics
 
@@ -3130,6 +3168,8 @@ If the process crashes after `produce()` but before `commitTransaction()`, the p
 
 ---
 
+<a id="lesson-21"></a>
+
 ## Lesson 21 – Kafka Connect
 
 ### The Problem Kafka Connect Solves
@@ -3212,6 +3252,8 @@ The dividing line, stated the way a Staff Engineer would: **Connect is for movin
 **Staff Engineer scenario:** A platform team wants every row change on the `merchants` table (KYC status updates, address changes) mirrored into a downstream fraud-review service in near-real-time, and initially proposes writing a custom polling job that queries `updated_at > lastPoll` every 30 seconds. The problems with that approach: polling misses the actual sequence of intermediate changes (only the latest state is ever seen), adds continuous load to the OLTP database, and introduces up to 30 seconds of lag. The Connect-based alternative — a Debezium source connector reading the database's transaction log directly — captures every change, in commit order, with sub-second latency, and adds effectively zero load to the OLTP database since it reads the replication log rather than issuing queries. The lazy-but-correct answer here isn't "build a custom poller," it's recognizing this is exactly the well-known CDC pattern Kafka Connect (via Debezium) already solves, and reaching for the existing connector instead of re-deriving change-data-capture from scratch.
 
 ---
+
+<a id="lesson-22"></a>
 
 ## Lesson 22 – Schema Registry (Avro, Protobuf, JSON Schema)
 
@@ -3316,6 +3358,8 @@ Schema Registry would reject the field-removal registration outright under BACKW
 
 ---
 
+<a id="lesson-23"></a>
+
 ## Lesson 23 – Kafka Streams
 
 Every lesson so far has assumed you write your own consumer loop — `poll()`, deserialize, apply business logic, commit offset, repeat. That's fine for "consume `payment.completed`, write a row to the ledger." It gets painful fast the moment the logic becomes stateful: "join every payment with the merchant's current risk tier," or "compute a rolling sum of a customer's spend over the last 5 minutes." Building that by hand means you're reinventing windowing, local state, fault-tolerant recovery of that state, and rebalancing-aware state migration — all on top of a plain consumer. **Kafka Streams** is Confluent's answer: a Java/Kotlin client library, not a separate cluster, that gives you these stream-processing primitives directly inside your own application's JVM process.
@@ -3418,6 +3462,8 @@ The honest Staff Engineer framing: Kafka Streams is the right default when the p
 
 ---
 
+<a id="lesson-24"></a>
+
 ## Lesson 24 – ksqlDB
 
 Kafka Streams (Lesson 23) requires writing and deploying Java/Kotlin code — a real service, a build pipeline, a deployment. Not every stream-processing need justifies that. **ksqlDB** is Confluent's SQL layer on top of Kafka Streams: instead of writing a topology in Java, you express the same stream-processing logic — filters, joins, aggregations, windowing — as SQL statements submitted to a ksqlDB server (which itself is, under the hood, running Kafka Streams topologies on your behalf).
@@ -3471,6 +3517,8 @@ The honest trade-off: ksqlDB trades expressiveness and testability for speed of 
 **Staff Engineer scenario:** The analytics team wants a live dashboard showing payments over ₹1,00,000 per merchant, and they don't have Java engineers on the team. Writing and deploying a Kafka Streams service for this is disproportionate to the ask. A `CREATE STREAM ... AS SELECT ... WHERE amount > 100000 EMIT CHANGES` statement, backed by a downstream tool reading the resulting topic, ships in an afternoon and is something the analytics team can iterate on themselves — the Staff Engineer call here is recognizing that "who needs to maintain this, and how often will it change" matters as much as raw technical capability when choosing ksqlDB versus a hand-rolled service.
 
 ---
+
+<a id="lesson-25"></a>
 
 ## Lesson 25 – Dead Letter Queues (DLQ)
 
@@ -3545,6 +3593,8 @@ A DLQ is not a fix — it's a deferral. Routing a bad record to `payment.complet
 **Staff Engineer scenario:** The Ledger Service's consumer group starts crash-looping at 2 AM — every instance dies within seconds of a rebalance completing, throughput on `payment.completed` drops to zero, and the on-call engineer sees the same offset being reprocessed and failing repeatedly across different pod restarts. Root cause: a producer team shipped a schema change that broke deserialization for a specific record shape, and without a DLQ, that one malformed record is taking down ledger processing for every payment platform-wide. The actual fix isn't just adding a DLQ after the fact — it's recognizing that a DLQ should have been in place *before* this happened as a standing safety net for exactly this failure mode, paired with schema compatibility enforcement further upstream (Schema Registry, Lesson 22) so malformed records are rejected at produce time rather than only caught at consume time.
 
 ---
+
+<a id="lesson-26"></a>
 
 ## Lesson 26 – Retry Topics
 
@@ -3639,6 +3689,8 @@ This single annotation makes Spring Kafka auto-create the chain of `payment.comp
 
 ---
 
+<a id="lesson-27"></a>
+
 ## Lesson 27 – Outbox Pattern (Kafka-Specific Implementation)
 
 The dual-write problem — writing to a database and publishing to Kafka in the same logical operation, with no atomic way to guarantee both succeed or both fail together — and the Transactional Outbox pattern that solves it are covered in full at the general distributed-systems level in [02-distributed-systems-fundamentals.md](02-distributed-systems-fundamentals.md) (topics 54 and 59), and this file's own Lesson 8 already introduced the basic shape as one of the layered defenses against an "acknowledged but lost" `acks=1` message. This lesson doesn't re-derive that theory — it goes deep on what actually building the outbox looks like when Kafka is your event bus, specifically using **Debezium** and **Kafka Connect** (Lesson 21) rather than a hand-rolled polling publisher.
@@ -3728,6 +3780,8 @@ One thing this *doesn't* eliminate: downstream consumers must still be idempoten
 **Staff Engineer scenario:** The Payment Service currently uses a homegrown polling outbox publisher — a cron-scheduled job querying `outbox_events` every 2 seconds — and Product is complaining that `payment.completed` events (which drive a customer-facing "payment confirmed" push notification) feel sluggish under load, sometimes 3-4 seconds after the actual payment. Profiling shows the publisher job itself is healthy; the delay is inherent to polling on a 2-second cadence plus occasional lock contention from the poll query competing with the service's normal write traffic on the same table. Migrating to a Debezium CDC connector with the Outbox Event Router SMT removes the poll interval entirely (WAL-tailing latency is milliseconds, not seconds) and removes the competing-query load, without changing the outbox table schema, the Payment Service's transaction boundary, or anything about the dual-write guarantee already in place — it's a drop-in replacement for the publisher component only, which is exactly why separating "the outbox pattern" (the transactional guarantee) from "how you relay outbox rows to Kafka" (the polling-vs-CDC implementation choice) matters: you can upgrade the relay mechanism without touching the correctness-critical part at all.
 
 ---
+
+<a id="lesson-28"></a>
 
 ## Lesson 28 – Saga Pattern (Kafka-Specific Implementation)
 
@@ -3846,6 +3900,8 @@ That last row matters operationally: orchestration on Kafka isn't "no Kafka" —
 
 ---
 
+<a id="lesson-29"></a>
+
 ## Lesson 29 – Event Sourcing
 
 Lesson 2 already planted the seed: a Kafka topic doesn't store "current balance = 500," it stores `Deposited(200)`, `Deposited(300)`, `Withdrawn(0)` — the full history, not a snapshot. **Event Sourcing** takes that idea and makes it the explicit architecture of a system: instead of a service's source of truth being a row in a database that gets overwritten on every update, the source of truth is the ordered sequence of events that led to the current state, and "current state" becomes a *derived, computed view* — something you can always throw away and rebuild by replaying the log, never something you edit directly.
@@ -3949,6 +4005,8 @@ That schema evolution point is itself a real cost: because old events are never 
 
 ---
 
+<a id="lesson-30"></a>
+
 ## Lesson 30 – Change Data Capture (CDC) with Debezium
 
 **Change Data Capture (CDC)** is the practice of capturing every row-level insert, update, and delete made to a database as a stream of events, in the order they committed — instead of the application explicitly publishing events itself, and instead of downstream systems polling the database on a schedule and diffing what changed. The database's own commit log becomes the event source, with no application code changes required to start streaming from it.
@@ -4016,6 +4074,8 @@ That same strength is the lesson's central risk. When a team hand-designs an eve
 
 ---
 
+<a id="lesson-31"></a>
+
 ## Lesson 31 – MirrorMaker 2
 
 **MirrorMaker 2 (MM2)** is a tool built on Kafka Connect for replicating topics — and their data — between Kafka *clusters*, as opposed to replication within a single cluster (Lesson 7's Leader/Follower mechanism). It runs as Kafka Connect source and sink connectors that continuously read from a source cluster and write to a target cluster, which can be a different data center, a different cloud region, or a different cloud provider entirely.
@@ -4051,6 +4111,8 @@ By default MM2 prefixes replicated topic names with the source cluster's alias (
 This offset-translation mechanic leads directly into **Lesson 32 – Multi-Region Kafka**, which covers the broader question MM2 is one building block of: how a payment platform designs its Kafka topology across regions — active-active vs active-passive, where producers write during a regional failure, and how partition keys and consumer groups behave once "cluster" is no longer a single, region-local concept.
 
 ---
+
+<a id="lesson-32"></a>
 
 ## Lesson 32 – Multi-Region Kafka
 
@@ -4095,6 +4157,8 @@ Regional processing is often a hard requirement, not a preference — many juris
 **Staff Engineer scenario:** A payment platform operating in the EU and US is asked to support a global fraud model that needs visibility across both regions, while EU customer transaction data must stay within EU infrastructure under GDPR-adjacent data-residency rules. Design the topic topology. The answer: keep `payment.completed` as a regional topic in each region (`eu.payment.completed`, `us.payment.completed`), processed entirely by regional payment services and regional fraud pre-screening, so no raw transaction data crosses the region boundary and residency is satisfied by construction. Then introduce a separate `global.fraud.signal` topic populated by an application-level publisher in each region that emits only the reduced feature set the global model actually needs (e.g. anonymized or pseudonymized customer identifier, merchant category, amount bucket, timestamp) rather than full transaction payloads — this is a deliberate data-minimization step, not just a routing decision, and it's what makes the global topic compliant to replicate globally in the first place. MirrorMaker 2 (or a lightweight stream processor) aggregates both regions' `global.fraud.signal` topics into wherever the global model runs. The regional topics never touch MirrorMaker for cross-border replication at all; only the already-minimized signal topic does.
 
 ---
+
+<a id="lesson-33"></a>
 
 ## Lesson 33 – Kafka Security (SSL/TLS, SASL, ACLs)
 
@@ -4176,6 +4240,8 @@ Everything above covers data in motion. **Encryption at rest** — protecting th
 
 ---
 
+<a id="lesson-34"></a>
+
 ## Lesson 34 – Kafka Monitoring & Performance Tuning
 
 Everything in Lessons 7–18 explained *why* Kafka is fast and reliable when it's working correctly. Running it in production is a different skill: knowing which metrics actually tell you something is wrong, in what order to check them, and how to avoid the classic reflex of throwing more consumers or more brokers at a problem before you've actually diagnosed it. The golden-signals framing (latency, traffic, errors, saturation) from `03-reliability-resilience-production-engineering.md`'s Golden Signals / RED / USE sections applies to Kafka the same way it applies to any production system — the point of this lesson is translating those general categories into the specific metrics a Kafka operator actually watches.
@@ -4234,6 +4300,8 @@ Jumping straight to "add more consumers" without walking this sequence risks fix
 **Staff Engineer scenario:** During an incident, Notification Service lag has been growing for 40 minutes and the on-call engineer's instinct is to scale the consumer group from 4 pods to 12. Before approving that, what would you check, and why might it not help? Check broker-level health first (rule out a cluster-wide problem scaling more consumers can't fix), then check per-partition lag distribution via `kafka-consumer-groups.sh --describe` (if lag concentrates on 1–2 of the topic's 4 partitions while the others are near zero, this is a hot-partition problem from a poor key choice, and scaling to 12 pods when there are only 4 partitions leaves 8 pods permanently idle per Lesson 6's ceiling — it wastes capacity without touching the actual bottleneck). Only after confirming the group is evenly loaded and genuinely under-provisioned relative to partition count does scaling out make sense; even then, if downstream API latency turns out to be the real constraint, more consumers just means more concurrent callers hammering an already-slow dependency, potentially making the incident worse.
 
 ---
+
+<a id="lesson-35"></a>
 
 ## Lesson 35 – Real Production Case Studies (PayPal, Uber, Netflix, LinkedIn)
 
