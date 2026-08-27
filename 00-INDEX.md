@@ -50,6 +50,7 @@ files so each topic can get full depth without making individual files unmanagea
 |---|---|---|
 | 8 — Staff/Principal Architecture | [08-staff-principal-architecture.md](08-staff-principal-architecture.md) | Trade-off thinking, scale-tier evolution (1K→100M), migration strategy, multi-region, governance/ADRs, security architecture, cost & ops |
 | 9 — Interview Mastery | [09-interview-mastery.md](09-interview-mastery.md) | Opening/whiteboarding technique, stock challenge questions with model answers, recovery tactics, company-style mocks, full mock structure + scoring rubric |
+| 10 — Quick Revision | [10-senior-java-architect-quick-revision.md](10-senior-java-architect-quick-revision.md) | High-signal revision layer for 17-year Java Lead / Architect interviews; use before reading the heavy deep dives |
 
 ---
 
@@ -65,7 +66,10 @@ files so each topic can get full depth without making individual files unmanagea
 
 ## Suggested reading order
 
-Read top-to-bottom in the table order above — each stage builds on the previous ones.
+For first-time learning, read top-to-bottom in the table order above — each stage builds on the
+previous ones.
+
+For interview revision, start with **10 — Quick Revision**, then deep dive only into weak areas.
 
 For PayPal/Visa-style interviews, prioritize **05c** and the trade-offs in **08**, then run the
 PayPal-style mock in **09**.
