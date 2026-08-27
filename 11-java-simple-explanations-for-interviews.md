@@ -23,6 +23,7 @@ work, and then add depth only where needed.
 
 - Topics 1-24: Core Java and JVM
 - Topics 25-41: Spring Boot, microservices, production, security, Kafka, and Kubernetes
+- Topics 42-54: SOLID, design patterns, and architecture building blocks
 
 ## 1. Functional Interface And Lambda
 
@@ -1167,3 +1168,346 @@ Do not memorize annotations without understanding the mechanism behind them.
 "For Spring Boot questions, I try to explain the mechanism, not just the annotation. For example,
 `@Transactional` usually works through proxies, auto-configuration is conditional, and REST clients
 need timeout/resilience policies. Senior interviewers expect production behavior, not only syntax."
+
+## 42. SOLID Principles
+
+### Simple Meaning
+
+SOLID is a set of object-oriented design principles that help keep code easy to change, test, and
+extend.
+
+The five principles are:
+
+- SRP: one class should have one main responsibility.
+- OCP: extend behavior without constantly modifying existing code.
+- LSP: child classes should safely replace parent classes.
+- ISP: prefer small focused interfaces.
+- DIP: depend on abstractions, not concrete implementations.
+
+### Real Project Use
+
+- Service design
+- Payment validation rules
+- Notification provider abstraction
+- Pricing strategies
+- Testable business logic
+
+### Common Mistake
+
+Do not recite SOLID like theory. Interviewers want to know whether you can apply it in real code.
+
+### Interview Answer
+
+"I use SOLID as a practical guide, not a religion. For example, if payment validation has many
+rules, I avoid one large class with many `if` blocks. I split responsibilities, depend on interfaces
+where behavior varies, and keep the design easy to test and extend."
+
+## 43. SRP - Single Responsibility Principle
+
+### Simple Meaning
+
+A class should have one clear reason to change.
+
+### Real Project Use
+
+- `PaymentService` should not also format email templates.
+- `OrderController` should not contain business rules.
+- `InvoiceGenerator` should not also send notifications.
+
+### Common Mistake
+
+Do not interpret SRP as "one method per class." It means one responsibility, not tiny useless
+classes.
+
+### Interview Answer
+
+"SRP helps reduce change impact. If a class handles payment validation, database persistence, email,
+and audit logging, every change risks breaking unrelated behavior. I split responsibilities around
+business reasons to change."
+
+## 44. OCP And Strategy Pattern
+
+### Simple Meaning
+
+Open/Closed Principle means code should be open for extension but closed for repeated modification.
+Strategy pattern is a common way to achieve this.
+
+### Real Project Use
+
+- Different payment methods: card, UPI, wallet, net banking
+- Different pricing rules
+- Different discount rules
+- Different retry policies
+- Different notification channels
+
+### Common Mistake
+
+Do not create strategy classes for every small `if`. Use it when behavior genuinely varies and will
+grow.
+
+### Interview Answer
+
+"If I expect many payment methods, I avoid a long `if-else` chain. I define a `PaymentProcessor`
+interface and add implementations like `CardPaymentProcessor` and `WalletPaymentProcessor`. That
+lets me add new behavior without changing the existing flow heavily."
+
+## 45. LSP And Interface Segregation
+
+### Simple Meaning
+
+LSP means a child type should behave correctly wherever the parent type is expected. Interface
+Segregation means clients should not depend on methods they do not use.
+
+### Real Project Use
+
+- Avoiding fake implementations that throw `UnsupportedOperationException`
+- Splitting large service contracts
+- Designing payment/refund/capture capabilities separately
+- Avoiding inheritance when composition is safer
+
+### Common Mistake
+
+Do not force unrelated behavior into one interface.
+
+```java
+interface PaymentOperation {
+    void authorize();
+    void capture();
+    void refund();
+    void chargeback();
+}
+```
+
+Not every payment type may support every operation.
+
+### Interview Answer
+
+"I avoid inheritance or interfaces that force classes to support operations they cannot honestly
+support. If behavior differs, I split interfaces or use composition. That keeps the design honest and
+prevents runtime surprises."
+
+## 46. DIP And Dependency Injection
+
+### Simple Meaning
+
+Dependency Inversion means high-level business code should depend on abstractions, not concrete
+technical classes.
+
+### Real Project Use
+
+- Service depends on `PaymentGateway`, not directly on `StripeClient`.
+- Notification flow depends on `NotificationSender`, not directly on SMTP.
+- Business logic can be tested with fake implementations.
+
+### Common Mistake
+
+Do not create interfaces for every class blindly. Create abstractions where there is real variation,
+external dependency, or testing value.
+
+### Interview Answer
+
+"DIP helps keep business logic independent from infrastructure. For example, my payment service
+depends on a `PaymentGateway` interface. The actual implementation can call PayPal, Stripe, or an
+internal processor. This improves testability and reduces coupling."
+
+## 47. Builder Pattern
+
+### Simple Meaning
+
+Builder pattern helps create complex objects step by step without constructors with too many
+parameters.
+
+### Real Project Use
+
+- Request objects
+- Test data setup
+- Complex configuration objects
+- Immutable domain objects
+- API clients
+
+### Common Mistake
+
+Do not use Builder for every simple object. A constructor or record is enough for small data.
+
+### Interview Answer
+
+"I use Builder when an object has many optional fields or when constructor readability becomes poor.
+It improves clarity and works well with immutable objects, especially request/configuration objects."
+
+## 48. Factory Pattern
+
+### Simple Meaning
+
+Factory pattern centralizes object creation when the caller should not know which concrete class to
+create.
+
+### Real Project Use
+
+- Choosing payment processor by payment type
+- Creating notification sender by channel
+- Creating parser by file type
+- Selecting report generator by format
+
+### Common Mistake
+
+Do not hide simple `new` calls behind factories without reason.
+
+### Interview Answer
+
+"I use Factory when object creation depends on input, configuration, or environment. For example, a
+`PaymentProcessorFactory` can return card, wallet, or UPI processor. This keeps selection logic out
+of the main business flow."
+
+## 49. Adapter, Facade, And Decorator Patterns
+
+### Simple Meaning
+
+These patterns solve different integration and wrapping problems:
+
+- Adapter converts one interface into another.
+- Facade gives a simple interface over a complex subsystem.
+- Decorator adds behavior around an object without changing the object.
+
+### Real Project Use
+
+- Adapter: wrapping third-party payment APIs
+- Facade: simplifying a complex fraud-check flow
+- Decorator: adding logging, metrics, retry, or caching around a client
+
+### Common Mistake
+
+Do not mix up their intent. Adapter changes interface, Facade simplifies usage, Decorator adds
+behavior.
+
+### Interview Answer
+
+"For third-party integration, I often use Adapter so the rest of my code sees our internal interface.
+For complex subsystems, I use Facade to expose a simpler API. For cross-cutting behavior like
+metrics or retry, Decorator can wrap the existing object."
+
+## 50. Observer, State, And Chain Of Responsibility
+
+### Simple Meaning
+
+These patterns help with events, lifecycle, and pipelines:
+
+- Observer notifies interested components when something happens.
+- State changes behavior based on current state.
+- Chain of Responsibility passes a request through handlers.
+
+### Real Project Use
+
+- Observer: publish event after order placement
+- State: order/payment status transitions
+- Chain: validation pipeline, fraud rules, request filters
+
+### Common Mistake
+
+Do not implement state transitions as scattered `if` statements across many classes.
+
+### Interview Answer
+
+"For workflows like payment or order lifecycle, I prefer explicit state transitions. For validation
+or fraud checks, Chain of Responsibility works well because each rule is separate and testable. For
+events, Observer or pub/sub helps decouple producers and consumers."
+
+## 51. Load Balancing
+
+### Simple Meaning
+
+Load balancing distributes traffic across multiple servers so one server does not receive all
+requests.
+
+### Real Project Use
+
+- Multiple Spring Boot service instances
+- API gateway replicas
+- Database read replicas
+- Kubernetes services
+- High availability deployments
+
+### Common Mistake
+
+Do not think load balancing alone makes the system highly available. Health checks, timeouts,
+autoscaling, and failure handling are also needed.
+
+### Interview Answer
+
+"A load balancer distributes requests across healthy instances. It improves scalability and
+availability. I consider algorithm choice, health checks, connection draining, sticky sessions, and
+whether traffic should be balanced at L4 or L7."
+
+## 52. L4 Vs L7 Load Balancing
+
+### Simple Meaning
+
+L4 load balancing works at TCP/UDP level. L7 load balancing works at HTTP/application level.
+
+### Real Project Use
+
+- L4: fast TCP routing, database/proxy traffic, simple service routing
+- L7: path-based routing, host-based routing, header-based routing, API traffic
+
+### Common Mistake
+
+Do not use L7 features if you only need simple TCP forwarding. L7 gives more control but usually has
+more processing overhead.
+
+### Interview Answer
+
+"L4 load balancing routes based on network connection information like IP and port. L7 understands
+HTTP and can route based on path, host, headers, or cookies. For APIs, L7 is useful. For simple
+high-throughput TCP routing, L4 may be better."
+
+## 53. Reverse Proxy, API Gateway, And CDN
+
+### Simple Meaning
+
+These sit in front of applications, but they solve different problems:
+
+- Reverse proxy forwards requests to backend servers.
+- API gateway adds API-specific policies.
+- CDN caches static or cacheable content close to users.
+
+### Real Project Use
+
+- Nginx/Envoy as reverse proxy
+- Spring Cloud Gateway or Kong as API gateway
+- CloudFront/Akamai/Fastly as CDN
+- TLS termination
+- Edge caching
+
+### Common Mistake
+
+Do not use API gateway as a dumping ground for business logic.
+
+### Interview Answer
+
+"A reverse proxy mainly forwards and protects backend services. An API gateway adds API concerns
+like auth, rate limit, request routing, and observability. A CDN improves latency and reduces origin
+load by caching content near users."
+
+## 54. Partitioning, Sharding, And Consistent Hashing
+
+### Simple Meaning
+
+Partitioning splits data into smaller parts. Sharding usually means spreading those parts across
+different machines. Consistent hashing helps distribute keys with less movement when nodes change.
+
+### Real Project Use
+
+- User data by user ID
+- Orders by merchant ID
+- Payments by account ID
+- Kafka partitioning by key
+- Distributed cache nodes
+
+### Common Mistake
+
+Do not choose a bad shard key. A bad key creates hot shards and uneven load.
+
+### Interview Answer
+
+"Sharding helps scale storage and throughput, but it adds complexity. I choose shard keys based on
+access patterns and load distribution. I avoid hot keys, plan for rebalancing, and think about
+cross-shard queries. Consistent hashing is useful when nodes are added or removed frequently."

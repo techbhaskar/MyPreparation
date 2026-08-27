@@ -51,7 +51,7 @@ files so each topic can get full depth without making individual files unmanagea
 | 8 — Staff/Principal Architecture | [08-staff-principal-architecture.md](08-staff-principal-architecture.md) | Trade-off thinking, scale-tier evolution (1K→100M), migration strategy, multi-region, governance/ADRs, security architecture, cost & ops |
 | 9 — Interview Mastery | [09-interview-mastery.md](09-interview-mastery.md) | Opening/whiteboarding technique, stock challenge questions with model answers, recovery tactics, company-style mocks, full mock structure + scoring rubric |
 | 10 — Quick Revision | [10-senior-java-architect-quick-revision.md](10-senior-java-architect-quick-revision.md) | High-signal revision layer for 17-year Java Lead / Architect interviews; use before reading the heavy deep dives |
-| 11 — Java/Spring Simple Explanations | [11-java-simple-explanations-for-interviews.md](11-java-simple-explanations-for-interviews.md) | Plain-English Java, Spring Boot, and microservices explanations before deep dives |
+| 11 — Java/Spring/Architecture Simple Explanations | [11-java-simple-explanations-for-interviews.md](11-java-simple-explanations-for-interviews.md) | Plain-English Java, Spring Boot, microservices, SOLID, design patterns, and architecture explanations before deep dives |
 
 ---
 
@@ -62,7 +62,7 @@ files so each topic can get full depth without making individual files unmanagea
 | Kafka Deep Dive | [kafka-deep-dive.md](kafka-deep-dive.md) | Full 35-lesson Kafka curriculum (~36,700 words). Fundamentals → Internals → Enterprise/reliability patterns → running it at scale. Read alongside or after Stage 1 Phase 3 for deep Kafka interview prep. |
 | Spring Boot Microservices Deep Dive | [spring-boot-microservices-deep-dive.md](spring-boot-microservices-deep-dive.md) | 17-topic deep dive for Java/Spring Boot backgrounds. Foundations → Microservices → Production & Security (cross-referenced with Kafka doc). |
 | Core Java & JVM Deep Dive | [java-core-jvm-deep-dive.md](java-core-jvm-deep-dive.md) | 24-topic deep dive — language/JVM fundamentals underpinning LLD and framework-level concurrency and performance. |
-| Java/Spring Simple Explanations | [11-java-simple-explanations-for-interviews.md](11-java-simple-explanations-for-interviews.md) | Start here if the Java or Spring deep dives feel too dense; then read the matching deep-dive topic. |
+| Java/Spring/Architecture Simple Explanations | [11-java-simple-explanations-for-interviews.md](11-java-simple-explanations-for-interviews.md) | Start here if the Java, Spring, LLD, or architecture deep dives feel too dense; then read the matching deep-dive topic. |
 
 ---
 
