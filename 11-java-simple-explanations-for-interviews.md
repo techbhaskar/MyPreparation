@@ -25,6 +25,72 @@ work, and then add depth only where needed.
 - Topics 25-41: Spring Boot, microservices, production, security, Kafka, and Kubernetes
 - Topics 42-54: SOLID, design patterns, and architecture building blocks
 
+## Table Of Contents
+
+### Core Java And JVM
+
+- [1. Functional Interface And Lambda](#1-functional-interface-and-lambda)
+- [2. Stream API](#2-stream-api)
+- [3. Optional](#3-optional)
+- [4. Records, Sealed Classes, Pattern Matching](#4-records-sealed-classes-pattern-matching)
+- [5. HashMap](#5-hashmap)
+- [6. ConcurrentHashMap](#6-concurrenthashmap)
+- [7. ArrayList Vs LinkedList](#7-arraylist-vs-linkedlist)
+- [8. Comparable And Comparator](#8-comparable-and-comparator)
+- [9. Java Memory Model](#9-java-memory-model)
+- [10. synchronized, ReentrantLock, ReadWriteLock](#10-synchronized-reentrantlock-readwritelock)
+- [11. ExecutorService And Thread Pools](#11-executorservice-and-thread-pools)
+- [12. CompletableFuture](#12-completablefuture)
+- [13. Atomic Classes And CAS](#13-atomic-classes-and-cas)
+- [14. Deadlock, Livelock, Starvation](#14-deadlock-livelock-starvation)
+- [15. Virtual Threads](#15-virtual-threads)
+- [16. JVM Memory Areas](#16-jvm-memory-areas)
+- [17. Garbage Collection](#17-garbage-collection)
+- [18. Class Loading](#18-class-loading)
+- [19. JIT Compilation](#19-jit-compilation)
+- [20. Generics And Type Erasure](#20-generics-and-type-erasure)
+- [21. Exception Handling](#21-exception-handling)
+- [22. Blocking I/O, NIO, NIO.2](#22-blocking-io-nio-nio2)
+- [23. Serialization And Reflection](#23-serialization-and-reflection)
+- [24. JMH And Production Profiling](#24-jmh-and-production-profiling)
+
+### Spring Boot, Microservices And Production
+
+- [25. Spring Boot Fundamentals](#25-spring-boot-fundamentals)
+- [26. Dependency Injection And IoC Container](#26-dependency-injection-and-ioc-container)
+- [27. Building REST APIs With Spring Boot](#27-building-rest-apis-with-spring-boot)
+- [28. Spring Data JPA And Transactions](#28-spring-data-jpa-and-transactions)
+- [29. Testing Spring Boot Applications](#29-testing-spring-boot-applications)
+- [30. Service Discovery](#30-service-discovery)
+- [31. API Gateway](#31-api-gateway)
+- [32. Centralized Configuration](#32-centralized-configuration)
+- [33. Inter-Service Communication](#33-inter-service-communication)
+- [34. Resilience Patterns](#34-resilience-patterns)
+- [35. Microservices Decomposition](#35-microservices-decomposition)
+- [36. Spring Boot Actuator](#36-spring-boot-actuator)
+- [37. Observability](#37-observability)
+- [38. Spring Security](#38-spring-security)
+- [39. Spring Kafka](#39-spring-kafka)
+- [40. Docker And Kubernetes Deployment](#40-docker-and-kubernetes-deployment)
+- [41. Common Spring Boot Interview Traps](#41-common-spring-boot-interview-traps)
+
+### SOLID, Design Patterns And Architecture Building Blocks
+
+- [42. SOLID Principles](#42-solid-principles)
+- [43. SRP - Single Responsibility Principle](#43-srp-single-responsibility-principle)
+- [44. OCP And Strategy Pattern](#44-ocp-and-strategy-pattern)
+- [45. LSP And Interface Segregation](#45-lsp-and-interface-segregation)
+- [46. DIP And Dependency Injection](#46-dip-and-dependency-injection)
+- [47. Builder Pattern](#47-builder-pattern)
+- [48. Factory Pattern](#48-factory-pattern)
+- [49. Adapter, Facade, And Decorator Patterns](#49-adapter-facade-and-decorator-patterns)
+- [50. Observer, State, And Chain Of Responsibility](#50-observer-state-and-chain-of-responsibility)
+- [51. Load Balancing](#51-load-balancing)
+- [52. L4 Vs L7 Load Balancing](#52-l4-vs-l7-load-balancing)
+- [53. Reverse Proxy, API Gateway, And CDN](#53-reverse-proxy-api-gateway-and-cdn)
+- [54. Partitioning, Sharding, And Consistent Hashing](#54-partitioning-sharding-and-consistent-hashing)
+
+
 ## 1. Functional Interface And Lambda
 
 ### Simple Meaning
