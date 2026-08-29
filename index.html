@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Senior/Staff System Design Study Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #16202a;
+      --muted: #5a6978;
+      --line: #d8dee6;
+      --paper: #f7f8fa;
+      --panel: #ffffff;
+      --accent: #0f766e;
+      --accent-strong: #0b5f59;
+      --warm: #b45309;
+      --cool: #2563eb;
+      --shadow: 0 18px 50px rgba(22, 32, 42, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #eef4f3 0, var(--paper) 360px),
+        var(--paper);
+    }
+
+    a {
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 56px 0 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent-strong);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(2.3rem, 6vw, 5rem);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 32px;
+      align-items: end;
+      padding: 28px 0 38px;
+    }
+
+    .intro p {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.12rem;
+    }
+
+    .quick-box {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+    }
+
+    .quick-box h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .quick-box ul {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    main {
+      padding: 14px 0 56px;
+    }
+
+    .band {
+      border-top: 1px solid var(--line);
+      padding: 34px 0;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: baseline;
+      margin-bottom: 18px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 1.42rem;
+    }
+
+    .section-head p {
+      max-width: 560px;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      min-height: 190px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ink);
+      font-size: 1.02rem;
+    }
+
+    .card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #e8f3f1;
+      color: var(--accent-strong);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .list a {
+      font-weight: 800;
+    }
+
+    .list span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 26px 0 36px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 860px) {
+      header {
+        padding-top: 38px;
+      }
+
+      .intro,
+      .grid,
+      .list {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        display: block;
+      }
+
+      .section-head p {
+        margin-top: 6px;
+      }
+
+      .card {
+        min-height: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">Senior Java Lead / Architect preparation</p>
+      <h1>Senior/Staff System Design Study Guide</h1>
+      <div class="intro">
+        <p>
+          A practical roadmap for enterprise-scale interviews: distributed systems, high-level
+          architecture, low-level design, Java/Spring fundamentals, Kafka, production readiness,
+          and staff-level trade-off thinking.
+        </p>
+        <nav class="quick-box" aria-label="Recommended starting points">
+          <h2>Start here</h2>
+          <ul>
+            <li><a href="10-senior-java-architect-quick-revision.md">Quick Revision</a></li>
+            <li><a href="00-INDEX.md">Full Study Index</a></li>
+            <li><a href="09-interview-mastery.md">Interview Mastery</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Foundation</h2>
+          <p>Build the mental model for reliable distributed systems before practicing designs.</p>
+        </div>
+        <div class="grid">
+          <a class="card" href="01-architecture-building-blocks.md">
+            <span class="tag">Stage 1</span>
+            <strong>Architecture Building Blocks</strong>
+            <p>Request flow, caching, data stores, messaging, coordination, observability, and traffic protection.</p>
+          </a>
+          <a class="card" href="02-distributed-systems-fundamentals.md">
+            <span class="tag">Stage 2</span>
+            <strong>Distributed Systems Fundamentals</strong>
+            <p>Consistency, partitioning, delivery semantics, distributed transactions, time, and recovery.</p>
+          </a>
+          <a class="card" href="03-reliability-resilience-production-engineering.md">
+            <span class="tag">Stage 3</span>
+            <strong>Reliability & Production Engineering</strong>
+            <p>Failure thinking, overload protection, high availability, disaster recovery, and incident readiness.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Architecture</h2>
+          <p>Practice HLD from requirements and APIs through scale, async workflows, fintech, and multi-region systems.</p>
+        </div>
+        <ul class="list">
+          <li><a href="04-hld-foundations.md">HLD Foundations</a><span>Requirements, capacity, API design, data modeling, decomposition, scaling.</span></li>
+          <li><a href="05a-hld-mastery-level1-2-foundation-and-scale.md">HLD Mastery Level 1-2</a><span>URL shortener, rate limiter, file storage, news feed, autocomplete, cache, metrics.</span></li>
+          <li><a href="05b-hld-mastery-level3-4-async-and-realtime.md">HLD Mastery Level 3-4</a><span>Notifications, logging, schedulers, webhooks, chat, presence, live location.</span></li>
+          <li><a href="05c-hld-mastery-level5-6-marketplace-and-fintech.md">HLD Mastery Level 5-6</a><span>E-commerce, inventory, booking, rides, payments, wallet, ledger, refunds, fraud.</span></li>
+          <li><a href="05d-hld-mastery-level7-large-scale-architecture.md">HLD Mastery Level 7</a><span>YouTube/Netflix, Drive, Uber, Amazon-like platforms, multi-region architecture.</span></li>
+          <li><a href="08-staff-principal-architecture.md">Staff/Principal Architecture</a><span>Trade-offs, migrations, governance, security architecture, cost, and operating models.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Software Design & Deep Dives</h2>
+          <p>Round out LLD, Java, Spring Boot, Kafka, and interview delivery.</p>
+        </div>
+        <ul class="list">
+          <li><a href="06-lld-foundations.md">LLD Foundations</a><span>OOP, SOLID, interfaces, dependency injection, state machines, concurrency, code quality.</span></li>
+          <li><a href="07a-lld-design-patterns.md">LLD Design Patterns</a><span>GoF patterns with motivation, code, UML, trade-offs, and selection signals.</span></li>
+          <li><a href="07b-lld-practice-problems.md">LLD Practice Problems</a><span>Parking lot, vending machine, elevator, ATM, cache, scheduler, Splitwise, chess, cab booking.</span></li>
+          <li><a href="11-java-simple-explanations-for-interviews.md">Simple Java/Spring Explanations</a><span>Plain-English Java, Spring Boot, microservices, SOLID, patterns, and architecture.</span></li>
+          <li><a href="java-core-jvm-deep-dive.md">Core Java & JVM Deep Dive</a><span>Language features, concurrency, JVM, GC, class loading, JIT, and profiling.</span></li>
+          <li><a href="spring-boot-microservices-deep-dive.md">Spring Boot Microservices Deep Dive</a><span>Spring foundations, microservices, production operations, and security.</span></li>
+          <li><a href="kafka-deep-dive.md">Kafka Deep Dive</a><span>Topics, partitions, replication, exactly-once, Connect, Schema Registry, Streams, DLQ, CDC.</span></li>
+          <li><a href="09-interview-mastery.md">Interview Mastery</a><span>Whiteboarding technique, model answers, recovery tactics, mocks, and scoring rubric.</span></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Last updated: 2026-08-27. Target: Group-1 enterprise-scale engineering interviews.
+    </div>
+  </footer>
+</body>
+</html>
