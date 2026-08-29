@@ -1,3 +1,7 @@
+---
+slug: /01-architecture-building-blocks
+---
+
 # Stage 1 — Architecture Building Blocks
 Last updated: 2026-08-27
 _Overview and notes._

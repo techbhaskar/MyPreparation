@@ -1,3 +1,7 @@
+---
+slug: /05a-hld-mastery-level1-2-foundation-and-scale
+---
+
 # Stage 5 (Part A) — HLD Mastery: Foundation & Read/Write Scale Designs
 Last updated: 2026-08-27
 _Overview and notes._

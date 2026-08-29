@@ -1,38 +1,366 @@
+/**
+ * MyPreparation — Cyber Electric Theme (Enhanced Readability Edition)
+ * Modern high-tech aesthetics with high-contrast, WCAG-compliant typography
+ */
+
+/* ==========================================================================
+   1. COLOR TOKENS & CSS VARIABLES
+   ========================================================================== */
+
 :root {
-  --ifm-color-primary: #0f766e;
-  --ifm-color-primary-dark: #0d6b64;
-  --ifm-color-primary-darker: #0c655e;
-  --ifm-color-primary-darkest: #0a534e;
-  --ifm-color-primary-light: #118179;
-  --ifm-color-primary-lighter: #12877e;
-  --ifm-color-primary-lightest: #149990;
-  --ifm-font-family-base: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --ifm-heading-font-weight: 750;
-  --ifm-code-font-size: 92%;
+  /* Fonts */
+  --ifm-font-family-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --ifm-heading-font-weight: 800;
+  --ifm-line-height-base: 1.7;
+  --ifm-code-font-size: 90%;
+
+  /* Light Theme — High Contrast Deep Slate & Indigo */
+  --ifm-color-primary: #0284c7;
+  --ifm-color-primary-dark: #0369a1;
+  --ifm-color-primary-darker: #075985;
+  --ifm-color-primary-darkest: #0c4a6e;
+  --ifm-color-primary-light: #0284c7;
+  --ifm-color-primary-lighter: #38bdf8;
+  --ifm-color-primary-lightest: #7dd3fc;
+
+  --ifm-background-color: #f8fafc;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #1e293b;
+  --ifm-heading-color: #0f172a;
+
+  /* Glassmorphism & Accent Tokens (Light) */
+  --bg-gradient-radial: radial-gradient(circle at 50% -10%, rgba(2, 132, 199, 0.08), transparent 60%),
+                        radial-gradient(circle at 90% 50%, rgba(99, 102, 241, 0.06), transparent 50%);
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(203, 213, 225, 0.8);
+  --glass-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
+  --cyber-accent-gradient: linear-gradient(135deg, #0284c7 0%, #4f46e5 50%, #7c3aed 100%);
+  --cyber-badge-bg: rgba(2, 132, 199, 0.1);
+  --cyber-badge-border: rgba(2, 132, 199, 0.25);
+  --cyber-badge-text: #0369a1;
+
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.9);
+  --ifm-navbar-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+  --ifm-footer-background-color: #0f172a;
 }
 
+/* Dark Mode Tokens — Cyber Electric (High-Contrast AAA Readability) */
+html[data-theme='dark'] {
+  --ifm-color-primary: #22d3ee;
+  --ifm-color-primary-dark: #06b6d4;
+  --ifm-color-primary-darker: #0891b2;
+  --ifm-color-primary-darkest: #0e7490;
+  --ifm-color-primary-light: #67e8f9;
+  --ifm-color-primary-lighter: #a5f3fc;
+  --ifm-color-primary-lightest: #cffaff;
+
+  /* Deep slate base for optimal eye comfort and maximum contrast */
+  --ifm-background-color: #0b0f17;
+  --ifm-background-surface-color: #111827;
+  --ifm-font-color-base: #f1f5f9;
+  --ifm-heading-color: #ffffff;
+
+  /* Ambient Glow & Cards */
+  --bg-gradient-radial: radial-gradient(circle at 50% -10%, rgba(34, 211, 238, 0.14), transparent 60%),
+                        radial-gradient(circle at 90% 40%, rgba(139, 92, 246, 0.12), transparent 50%),
+                        radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.1), transparent 50%);
+  
+  --glass-bg: rgba(17, 24, 39, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --cyber-accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+  --cyber-badge-bg: rgba(34, 211, 238, 0.14);
+  --cyber-badge-border: rgba(34, 211, 238, 0.35);
+  --cyber-badge-text: #38bdf8;
+
+  --ifm-navbar-background-color: rgba(11, 15, 23, 0.9);
+  --ifm-navbar-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Global Background */
+body {
+  background-image: var(--bg-gradient-radial);
+  background-attachment: fixed;
+  background-size: 100% 100%;
+}
+
+/* ==========================================================================
+   2. NAVBAR & BRANDING
+   ========================================================================== */
+
 .navbar {
-  box-shadow: none;
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  transition: all 0.3s ease;
+  padding: 0.65rem 1.5rem;
+}
+
+.navbar__title {
+  font-weight: 850;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  background: var(--cyber-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.navbar__logo {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.navbar__brand:hover .navbar__logo {
+  transform: scale(1.15) rotate(5deg);
+}
+
+.navbar__item {
+  font-weight: 650;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.navbar__link:hover {
+  color: var(--ifm-color-primary);
+}
+
+.navbar__link--active {
+  color: var(--ifm-color-primary) !important;
+  font-weight: 750 !important;
+}
+
+.navbar__link--active::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--cyber-accent-gradient);
+  border-radius: 3px;
+}
+
+/* ==========================================================================
+   3. SIDEBAR & DOCUMENTATION NAVIGATION
+   ========================================================================== */
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--glass-border) !important;
+}
+
+html[data-theme='dark'] .theme-doc-sidebar-container {
+  background: rgba(11, 15, 23, 0.5);
+}
+
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: var(--ifm-color-primary);
+  margin-top: 1.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.menu__link {
+  border-radius: 8px;
+  font-size: 0.93rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+  padding: 0.5rem 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.menu__link:hover {
+  background: var(--cyber-badge-bg);
+  color: var(--ifm-color-primary);
+  transform: translateX(3px);
+}
+
+.menu__link--active {
+  background: var(--cyber-badge-bg) !important;
+  color: var(--ifm-color-primary) !important;
+  font-weight: 800 !important;
+  border-left: 4px solid var(--ifm-color-primary);
+  box-shadow: 0 2px 12px rgba(34, 211, 238, 0.2);
+}
+
+/* ==========================================================================
+   4. CONTENT & MARKDOWN TYPOGRAPHY (HIGH READABILITY)
+   ========================================================================== */
+
+.markdown {
+  color: var(--ifm-font-color-base);
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.markdown h1 {
+  font-size: 2.6rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
 }
 
 .markdown h1:first-child {
-  font-size: 2.5rem;
-  line-height: 1.08;
+  background: var(--cyber-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+  padding-bottom: 0.3rem;
 }
 
+.markdown h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ifm-heading-color);
+  margin-top: 2.2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.markdown h3 {
+  font-size: 1.3rem;
+  font-weight: 750;
+  margin-top: 1.6rem;
+  color: var(--ifm-color-primary-light);
+}
+
+/* High Contrast Tables */
 .markdown table {
   display: table;
   width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.6rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--glass-shadow);
 }
 
+.markdown th {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--ifm-heading-color);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.markdown td {
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 0.96rem;
+  color: var(--ifm-font-color-base);
+}
+
+.markdown tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.markdown tr:hover td {
+  background: rgba(34, 211, 238, 0.06);
+}
+
+/* Styled Blockquotes & Callouts */
 .markdown blockquote {
-  border-left-color: var(--ifm-color-primary);
-  background: var(--ifm-color-emphasis-100);
-  color: var(--ifm-color-emphasis-800);
-  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--ifm-color-primary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border-radius: 0 12px 12px 0;
+  color: var(--ifm-font-color-base);
+  padding: 1.1rem 1.35rem;
+  margin: 1.6rem 0;
+  box-shadow: var(--glass-shadow);
+  border-top: 1px solid var(--glass-border);
+  border-right: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 1.02rem;
 }
 
-.theme-doc-sidebar-container {
-  border-right: 1px solid var(--ifm-color-emphasis-200);
+/* Code Blocks */
+.prism-code {
+  border-radius: 12px !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  font-size: 0.91rem !important;
+  line-height: 1.65 !important;
+}
+
+code {
+  font-family: var(--ifm-font-family-monospace);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.88em;
+  background: var(--cyber-badge-bg);
+  color: var(--cyber-badge-text);
+  border: 1px solid var(--cyber-badge-border);
+  font-weight: 600;
+}
+
+/* Docusaurus Admonitions */
+.alert {
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--glass-shadow);
+  color: var(--ifm-font-color-base);
+}
+
+.alert--info {
+  background: rgba(34, 211, 238, 0.1);
+  border-left: 4px solid #22d3ee;
+}
+
+.alert--success {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid #10b981;
+}
+
+.alert--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 4px solid #f59e0b;
+}
+
+.alert--danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 4px solid #ef4444;
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid var(--glass-border);
+  background: #090d16 !important;
+  padding: 3rem 1.5rem;
+}
+
+.footer__title {
+  color: #38bdf8;
+  font-weight: 800;
+  font-size: 0.98rem;
+  letter-spacing: 0.02em;
+}
+
+.footer__link-item {
+  color: #cbd5e1;
+  font-size: 0.93rem;
+  font-weight: 500;
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
 }

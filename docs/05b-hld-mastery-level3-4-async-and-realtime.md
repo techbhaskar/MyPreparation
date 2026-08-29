@@ -1,3 +1,7 @@
+---
+slug: /05b-hld-mastery-level3-4-async-and-realtime
+---
+
 # Stage 5 (Part B) — HLD Mastery: Level 3 Async/Event Systems & Level 4 Real-Time Systems
 Last updated: 2026-08-27
 _Overview and notes._

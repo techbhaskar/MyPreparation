@@ -1,3 +1,7 @@
+---
+slug: /02-distributed-systems-fundamentals
+---
+
 # Stage 2 — Distributed Systems Fundamentals
 Last updated: 2026-08-27
 _Overview and notes._

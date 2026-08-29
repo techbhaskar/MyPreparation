@@ -1,3 +1,7 @@
+---
+slug: /08-staff-principal-architecture
+---
+
 # Stage 8 — Staff / Principal Architecture Thinking
 Last updated: 2026-08-27
 _Overview and notes._

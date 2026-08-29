@@ -1,5 +1,5 @@
 ---
-slug: /
+slug: /roadmap
 ---
 
 # Senior/Staff System Design — Study Guide Index

@@ -1,3 +1,7 @@
+---
+slug: /10-senior-java-architect-quick-revision
+---
+
 # Senior Java Lead / Architect Quick Revision
 Last updated: 2026-08-27
 

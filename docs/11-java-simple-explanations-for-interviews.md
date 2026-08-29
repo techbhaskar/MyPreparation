@@ -1,3 +1,7 @@
+---
+slug: /11-java-simple-explanations-for-interviews
+---
+
 # Java, Spring Boot And Microservices Simple Explanations For Interviews
 Last updated: 2026-08-27
 

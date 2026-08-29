@@ -1,3 +1,7 @@
+---
+slug: /06-lld-foundations
+---
+
 # Stage 6 — LLD Foundations
 Last updated: 2026-08-27
 _Overview and notes._

@@ -1,3 +1,7 @@
+---
+slug: /09-interview-mastery
+---
+
 # Stage 9 — Interview Mastery
 Last updated: 2026-08-27
 _Overview and notes._

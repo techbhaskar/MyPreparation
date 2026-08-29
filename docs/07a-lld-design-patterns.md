@@ -1,3 +1,7 @@
+---
+slug: /07a-lld-design-patterns
+---
+
 # Stage 7 (Part A) — LLD Mastery: Design Patterns
 Last updated: 2026-08-27
 _Overview and notes._

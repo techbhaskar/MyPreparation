@@ -1,3 +1,7 @@
+---
+slug: /07b-lld-practice-problems
+---
+
 # Stage 7 (Part B) — LLD Mastery: Practice Problems
 Last updated: 2026-08-27
 _Overview and notes._

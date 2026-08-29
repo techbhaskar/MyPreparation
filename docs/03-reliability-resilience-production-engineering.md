@@ -1,3 +1,7 @@
+---
+slug: /03-reliability-resilience-production-engineering
+---
+
 # Stage 3 — Reliability, Resilience & Production Engineering
 Last updated: 2026-08-27
 _Overview and notes._

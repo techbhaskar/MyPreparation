@@ -1,3 +1,7 @@
+---
+slug: /04-hld-foundations
+---
+
 # Stage 4 — HLD Foundations
 Last updated: 2026-08-27
 _Overview and notes._

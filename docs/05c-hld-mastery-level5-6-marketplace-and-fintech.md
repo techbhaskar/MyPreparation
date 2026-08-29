@@ -1,3 +1,7 @@
+---
+slug: /05c-hld-mastery-level5-6-marketplace-and-fintech
+---
+
 # Stage 5 (Part C) — HLD Mastery: Level 5 Marketplace Systems & Level 6 FinTech Systems
 Last updated: 2026-08-27
 _Overview and notes._

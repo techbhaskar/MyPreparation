@@ -1,3 +1,7 @@
+---
+slug: /05d-hld-mastery-level7-large-scale-architecture
+---
+
 # Stage 5 (Part D) — HLD Mastery: Level 7 Large-Scale Architecture
 Last updated: 2026-08-27
 _Overview and notes._
