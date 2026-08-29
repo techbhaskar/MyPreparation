@@ -144,3 +144,9 @@ Start with the rendered Docusaurus homepage or the source index:
 
 - `build/`, `.docusaurus/`, and `node_modules/` are generated locally and should not be committed.
 - Docusaurus may warn about old internal anchors during build. The site still builds and deploys successfully.
+
+## License
+
+This study guide is licensed under the Creative Commons Attribution 4.0 International License.
+
+See [LICENSE](LICENSE).
