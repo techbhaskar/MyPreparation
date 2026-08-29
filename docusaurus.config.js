@@ -58,7 +58,7 @@ const config = {
     },
     footer: {
       style: 'light',
-      copyright: `Copyright © ${new Date().getFullYear()} MyPreparation`
+      copyright: `Copyright © ${new Date().getFullYear()} @techbhaskar. Built with Docusaurus.`
     },
     prism: {
       additionalLanguages: ['java', 'bash', 'json', 'yaml']
