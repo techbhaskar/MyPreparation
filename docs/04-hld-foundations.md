@@ -118,7 +118,7 @@ down to a defensible core and say so explicitly.
 
 ### Non-Functional Requirements
 
-**What it means in an interview context.** Non-functional requirements (NFRs) — availability, latency, consistency, durability, scalability — are what actually drive your architecture. Two systems with identical FRs (e.g., "shorten a URL") produce wildly different designs depending on whether redirects must be <10ms globally or whether eventual consistency is acceptable for click counts. Interviewers grade heavily on whether your NFRs are *specific* and whether your later decisions are *traceable* to them.
+**What it means in an interview context.** Non-functional requirements (NFRs) — availability, latency, consistency, durability, scalability — are what actually drive your architecture. Two systems with identical FRs (e.g., "shorten a URL") produce wildly different designs depending on whether redirects must be \<10ms globally or whether eventual consistency is acceptable for click counts. Interviewers grade heavily on whether your NFRs are *specific* and whether your later decisions are *traceable* to them.
 
 **Step-by-step method.**
 1. Ask about scale first (see Phase 2) — NFRs are meaningless without a scale number attached.
@@ -131,7 +131,7 @@ down to a defensible core and say so explicitly.
 3. State explicit numbers, not adjectives: "fast" is not an NFR, "p99 redirect latency < 100ms" is.
 4. Note which NFRs are in tension (strong consistency vs. low latency; high availability vs. strong consistency — this is CAP, see Stage 1) — this tension *is* the design problem you're about to solve.
 
-**Worked mini-example — URL Shortener.** Redirect (read) path: extremely latency-sensitive (<50ms), extremely read-heavy, availability > consistency (a slightly stale redirect target is fine). Shorten (write) path: durability matters (can't lose a mapping), but write QPS is low, so it's not the bottleneck. This asymmetry is exactly why Phase 6 will treat reads and writes completely differently.
+**Worked mini-example — URL Shortener.** Redirect (read) path: extremely latency-sensitive (\<50ms), extremely read-heavy, availability > consistency (a slightly stale redirect target is fine). Shorten (write) path: durability matters (can't lose a mapping), but write QPS is low, so it's not the bottleneck. This asymmetry is exactly why Phase 6 will treat reads and writes completely differently.
 
 **Worked mini-example — Ride-Sharing Pickup.** Location updates: extremely latency-sensitive but individually low-value (losing one GPS ping is fine — eventual consistency, at-most-once is acceptable). Driver-match assignment: must be strongly consistent (never assign two riders to one driver) even at some latency cost. This is a single system with two different consistency requirements in two different subflows — a hallmark of a senior-level answer.
 
@@ -429,7 +429,7 @@ Twitter/Instagram-style social feed.
 1. List the nouns from your FRs (e.g., `ShortURL`, `Ride`, `Driver`, `Post`).
 2. Decide which are top-level resources (independently addressable, have their own ID) vs. sub-resources/fields on another resource.
 3. Identify the actions on each resource and map them to HTTP verbs (REST) or RPC method names.
-4. Check for actions that don't fit CRUD cleanly (e.g., "accept a ride," "cancel a trip") — these need either a sub-resource ("POST /rides/{id}/acceptance") or an RPC-style verb-based call, and you should consciously pick one and say why.
+4. Check for actions that don't fit CRUD cleanly (e.g., "accept a ride," "cancel a trip") — these need either a sub-resource ("POST /rides/\{id\}/acceptance") or an RPC-style verb-based call, and you should consciously pick one and say why.
 
 **Worked example — Ride-Sharing.** Resources: `Ride` (id, rider_id, pickup_location, status, driver_id), `Driver` (id, location, availability_status), `RideRequest` (the act of requesting, which becomes a `Ride` once matched). The "accept" action becomes `POST /rides/{id}/accept` — an action-oriented sub-resource, because "accept" isn't a natural CRUD verb on `Ride`.
 
@@ -501,7 +501,7 @@ POST /api/v1/rides/{id}/cancel      -> either party cancels
 
 **Step-by-step method / trade-off table.**
 
-| | Offset-based (`?offset=100&limit=20`) | Cursor-based (`?cursor=<opaque_token>&limit=20`) |
+| | Offset-based (`?offset=100&limit=20`) | Cursor-based (`?cursor=\<opaque_token>&limit=20`) |
 |---|---|---|
 | Implementation | Simple `LIMIT/OFFSET` SQL, or skip N | Uses a stable sort key (e.g., last-seen ID/timestamp) as the "where to resume" marker |
 | Jump to arbitrary page | Yes (page 5 directly) | No (only forward/backward from a cursor) |
@@ -513,7 +513,7 @@ POST /api/v1/rides/{id}/cancel      -> either party cancels
 2. Use offset-based only for small, rarely-changing, or admin-facing lists where "jump to page N" genuinely matters.
 3. Make the cursor an opaque, server-defined token (don't expose raw internal IDs/offsets as a contract — lets you change the underlying implementation later).
 
-**Worked example — Social Feed.** `GET /feed?cursor=<opaque>&limit=20` returns 20 posts plus a `next_cursor`. The cursor internally encodes (last_post_timestamp, last_post_id) to break ties, so pagination remains stable even as new posts are inserted above the current view.
+**Worked example — Social Feed.** `GET /feed?cursor=\<opaque>&limit=20` returns 20 posts plus a `next_cursor`. The cursor internally encodes (last_post_timestamp, last_post_id) to break ties, so pagination remains stable even as new posts are inserted above the current view.
 
 **Common mistakes.** Defaulting to offset pagination without acknowledging the deep-offset performance cliff and the skip/duplicate correctness bug under concurrent writes. Exposing raw database IDs as cursors (leaks implementation detail, breaks if you change sort order or storage). Forgetting a `limit` cap (unbounded page sizes are a resource-exhaustion risk — a security/reliability point worth mentioning in Phase 7).
 
@@ -527,7 +527,7 @@ POST /api/v1/rides/{id}/cancel      -> either party cancels
 3. On the server, store `(idempotency_key → result)` for a bounded time window; on a retried request with the same key, return the stored result instead of re-executing the operation.
 4. Decide where this dedup store lives (fast key-value store, e.g., Redis, keyed by idempotency key, with a TTL) and what happens on a key collision mid-flight (return "in progress"/409, or block until the first completes).
 
-**Worked example — Ride-Sharing accept.** `POST /rides/{id}/accept` with header `Idempotency-Key: <driver-generated-uuid>`. If the driver's app times out and retries the same accept call with the same key, the server recognizes the key, sees the ride is already accepted by this driver, and returns the same success response — instead of erroring or (worse) accidentally reassigning.
+**Worked example — Ride-Sharing accept.** `POST /rides/{id}/accept` with header `Idempotency-Key: \<driver-generated-uuid>`. If the driver's app times out and retries the same accept call with the same key, the server recognizes the key, sees the ride is already accepted by this driver, and returns the same success response — instead of erroring or (worse) accidentally reassigning.
 
 **Worked example — Payments-adjacent.** `POST /payments/charge` with an idempotency key is the canonical example: without it, a client-side retry after a timeout could double-charge a customer. This is precisely why idempotency keys are considered baseline hygiene, not an advanced feature, at any payments company.
 
@@ -799,7 +799,7 @@ ShortURL {
 3. State the invalidation/staleness strategy explicitly (TTL-based expiry is the simplest and often sufficient; event-driven invalidation for stricter freshness — reference Stage 1 for the full trade-off).
 4. Connect back to your latency NFR: "our p99 target is 50ms; a cache hit gets us ~1ms, a cache miss falls back to the DB at ~10-20ms — this only meets the target if our cache hit rate is high, which our read-heavy access pattern supports."
 
-**Worked example — URL Shortener redirect path.** 100:1 read:write ratio, redirect latency target <50ms → cache `code → long_url` mappings in Redis with a generous TTL (mappings rarely change once created) or no TTL at all (invalidate explicitly on the rare update/delete). Cache hit serves the redirect in ~1-2ms; cache miss falls through to the primary datastore and populates the cache (cache-aside pattern, Stage 1).
+**Worked example — URL Shortener redirect path.** 100:1 read:write ratio, redirect latency target \<50ms → cache `code → long_url` mappings in Redis with a generous TTL (mappings rarely change once created) or no TTL at all (invalidate explicitly on the rare update/delete). Cache hit serves the redirect in ~1-2ms; cache miss falls through to the primary datastore and populates the cache (cache-aside pattern, Stage 1).
 
 **Common mistakes.** Adding a cache without connecting it to an actual read-heavy pattern established in Phase 2 (caching a write-heavy or rarely-re-read dataset provides little benefit and adds invalidation complexity for nothing). Not stating an invalidation strategy at all (a cache with no eviction/invalidation story is a correctness bug waiting to happen). Forgetting the failure mode: what happens on a cache-layer outage — does the system fall back to the DB (probably yes, but can the DB handle the full unsharded load if it does? — worth a one-line mention in Phase 7).
 

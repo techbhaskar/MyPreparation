@@ -52,7 +52,7 @@ evaluated harshly.
 
 **Non-functional**
 - Catalog reads: high volume, read-heavy (100:1 read:write), tolerate slight staleness (seconds)
-- Cart: must survive service restarts, low latency (<100ms)
+- Cart: must survive service restarts, low latency (\<100ms)
 - Checkout: must be **correct** — no double charges, no orders placed without payment captured, inventory not oversold (see Design #2)
 - Availability > consistency for browsing; consistency > availability for checkout/payment steps
 - Search relevance and facets (price, brand, rating) within ~200ms p99
@@ -298,7 +298,7 @@ throughput under exactly the contention pattern this problem is testing for.
 
 **Non-functional**
 - **Zero double-booking tolerance** — this is the core hard problem, harder than e-commerce inventory because bookings are **range-based** (date ranges, time ranges), not simple unit counts
-- Search must be fast (<300ms) even though correctness-critical writes are slow/serialized
+- Search must be fast (\<300ms) even though correctness-critical writes are slow/serialized
 - Support both hotel-style (N identical rooms of a type) and appointment-style (1 resource, 1 slot) booking models
 
 ### Scale/Capacity Estimation
@@ -431,7 +431,7 @@ unit (one doctor, one court, one specific unique room).
 
 **Non-functional**
 - Real-time location tracking: sub-5-second update latency for the tracking map
-- Matching must be fast (<2s decision) and reasonably fair/efficient (not always the same partner)
+- Matching must be fast (\<2s decision) and reasonably fair/efficient (not always the same partner)
 - Three-sided consistency: order state must be visible consistently to customer, restaurant, and partner apps
 - High availability during meal-time peaks (lunch/dinner spikes, 5-10x baseline)
 
@@ -548,7 +548,7 @@ tracking hot path entirely.
 - Trip lifecycle: requested → matched → driver en route → in progress → completed → paid
 
 **Non-functional**
-- Matching latency: <3-5 seconds from request to driver assignment
+- Matching latency: \<3-5 seconds from request to driver assignment
 - Location freshness: driver positions updated every 2-4 seconds
 - Surge pricing recalculated frequently (every 1-2 min) per geographic zone, must be visible to riders *before* they confirm the ride (no bait-and-switch)
 - Must handle extreme regional demand spikes (concerts, weather events) without falling over
@@ -695,7 +695,7 @@ routing flexibility is a big part of a gateway's value.
 
 **Non-functional**
 - **PCI-DSS**: gateway must never let raw PAN (card number) touch the merchant's servers or unencrypted storage; use hosted fields/iframes or client-side tokenization so the PAN goes directly from the customer's browser to the gateway's PCI-compliant environment
-- Latency: authorization must return in <2-3s p99 (checkout abandonment rises sharply beyond this)
+- Latency: authorization must return in \<2-3s p99 (checkout abandonment rises sharply beyond this)
 - Idempotency: retried authorization requests must never double-charge
 - High availability: gateway downtime = merchant can't take payments — target 99.99%
 - Auditability: every transaction attempt logged immutably for disputes/compliance
@@ -828,7 +828,7 @@ reissued (token continuity).
 - **Correctness is non-negotiable**: no lost transactions, no double-moves of money, every state transition auditable
 - Every operation idempotent — this is the most important non-functional requirement in the entire document, because at this layer a retried request that isn't idempotent literally moves money twice
 - Durability: transaction records must survive any single failure (multi-AZ/region persistence)
-- Latency: authorization <1-2s to the gateway; settlement is inherently batch/async (hours, not seconds)
+- Latency: authorization \<1-2s to the gateway; settlement is inherently batch/async (hours, not seconds)
 
 ### Scale/Capacity Estimation
 - Processing 50M transactions/day (same volume as the gateway sitting on top of it) ≈ 580 TPS avg, 5,800 TPS peak
@@ -953,7 +953,7 @@ The concrete mechanism:
 
 **Non-functional**
 - Balance must always be correct — no negative balances (unless explicitly overdraft-enabled), no lost/duplicated funds
-- Reads of "what's my balance" must be fast (<100ms) since it's shown on every app open
+- Reads of "what's my balance" must be fast (\<100ms) since it's shown on every app open
 - All balance-changing operations must be idempotent and auditable
 - Support high transfer volume without balance-row contention becoming a bottleneck (P2P during a viral event, payroll disbursement bursts, etc.)
 
@@ -1227,7 +1227,7 @@ derived data that must always be reconstructible from source, never as an indepe
 
 **Non-functional**
 - Correctness: total refunded amount for a transaction must never exceed the original captured amount, even under concurrent partial-refund requests
-- Latency: refund initiation should be fast (<2s) even though actual fund return to the customer's bank/card can take days
+- Latency: refund initiation should be fast (\<2s) even though actual fund return to the customer's bank/card can take days
 - Auditability: every refund traceable to its original transaction and to a specific actor/reason
 
 ### Scale/Capacity Estimation
@@ -1486,7 +1486,7 @@ differences below a fixed cent threshold.
 ### Scale/Capacity Estimation
 - Scoring volume roughly matches transaction volume: 50M scored events/day ≈ 580 QPS avg, peak 5,800 QPS
 - Feature store reads: each scoring event might read 20-50 features (velocity counts, historical averages, device/IP reputation) → 580 QPS × 30 features ≈ 17,400 feature reads/sec at average load
-- Model inference latency budget: <20-50ms for the synchronous path (rules can be a few ms; ML inference on a lightweight model, e.g., gradient-boosted trees, typically 5-20ms; deep models pushed to async-only if too slow)
+- Model inference latency budget: \<20-50ms for the synchronous path (rules can be a few ms; ML inference on a lightweight model, e.g., gradient-boosted trees, typically 5-20ms; deep models pushed to async-only if too slow)
 - Feature freshness requirement: velocity features (e.g., "transactions in last 5 min") need sub-second update latency from a streaming pipeline
 
 ### API Design

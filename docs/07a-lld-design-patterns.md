@@ -1148,7 +1148,7 @@ LeafDiscountRule       CompositeDiscountRule
   window) holds `Component`s, some of which are themselves `Container`s;
   `paint()` is called uniformly down the whole tree.
 - **DOM tree** — every node (element or text) implements the same `Node`
-  interface; a `<div>` containing other elements is handled with the same
+  interface; a `\<div>` containing other elements is handled with the same
   API as a leaf text node.
 - **File system abstractions** — `File` and `Directory` both implementing a
   common interface so `getSize()` recurses transparently.

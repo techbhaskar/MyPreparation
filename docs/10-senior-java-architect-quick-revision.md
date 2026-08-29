@@ -40,7 +40,7 @@ and here is how I would operate it in production."
    - User auth/credentials → **Strong consistency, always**
 
 2. **What's the scale of writes?**
-   - <1K/sec → Single database with read replicas (e.g., PostgreSQL primary + replicas)
+   - \<1K/sec → Single database with read replicas (e.g., PostgreSQL primary + replicas)
    - 1K-10K/sec → Database sharding by partition key
    - 10K-100K/sec → Sharded database + cache layer (Redis)
    - >100K/sec → Specialized store (Redis counter, Kafka topic, time-series DB like Cassandra)
@@ -316,7 +316,7 @@ Prepare 8-10 real stories using STAR format.
 **Scenario 4: Processor timeout (cross-bank transfer, if applicable)**
 - "Payment processor call is async, separate from the ledger transaction. If processor times out: transaction stays in `PENDING` state. Reconciliation job queries processor's API to resolve."
 
-**Explicit trade-off statement:** "We chose **strong consistency** (correct balances, ACID) over eventual consistency (faster writes, weaker guarantees) because users need to trust their balance is accurate. Cost: slightly higher DB latency, but acceptable for <1K/sec."
+**Explicit trade-off statement:** "We chose **strong consistency** (correct balances, ACID) over eventual consistency (faster writes, weaker guarantees) because users need to trust their balance is accurate. Cost: slightly higher DB latency, but acceptable for \<1K/sec."
 
 ### Minute 40-52: Scaling Plan
 
@@ -442,7 +442,7 @@ In the last 5 minutes, you often have a chance to connect your technical answer 
 - [ ] Mock answer: "Design a service that calls 3 external APIs, one flaky" (add resilience)
 
 ### Day 3: Distributed Systems
-- [ ] Design a timeout/retry strategy for SLA: "p99 latency <500ms"
+- [ ] Design a timeout/retry strategy for SLA: "p99 latency \<500ms"
 - [ ] Explain CAP trade-off (consistency vs availability vs partition tolerance) with real example
 - [ ] Explain quorum reads/writes, when to use
 - [ ] Mock answer: "Design a multi-region active-active system"

@@ -507,7 +507,7 @@ public class ElevatorController {
 *"How would you add priority service for a VIP floor (e.g., an executive floor that should always be served within 30 seconds)?"*
 
 Add a `PriorityDispatchStrategy` decorator around the existing `DispatchStrategy` (Part A: Decorator
-Pattern) that checks if the requested floor is in a `Set<Integer> priorityFloors` and, if so, force-
+Pattern) that checks if the requested floor is in a `Set\<Integer> priorityFloors` and, if so, force-
 reroutes the nearest idle-or-same-direction car regardless of the base strategy's score; otherwise
 it delegates to the wrapped strategy unchanged. No change to `Elevator` or `ElevatorController` —
 the controller still just calls `dispatchStrategy.selectElevator(...)`, unaware it's now wrapped.
@@ -1078,7 +1078,7 @@ public class LoggerFactory {
 *"How would you add async logging so slow appenders (e.g., network) don't block the calling thread?"*
 
 Wrap the existing appender list in a single `AsyncAppender implements LogAppender` that holds an
-internal `BlockingQueue<LogMessage>` plus a background thread draining it into the real appenders —
+internal `BlockingQueue\<LogMessage>` plus a background thread draining it into the real appenders —
 `Logger.log` still just calls `appender.append(msg)` on what it thinks is one appender, unaware it
 now returns immediately. This is a **Decorator** applied to `LogAppender` (Part A: Decorator
 Pattern), and it's only possible cleanly because appenders were already behind an interface rather
@@ -1094,10 +1094,10 @@ entry according to a configurable policy (LRU, LFU, FIFO) chosen at construction
 policy must not require changing `Cache`'s public API or callers.
 
 ### Key entities
-- **Cache<K,V>** — public API (`get`, `put`, `size`), owns the backing store and delegates eviction decisions.
-- **EvictionPolicy<K>** (interface) — `recordAccess(key)`, `recordInsertion(key)`, `evictionCandidate()` — the *only* thing that varies.
+- **Cache\<K,V>** — public API (`get`, `put`, `size`), owns the backing store and delegates eviction decisions.
+- **EvictionPolicy\<K>** (interface) — `recordAccess(key)`, `recordInsertion(key)`, `evictionCandidate()` — the *only* thing that varies.
 - **LruEvictionPolicy**, **LfuEvictionPolicy**, **FifoEvictionPolicy** — concrete algorithms.
-- (Optional) **CacheEntry<V>** — value + metadata if a policy needs it (e.g., frequency count for LFU), though most policies can keep their own bookkeeping internally rather than polluting the entry.
+- (Optional) **CacheEntry\<V>** — value + metadata if a policy needs it (e.g., frequency count for LFU), though most policies can keep their own bookkeeping internally rather than polluting the entry.
 
 ### Design decisions
 This is the canonical **Strategy pattern** (Part A: Strategy Pattern) problem — the prompt literally
@@ -1527,10 +1527,10 @@ public class DebtSimplifier {
 *"How would you support settlement *within a group only* when a user is in multiple groups (no cross-group netting)?"*
 
 Scope the `Ledger`'s `netBalance` map, and therefore the `DebtSimplifier.simplify` call, per `Group`
-instead of globally — `Ledger` becomes `Map<Group, Map<User, Double>>`, and `recordExpense` routes
+instead of globally — `Ledger` becomes `Map\<Group, Map\<User, Double>>`, and `recordExpense` routes
 into the balance map for `expense.getGroup()`. The `DebtSimplifier` algorithm itself is unchanged;
 it already operates on "whatever balance map you hand it," which is exactly why keeping it a pure
-function of `Map<User, Double> -> List<Transaction>` (no hidden dependency on a global `Ledger`
+function of `Map\<User, Double> -> List\<Transaction>` (no hidden dependency on a global `Ledger`
 state) pays off the moment scoping requirements shift.
 
 ---
@@ -1739,7 +1739,7 @@ structurally impossible — same reasoning as ATM/Vending) and **Strategy** for 
 change independently of each other and of the ride's lifecycle (matching algorithm, fare formula).
 The one new wrinkle versus the HLD version of this problem: at LLD scope,
 `DriverMatchingStrategy.findNearestDriver` can legitimately just linear-scan an in-memory
-`List<Driver>` — that's the correct, lazy, in-scope answer; do **not** reach for a geospatial index
+`List\<Driver>` — that's the correct, lazy, in-scope answer; do **not** reach for a geospatial index
 (quadtree/geohash) here, that complexity belongs to the HLD design where driver counts are millions
 and the constraint is cross-machine lookup latency, not algorithmic elegance. Naming that boundary
 explicitly to the interviewer ("at this scale a linear scan behind the interface is fine; the
@@ -1881,7 +1881,7 @@ public class Ride {
 ### Extension question
 *"How would you support ride-pooling (two riders sharing one ride with independent drop points)?"*
 
-`Ride` currently assumes one `pickup`/`drop` pair; generalize to a `List<Leg>` (each leg: rider,
+`Ride` currently assumes one `pickup`/`drop` pair; generalize to a `List\<Leg>` (each leg: rider,
 pickup, drop, individual fare share) with the `RideState` machine driving the *pool* as a whole
 (still one `IN_PROGRESS` ride object) while `FareCalculationStrategy` gains a pooled variant that
 discounts each leg based on shared-distance overlap. The state machine itself doesn't grow new

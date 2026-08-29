@@ -716,7 +716,7 @@ public class RobotWorker implements Worker {
 }
 ```
 
-**What breaks in maintenance**: `RobotWorker` is forced to implement `eat()` even though it's meaningless for it, so it either throws (a landmine for any caller that iterates over `List<Worker>` and calls `eat()` on everything) or silently no-ops (a different kind of landmine — callers think something happened). Every new `Worker` capability added to the interface (`void takeVacation()`, `void receivePaycheck()`) forces every implementer, robotic or human, to deal with methods irrelevant to it.
+**What breaks in maintenance**: `RobotWorker` is forced to implement `eat()` even though it's meaningless for it, so it either throws (a landmine for any caller that iterates over `List\<Worker>` and calls `eat()` on everything) or silently no-ops (a different kind of landmine — callers think something happened). Every new `Worker` capability added to the interface (`void takeVacation()`, `void receivePaycheck()`) forces every implementer, robotic or human, to deal with methods irrelevant to it.
 
 **After**: split by capability.
 
@@ -739,7 +739,7 @@ public class RobotWorker implements Workable {
 }
 ```
 
-**Flexibility gained**: code that only cares about work (`List<Workable>`) never has to know or care whether an implementer can eat; there's no dead/throwing method anywhere. **Cost**: more interfaces to define and wire up — worthwhile once you have genuinely divergent implementers (humans vs. robots), unnecessary if every implementer really does need every method.
+**Flexibility gained**: code that only cares about work (`List\<Workable>`) never has to know or care whether an implementer can eat; there's no dead/throwing method anywhere. **Cost**: more interfaces to define and wire up — worthwhile once you have genuinely divergent implementers (humans vs. robots), unnecessary if every implementer really does need every method.
 
 ### DIP — Dependency Inversion Principle
 

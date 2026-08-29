@@ -51,7 +51,7 @@ Each topic is now structured for two-pass revision:
 
 ---
 
-<a id="topic-1"></a>
+\<a id="topic-1">\</a>
 
 ## Topic 1 — Lambdas & Functional Interfaces
 
@@ -83,8 +83,8 @@ They want to know whether you understand modern Java beyond syntax, especially r
 Use lambdas for small behavior parameters and composable rules, but keep business logic readable and testable. In production performance discussions, distinguish recurring allocation from one-time lambda linkage and verify with JFR or profiling before blaming lambdas.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 A functional interface is nothing more exotic than an interface with exactly one abstract method — a
 "SAM" (Single Abstract Method) type. `@FunctionalInterface` does not grant that property; it is a
@@ -92,7 +92,7 @@ compile-time assertion the compiler checks for you, and if the interface ends up
 than one abstract method, the build fails with an explicit error rather than letting the mistake
 surface later as a confusing lambda-target-type error somewhere else in the codebase. You can omit
 the annotation entirely and a lambda will still target any interface that happens to have a single
-abstract method — `Runnable`, `Comparator<T>`, `Callable<V>` all worked as lambda targets before the
+abstract method — `Runnable`, `Comparator\<T>`, `Callable\<V>` all worked as lambda targets before the
 annotation existed and before lambdas existed, because the shape was always what mattered. Default
 methods and static methods on the interface don't count toward the "single abstract" count, and
 neither do methods that merely re-declare a public method already on `Object` (like `equals` or
@@ -129,12 +129,12 @@ anonymous class at scale. This is exactly why converting a hot-path anonymous `C
 just a stylistic preference.
 
 Java ships a small set of general-purpose functional interfaces in `java.util.function` that cover
-the overwhelming majority of use cases so you rarely need to declare your own: `Function<T,R>` (one
-argument in, a possibly-different type out, via `apply`), `BiFunction<T,U,R>` (two arguments in),
-`Supplier<T>` (no arguments, produces a value — the natural type for "give me one of these, lazily,
-when I ask"), `Consumer<T>` (takes a value, returns nothing, for side effects), `Predicate<T>`
-(takes a value, returns `boolean`, for a yes/no test), and `UnaryOperator<T>` (a specialization of
-`Function<T,T>` where the input and output type are the same, useful for things like "transform this
+the overwhelming majority of use cases so you rarely need to declare your own: `Function\<T,R>` (one
+argument in, a possibly-different type out, via `apply`), `BiFunction\<T,U,R>` (two arguments in),
+`Supplier\<T>` (no arguments, produces a value — the natural type for "give me one of these, lazily,
+when I ask"), `Consumer\<T>` (takes a value, returns nothing, for side effects), `Predicate\<T>`
+(takes a value, returns `boolean`, for a yes/no test), and `UnaryOperator\<T>` (a specialization of
+`Function\<T,T>` where the input and output type are the same, useful for things like "transform this
 string into another string"). `Predicate` in particular ships default methods — `and`, `or`,
 `negate` — that let you compose small, independently testable rules into a larger validation without
 writing a single sprawling `if` chain, which is a pattern that shows up constantly in payment
@@ -229,7 +229,7 @@ long declined = payments.stream().filter(p -> !p.isApproved()).count();
 | Variable capture | Effectively-final locals only, captured by value | Effectively-final locals only, captured by value (same JLS rule) |
 | Typical overhead at scale | Lower — less classloading, less duplicate bytecode | Higher — one `.class` per site, eager loading, per-call allocation |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -245,7 +245,7 @@ long declined = payments.stream().filter(p -> !p.isApproved()).count();
 
 ---
 
-<a id="topic-2"></a>
+\<a id="topic-2">\</a>
 
 ## Topic 2 — Stream API Deep Dive
 
@@ -277,8 +277,8 @@ They are checking whether you understand execution model, laziness, ordering, si
 Use streams when they make transformation intent clearer. For hot paths, large datasets, or parallel execution, reason about allocation, ordering, collector behavior, and thread safety instead of assuming streams are automatically faster or slower.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 A stream pipeline has exactly three parts: a source (a collection, an array, a generator, an I/O
 channel), zero or more intermediate operations (`filter`, `map`, `sorted`, `distinct`, `peek`, and
@@ -334,7 +334,7 @@ Map<String, Long> countByMerchant = payments.stream()
 ```
 
 `Collectors.partitioningBy` is the two-bucket special case of grouping — the classifier is a
-`Predicate`, and the result is always a `Map<Boolean, List<T>>` with exactly two entries
+`Predicate`, and the result is always a `Map\<Boolean, List\<T>>` with exactly two entries
 (`true`/`false`), which is a cleaner fit than `groupingBy` when a boolean split (approved vs
 declined, for instance) is genuinely the whole shape of the classification, since it guarantees both
 keys exist even when one bucket is empty, where `groupingBy` would simply omit a key with no
@@ -413,7 +413,7 @@ the code appears to ask for.
 | Blocking I/O per element | Blocks the one thread, contained | Can starve the shared pool JVM-wide — production hazard |
 | Ordering guarantees | Encounter order preserved naturally | Preserved for ordered sources unless `unordered()` is used, at a coordination cost |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -429,7 +429,7 @@ the code appears to ask for.
 
 ---
 
-<a id="topic-3"></a>
+\<a id="topic-3">\</a>
 
 ## Topic 3 — Optional: Proper Use vs Anti-Patterns
 
@@ -452,8 +452,8 @@ They want to see API design judgment, not just knowledge of `map`, `flatMap`, an
 ### Common traps
 
 - Calling `get()` without checking presence.
-- Returning `null` from a method whose type is `Optional<T>`.
-- Using `Optional<List<T>>` when an empty list is clearer.
+- Returning `null` from a method whose type is `Optional\<T>`.
+- Using `Optional\<List\<T>>` when an empty list is clearer.
 - Using `orElse` when the fallback has side effects or cost.
 
 ### Senior-level answer
@@ -461,18 +461,18 @@ They want to see API design judgment, not just knowledge of `map`, `flatMap`, an
 Use `Optional` to make absence explicit at API boundaries. In domain models and serialization-heavy layers, prefer clear nullable contracts, validation, or empty collections because frameworks and persistence tools often handle those more naturally.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
-`Optional<T>` exists to solve a specific, narrow problem: making the possible absence of a value
+`Optional\<T>` exists to solve a specific, narrow problem: making the possible absence of a value
 explicit in a method's *return type*, so the compiler and the reader both know, from the signature
 alone, that "no result" is a legitimate outcome the caller must account for. Before `Optional`, the
 convention was to return `null` for "not found" and trust that every caller remembered to check —
 which worked exactly as well as any convention that depends on every future engineer, forever,
 remembering an unenforced rule, which is to say it produced a steady, permanent stream of
-`NullPointerException`s at every layer of every codebase that relied on it. `Optional.<T>empty()`
+`NullPointerException`s at every layer of every codebase that relied on it. `Optional.\<T>empty()`
 versus `Optional.of(value)` turns "might not have a value" into a real type distinct from `T`
-itself, so a method returning `Optional<Account>` is documenting, in a way `javac` actually checks,
+itself, so a method returning `Optional\<Account>` is documenting, in a way `javac` actually checks,
 that the caller cannot simply chain `.getBalance()` off the result without first dealing with the
 absence case.
 
@@ -493,7 +493,7 @@ Account account = accountOpt.get(); // throws NoSuchElementException if absent �
 Using `Optional` as a method *parameter* type is called out explicitly as an anti-pattern by the JDK
 team itself (Brian Goetz has said as much directly) — `Optional` was designed around return types,
 not inputs, and using it as a parameter type buys you nothing: the caller can still pass a literal
-`null` for the `Optional<T>` parameter itself, so you haven't actually eliminated the null-check
+`null` for the `Optional\<T>` parameter itself, so you haven't actually eliminated the null-check
 burden, you've just added a mandatory wrap-on-the-way-in and unwrap-on-the-way-out tax for every
 caller, with no corresponding safety benefit. If a parameter is genuinely optional, overloading the
 method (one signature with the parameter, one without) or accepting a plain, possibly-`null`
@@ -572,17 +572,17 @@ Account account = accountRepository.findById(accountId)
 |---|---|---|
 | `.get()` | n/a | Avoid — throws an unchecked exception on empty with no context; use `orElseThrow()` instead |
 | `.orElse(T)` | Always, eagerly, even if present | Only when the fallback is already computed / cheap (a constant, an existing object) |
-| `.orElseGet(Supplier<T>)` | Only if empty, lazily | Any fallback that's expensive to compute — a DB call, a network call, an allocation |
-| `.orElseThrow(Supplier<X>)` | n/a | Absence is an error condition — convert it to a meaningful domain exception |
+| `.orElseGet(Supplier\<T>)` | Only if empty, lazily | Any fallback that's expensive to compute — a DB call, a network call, an allocation |
+| `.orElseThrow(Supplier\<X>)` | n/a | Absence is an error condition — convert it to a meaningful domain exception |
 | `.map()` / `.filter()` | Only if present | Transform or further-constrain a present value without manual unwrapping |
 
-</details>
+\</details>
 
 ### Interview Questions
 
-**What problem does `Optional` actually solve, and what does it not solve?** It solves the discoverability problem around absence — a method returning `Optional<Account>` documents, in a way the compiler can help enforce through the fluent API, that "no account" is a legitimate outcome distinct from an account being present, replacing the unenforceable convention of "return `null` and hope every caller remembers to check." It does not solve null-safety in general — a field, a local variable, or a parameter can still be `null`, `Optional` was never intended to wrap those, and pretending it's a general-purpose null-safety mechanism is exactly how you end up with `Optional` fields and `Optional` parameters, which are the anti-patterns that show up in review because someone over-generalized what the type was for.
+**What problem does `Optional` actually solve, and what does it not solve?** It solves the discoverability problem around absence — a method returning `Optional\<Account>` documents, in a way the compiler can help enforce through the fluent API, that "no account" is a legitimate outcome distinct from an account being present, replacing the unenforceable convention of "return `null` and hope every caller remembers to check." It does not solve null-safety in general — a field, a local variable, or a parameter can still be `null`, `Optional` was never intended to wrap those, and pretending it's a general-purpose null-safety mechanism is exactly how you end up with `Optional` fields and `Optional` parameters, which are the anti-patterns that show up in review because someone over-generalized what the type was for.
 
-**Why is `Optional` as a method parameter considered an anti-pattern if it seems to communicate the same "might be absent" intent as a return type does?** Because the safety `Optional` provides on a return type comes from the caller being *forced* to unwrap it through the fluent API before getting at the value, and that forcing function doesn't exist symmetrically on the input side — a caller can pass `null` for an `Optional<T>` parameter just as easily as they could have passed `null` for a plain `T` parameter, so you haven't actually closed off the null case, you've only added mandatory wrapping ceremony (`Optional.of(...)` or `Optional.empty()`) at every call site for no corresponding safety gain. An overloaded method, or a plain nullable parameter with a documented contract, communicates the same intent without that tax.
+**Why is `Optional` as a method parameter considered an anti-pattern if it seems to communicate the same "might be absent" intent as a return type does?** Because the safety `Optional` provides on a return type comes from the caller being *forced* to unwrap it through the fluent API before getting at the value, and that forcing function doesn't exist symmetrically on the input side — a caller can pass `null` for an `Optional\<T>` parameter just as easily as they could have passed `null` for a plain `T` parameter, so you haven't actually closed off the null case, you've only added mandatory wrapping ceremony (`Optional.of(...)` or `Optional.empty()`) at every call site for no corresponding safety gain. An overloaded method, or a plain nullable parameter with a documented contract, communicates the same intent without that tax.
 
 **Walk through exactly why `orElse()` can cause a real production problem that tests won't catch.** `orElse(T other)`'s argument is a plain value, and Java's evaluation rules require fully evaluating a method argument before the method itself runs — there's no way for `orElse` to "peek" at whether it will actually need that value before the caller has already computed it. So if the argument is an expression with a side effect, like a network call to fetch a default account from a payment gateway, that call happens on *every* invocation of the chain, including the common case where the `Optional` is already present and the fallback is never logically needed. A test suite typically covers the empty case (where the call is legitimately needed) and the present case (where it isn't) separately, and both pass, because the test only asserts on the returned value, not on how many times the fallback expression fired — the wasted call is invisible to correctness tests and only shows up as unexplained load against the downstream service in production telemetry.
 
@@ -592,7 +592,7 @@ Account account = accountRepository.findById(accountId)
 
 ---
 
-<a id="topic-4"></a>
+\<a id="topic-4">\</a>
 
 ## Topic 4 — Records, Sealed Classes & Pattern Matching (Java 14–21)
 
@@ -624,13 +624,13 @@ They are checking whether your Java knowledge has moved beyond Java 8 and whethe
 Use records for stable value-like data and sealed types when the domain has a known finite set of variants. They are especially useful for event payloads, API results, and state machines, but entity models and framework integration need deliberate handling.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 A `record` is a compiler-generated, immutable data carrier — you declare the shape once, in the
 header, and the compiler fills in everything a hand-written immutable class would otherwise require
 you to write and keep in sync by hand. `record PaymentEvent(String paymentId, BigDecimal amount,
-Instant timestamp) {}` generates: a canonical constructor taking exactly those three parameters in
+Instant timestamp) \{\}` generates: a canonical constructor taking exactly those three parameters in
 that order and assigning them to `private final` fields of the same names; accessor methods named to
 match the field names directly — `paymentId()`, `amount()`, `timestamp()` — deliberately *not* the
 JavaBean `getPaymentId()`/`getAmount()` convention, which is a real, intentional break from the
@@ -744,7 +744,7 @@ double-dispatch design was built to avoid.
 | Boilerplate | Minimal — records + a `switch` | `accept()` on every element, a `visit` method per type on every visitor |
 | Best fit | Closed domain hierarchies you fully own (payment result types, parser AST nodes, state machine states) | Extensible hierarchies consumed by third parties, or where operations vastly outnumber element types |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -760,7 +760,7 @@ double-dispatch design was built to avoid.
 
 ---
 
-<a id="topic-5"></a>
+\<a id="topic-5">\</a>
 
 ## Topic 5 — HashMap Internals
 
@@ -792,10 +792,10 @@ This reveals whether you understand core collections, performance, and correctne
 In ordinary application code, `HashMap` is efficient and predictable when keys are immutable and hash well. In high-volume paths, pre-size maps, avoid mutable keys, and use concurrent collections or external synchronization for shared access.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
-`HashMap` stores its entries in an array of buckets — `Node<K,V>[] table`, default initial capacity
+`HashMap` stores its entries in an array of buckets — `Node\<K,V>[] table`, default initial capacity
 16 — where each bucket historically held a singly linked list of the entries that hashed into it,
 and since Java 8 can additionally be represented as a red-black tree once a bucket accumulates
 enough collisions. Placing and finding a key relies on `hashCode()` and `equals()` working together,
@@ -819,8 +819,8 @@ depending on which physical instance happens to be compared first in the bucket'
 that's maddening precisely because it's non-deterministic from the caller's point of view.
 
 `HashMap` does not use a key's raw `hashCode()` value directly to pick a bucket; it runs it through
-a small supplemental spreading function first: `static final int hash(Object key) { int h; return
-key == null ? 0 : (h = key.hashCode()) ^ (h >>> 16); }`. The reason this exists is that bucket
+a small supplemental spreading function first: `static final int hash(Object key) \{ int h; return
+key == null ? 0 : (h = key.hashCode()) ^ (h >>> 16); \}`. The reason this exists is that bucket
 selection only looks at the *low-order bits* of the hash (the `(table.length - 1) & hash` mask, and
 for a default table of 16 that's only the bottom 4 bits), so if a `hashCode()` implementation's
 variation is concentrated in the *high-order* bits — which happens with some real hash
@@ -913,7 +913,7 @@ bare `HashMap` touched by more than one thread.
 | Severe slowdown under many colliding keys | Adversarial or accidental hash collisions concentrated in one bucket | Java 8+ treeification bounds worst case at O(log n) automatically |
 | CPU pegged at 100%, thread stuck forever inside `HashMap.get()` (legacy JVMs) | Concurrent resize corrupting a bucket's linked list into a cycle | Never share a plain `HashMap` across threads — use `ConcurrentHashMap` |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -925,11 +925,11 @@ bare `HashMap` touched by more than one thread.
 
 **What is treeification, and why is 8 entries per bucket specifically the threshold rather than some larger or smaller number?** Treeification converts a bucket's internal representation from a singly linked list to a red-black tree once that bucket accumulates 8 or more colliding entries (and the overall table is at least at `MIN_TREEIFY_CAPACITY`), turning that bucket's worst-case lookup from O(n) to O(log n) — specifically as a defense against pathological collision scenarios, whether accidental or adversarially engineered (hash-flooding). The threshold of 8 reflects a statistical judgment by the JDK maintainers: under a reasonably well-distributed hash function, the probability of any given bucket organically accumulating 8+ real collisions through ordinary use is already extremely low (documented in the `HashMap` source itself with the underlying Poisson-distribution reasoning), so reaching that threshold in practice is itself a signal something unusual — a poor hash implementation or deliberate hash-flooding — is happening, which is exactly the situation where the extra overhead of maintaining a red-black tree (more memory per node, more complex insert/delete logic) becomes worth paying for.
 
-**Staff Engineer scenario:** A batch reconciliation job that builds an in-memory `HashMap<String, Payment>` from a nightly file of roughly 2 million records has, over the past few months, gone from a steady 90-second load phase to occasional 4-minute load phases with no change to the code or the file format. How do you investigate, and what's the likely fix? Start by checking whether the file's record count has actually grown over that period — a batch job whose input grows gradually can cross `HashMap` resize thresholds it wasn't crossing before, and if the map was never pre-sized, growth from, say, 1.5 million records to 2 million records means several additional doubling-and-rehash passes near the top of the growth curve, where each individual resize is redistributing an already-large table and is correspondingly expensive; the fact that the slowdown is *occasional* rather than constant is consistent with GC pressure from the churn of repeatedly discarding intermediate bucket arrays, where an otherwise-fine run occasionally coincides with a GC pause triggered by that allocation pressure. Confirm with a heap/GC profile of a slow run versus a fast run — if the slow runs show extra time in young-gen collection concentrated during the load phase, that's consistent with resize-driven garbage rather than, say, a downstream I/O slowdown. The fix is exactly the pre-sizing technique: since the file's approximate record count is knowable up front (a line count, or a count query against the source), initialize the `HashMap` with a capacity computed from that count so it never resizes during the load at all, eliminating both the redistribution cost and the associated garbage generation in one change; if the record count genuinely varies run to run and isn't knowable precisely in advance, sizing generously above the typical maximum still eliminates the vast majority of resize passes, since only overshooting the eventual size wastes a bounded, predictable amount of memory rather than costing unpredictable CPU time.
+**Staff Engineer scenario:** A batch reconciliation job that builds an in-memory `HashMap\<String, Payment>` from a nightly file of roughly 2 million records has, over the past few months, gone from a steady 90-second load phase to occasional 4-minute load phases with no change to the code or the file format. How do you investigate, and what's the likely fix? Start by checking whether the file's record count has actually grown over that period — a batch job whose input grows gradually can cross `HashMap` resize thresholds it wasn't crossing before, and if the map was never pre-sized, growth from, say, 1.5 million records to 2 million records means several additional doubling-and-rehash passes near the top of the growth curve, where each individual resize is redistributing an already-large table and is correspondingly expensive; the fact that the slowdown is *occasional* rather than constant is consistent with GC pressure from the churn of repeatedly discarding intermediate bucket arrays, where an otherwise-fine run occasionally coincides with a GC pause triggered by that allocation pressure. Confirm with a heap/GC profile of a slow run versus a fast run — if the slow runs show extra time in young-gen collection concentrated during the load phase, that's consistent with resize-driven garbage rather than, say, a downstream I/O slowdown. The fix is exactly the pre-sizing technique: since the file's approximate record count is knowable up front (a line count, or a count query against the source), initialize the `HashMap` with a capacity computed from that count so it never resizes during the load at all, eliminating both the redistribution cost and the associated garbage generation in one change; if the record count genuinely varies run to run and isn't knowable precisely in advance, sizing generously above the typical maximum still eliminates the vast majority of resize passes, since only overshooting the eventual size wastes a bounded, predictable amount of memory rather than costing unpredictable CPU time.
 
 ---
 
-<a id="topic-6"></a>
+\<a id="topic-6">\</a>
 
 ## Topic 6 — ConcurrentHashMap Internals
 
@@ -961,8 +961,8 @@ They want to know whether you can choose safe concurrent data structures and und
 Use `ConcurrentHashMap` for high-read shared maps, caches, registries, and counters, but use atomic map methods for compound updates. For stronger consistency, ordering, eviction, or distributed cache behavior, choose a more specific abstraction.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 `ConcurrentHashMap`'s design changed fundamentally between Java 7 and Java 8, and understanding both
 versions — even though only the Java 8+ design ships today — is worth knowing because the "why"
@@ -978,7 +978,7 @@ regardless of which segment its key happened to hash into, has to wait if it col
 the other 16 in-flight writers' segment, and the segment count was fixed at construction time, not
 something that grew with the map itself.
 
-Java 8 discarded segments entirely and moved to a single `Node<K,V>[] table` — structurally the same
+Java 8 discarded segments entirely and moved to a single `Node\<K,V>[] table` — structurally the same
 array-of-buckets shape as plain `HashMap` — with concurrency control applied per bucket instead of
 per segment. Inserting into an empty bucket is a lock-free fast path: `ConcurrentHashMap` uses a CAS
 (compare-and-swap, via `Unsafe`/`VarHandle`) to atomically install the new node as the bucket's head
@@ -1092,7 +1092,7 @@ accountLocks.putIfAbsent(accountId, new ReentrantLock());
 | `size()` | Multi-segment retry-based approximation | Striped counters (`CounterCell[]`), summed on demand — approximate under concurrent writes |
 | Memory overhead | One lock object per segment | No per-segment overhead; locking piggybacks on existing nodes |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -1104,11 +1104,11 @@ accountLocks.putIfAbsent(accountId, new ReentrantLock());
 
 **Is `if (!map.containsKey(k)) map.put(k, v);` thread-safe on a `ConcurrentHashMap`?** No — this is a classic trap question and the answer is unambiguously no. `ConcurrentHashMap` guarantees each individual operation is atomic, but it makes no guarantee spanning two separate calls, even back-to-back ones on the same map from the same apparent logical operation. Two threads can both call `containsKey(k)` and both observe `false` before either has called `put`, and both then proceed to `put`, with whichever call happens second silently overwriting the first — the map itself never corrupts, but the "only insert if not already present" invariant the code was trying to enforce is broken. `putIfAbsent(k, v)` performs the check and the conditional insert as a single atomic operation under one lock acquisition, which is the actual, correct fix, and recognizing this distinction — atomic-per-operation versus atomic-across-a-sequence-of-operations — is exactly the concept this trap question is testing.
 
-**Staff Engineer scenario:** A merchant-balance service uses a `ConcurrentHashMap<String, BigDecimal>` to cache running balances, updated via `map.merge(merchantId, delta, BigDecimal::add)` on every transaction, and under load testing, a small but consistent fraction of updates go missing — the final cached balance doesn't match the sum of all transactions applied to it, even though no exceptions are thrown anywhere. Where would you look first? `merge()` on `ConcurrentHashMap` is atomic for a single call, so the bug is unlikely to be in `merge()` itself losing an update in isolation — the more likely explanation is that something in the remapping function's execution path, or somewhere else in the code, is violating the "the remapping function must not modify the map" constraint, or that a *different* code path is bypassing `merge()` entirely and doing a non-atomic read-then-write against the same key (a `get()` followed by a separate `put()` computed from that value, which is exactly the check-then-act race pattern generalized to a read-modify-write rather than a presence check, and just as broken on a `ConcurrentHashMap` as the `containsKey`-then-`put` version is). The fix depends on which of those it is: if it's a stray non-atomic read-modify-write elsewhere in the codebase, replace it with its own `merge()` or `compute()` call so every mutation path goes through the same atomic primitive; if the remapping function passed to `merge()` itself has a side effect that touches the same map (even indirectly, through a helper method), that has to be removed entirely, since the JDK gives no correctness guarantee once that constraint is violated, deadlock or silent corruption both being possible outcomes depending on the exact interleaving. The general lesson worth stating to the team: "we're using `ConcurrentHashMap`" is not by itself a correctness argument for the whole update path — it only guarantees atomicity for whichever single call actually performs the mutation, and every other place that touches the same key has to go through an equally atomic path or the guarantee is worthless.
+**Staff Engineer scenario:** A merchant-balance service uses a `ConcurrentHashMap\<String, BigDecimal>` to cache running balances, updated via `map.merge(merchantId, delta, BigDecimal::add)` on every transaction, and under load testing, a small but consistent fraction of updates go missing — the final cached balance doesn't match the sum of all transactions applied to it, even though no exceptions are thrown anywhere. Where would you look first? `merge()` on `ConcurrentHashMap` is atomic for a single call, so the bug is unlikely to be in `merge()` itself losing an update in isolation — the more likely explanation is that something in the remapping function's execution path, or somewhere else in the code, is violating the "the remapping function must not modify the map" constraint, or that a *different* code path is bypassing `merge()` entirely and doing a non-atomic read-then-write against the same key (a `get()` followed by a separate `put()` computed from that value, which is exactly the check-then-act race pattern generalized to a read-modify-write rather than a presence check, and just as broken on a `ConcurrentHashMap` as the `containsKey`-then-`put` version is). The fix depends on which of those it is: if it's a stray non-atomic read-modify-write elsewhere in the codebase, replace it with its own `merge()` or `compute()` call so every mutation path goes through the same atomic primitive; if the remapping function passed to `merge()` itself has a side effect that touches the same map (even indirectly, through a helper method), that has to be removed entirely, since the JDK gives no correctness guarantee once that constraint is violated, deadlock or silent corruption both being possible outcomes depending on the exact interleaving. The general lesson worth stating to the team: "we're using `ConcurrentHashMap`" is not by itself a correctness argument for the whole update path — it only guarantees atomicity for whichever single call actually performs the mutation, and every other place that touches the same key has to go through an equally atomic path or the guarantee is worthless.
 
 ---
 
-<a id="topic-7"></a>
+\<a id="topic-7">\</a>
 
 ## Topic 7 — ArrayList vs LinkedList & Iterator Semantics
 
@@ -1140,8 +1140,8 @@ They are testing whether you reason from memory layout and access patterns inste
 Default to `ArrayList` unless the access pattern proves otherwise. For queues, prefer `ArrayDeque` or concurrent queue implementations. Choose based on actual operation mix, memory footprint, and concurrency needs.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 `ArrayList` and `LinkedList` both implement `List`, and on a whiteboard their Big-O tables look like
 they trade blows evenly — but the internal structures behind those tables explain not just *what*
@@ -1229,8 +1229,8 @@ for (Payment p : payments) {
 }
 ```
 
-The for-each loop desugars to `Iterator<Payment> it = payments.iterator(); while (it.hasNext()) {
-Payment p = it.next(); ... }`. Calling `payments.remove(p)` goes through `ArrayList.remove(Object)`,
+The for-each loop desugars to `Iterator\<Payment> it = payments.iterator(); while (it.hasNext()) \{
+Payment p = it.next(); ... \}`. Calling `payments.remove(p)` goes through `ArrayList.remove(Object)`,
 which bumps `modCount` directly on the list — but the iterator's `expectedModCount` was frozen at
 loop start. The very next call to `it.next()` (or, in some cases, `it.hasNext()` returning true
 right before a final iteration that never happens because the size shrank) sees the mismatch and
@@ -1313,7 +1313,7 @@ don't) are the right tool for frequently-mutated concurrent collections instead.
 | Read/iterate cost | O(1) per step, no locking | O(1) per step, no locking, no snapshot allocation cost at read time |
 | Best fit | Single-threaded, or externally-synchronized, mutation-during-iteration is a bug to catch | Read-heavy/iterate-heavy, write-rare, staleness during iteration is acceptable |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -1325,11 +1325,11 @@ don't) are the right tool for frequently-mutated concurrent collections instead.
 
 **Why does `removeIf` avoid the ConcurrentModificationException that a for-each-plus-remove causes?** Because `removeIf`'s default implementation on `Collection` uses the collection's own `Iterator.remove()` internally — it calls `iterator()` once, then loops via `it.next()` / `it.remove()`, exactly the safe pattern described above, rather than mutating the backing collection through a separate reference while an unrelated iterator is mid-traversal. `ArrayList` additionally overrides `removeIf` with a more efficient implementation that does a single pass building a "keep" bitmask and then a single compaction pass, avoiding the O(n) per-removal shift cost you'd get from repeatedly calling `remove(index)` — so beyond being correct, it's also meaningfully faster than removing elements one at a time inside a manual loop for anything beyond a handful of removals.
 
-**Staff Engineer scenario:** A batch reconciliation job processes a `List<SettlementRecord>` with roughly 200,000 entries per run, reading each record once sequentially and occasionally inserting a correction record near the position where a mismatch was detected. A junior engineer switches the backing type from `ArrayList` to `LinkedList`, reasoning that "we're doing insertions in the middle, and LinkedList is O(1) for that." After the change, the job's runtime roughly triples. Walking through why: locating the insertion point still requires traversing from the nearest end to the target index, which is O(n) regardless of list type, so LinkedList gained nothing on the traversal — it only would have helped if the code already held a `ListIterator` positioned at the right spot and inserted repeatedly without re-traversing. Worse, the job's dominant cost is the initial sequential read of all 200,000 records for reconciliation matching, and that read went from a cache-friendly array scan (~200,000 sequential array-slot reads, mostly served from L1/L2) to a chain of ~200,000 pointer dereferences scattered across the heap, each a candidate cache miss. The fix is reverting to `ArrayList` and, if insertions at known positions are frequent enough to matter, either batching the corrections and doing a single rebuild pass, or using an `ArrayList`-backed structure with a `ListIterator` that inserts as it streams through rather than doing repeated indexed inserts — the takeaway being that "O(1) insertion" is only a real win when the access pattern actually exploits it, and blindly swapping list implementations based on one Big-O column without checking the actual traversal pattern was the root mistake.
+**Staff Engineer scenario:** A batch reconciliation job processes a `List\<SettlementRecord>` with roughly 200,000 entries per run, reading each record once sequentially and occasionally inserting a correction record near the position where a mismatch was detected. A junior engineer switches the backing type from `ArrayList` to `LinkedList`, reasoning that "we're doing insertions in the middle, and LinkedList is O(1) for that." After the change, the job's runtime roughly triples. Walking through why: locating the insertion point still requires traversing from the nearest end to the target index, which is O(n) regardless of list type, so LinkedList gained nothing on the traversal — it only would have helped if the code already held a `ListIterator` positioned at the right spot and inserted repeatedly without re-traversing. Worse, the job's dominant cost is the initial sequential read of all 200,000 records for reconciliation matching, and that read went from a cache-friendly array scan (~200,000 sequential array-slot reads, mostly served from L1/L2) to a chain of ~200,000 pointer dereferences scattered across the heap, each a candidate cache miss. The fix is reverting to `ArrayList` and, if insertions at known positions are frequent enough to matter, either batching the corrections and doing a single rebuild pass, or using an `ArrayList`-backed structure with a `ListIterator` that inserts as it streams through rather than doing repeated indexed inserts — the takeaway being that "O(1) insertion" is only a real win when the access pattern actually exploits it, and blindly swapping list implementations based on one Big-O column without checking the actual traversal pattern was the root mistake.
 
 ---
 
-<a id="topic-8"></a>
+\<a id="topic-8">\</a>
 
 ## Topic 8 — Comparable, Comparator & Sorted Collections
 
@@ -1361,18 +1361,18 @@ They want to see whether you understand ordering contracts, especially with `Tre
 Use `Comparable` only for one obvious domain-natural order. Use `Comparator` for context-specific ordering such as settlement time, priority, score, or display order, and test edge cases because bad comparison logic silently corrupts sorted collections.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 `Comparable` and `Comparator` both answer "how do I order these objects," but they answer it from
 opposite directions, and mixing them up — or worse, violating the contract either one implies — is a
 reliable source of subtle bugs in anything that sorts or that relies on sorted storage.
 
-`Comparable<T>` is implemented *by the class itself*, via a single `compareTo(T other)` method, and
+`Comparable\<T>` is implemented *by the class itself*, via a single `compareTo(T other)` method, and
 it defines that type's one and only **natural ordering** — the ordering you get "for free" from
 `Collections.sort(list)` or `list.sort(null)` with no extra arguments, and the ordering
 `TreeSet`/`TreeMap` fall back to when constructed without an explicit `Comparator`. A `Payment`
-class implementing `Comparable<Payment>` by `paymentId` is declaring, as part of its public
+class implementing `Comparable\<Payment>` by `paymentId` is declaring, as part of its public
 contract, that payments are canonically ordered by ID:
 
 ```java
@@ -1408,7 +1408,7 @@ public class Payment implements Comparable<Payment> {
 }
 ```
 
-`Comparator<T>` is defined *externally*, separately from the class, and you can have as many of them
+`Comparator\<T>` is defined *externally*, separately from the class, and you can have as many of them
 as you have orderings you care about — nothing about `Payment` itself needs to change to sort it a
 different way. This is the right tool whenever a class either has no single "natural" ordering, or
 when the natural ordering exists but a particular use site needs a different one:
@@ -1503,7 +1503,7 @@ entries on demand — they let you efficiently answer range and neighbor queries
 iterating the structure. A payment reconciliation job that needs to walk settlements in strict
 timestamp order — matching each internal ledger entry against the corresponding external processor
 settlement, in chronological sequence, to catch out-of-order or missing entries — is a direct fit
-for `TreeMap<Instant, Settlement>`: the sorted-iteration guarantee is load-bearing, not cosmetic,
+for `TreeMap\<Instant, Settlement>`: the sorted-iteration guarantee is load-bearing, not cosmetic,
 because the reconciliation logic depends on processing entries in time order to correctly detect
 gaps and duplicates.
 
@@ -1523,15 +1523,15 @@ SortedMap<Instant, Settlement> recentSettlements = settlementsByTime.tailMap(one
 
 Conversely, if the reconciliation job just needs a fast lookup of "does a settlement with this
 externalTransactionId already exist" — a pure membership/lookup check with no ordering requirement
-at all — a `HashMap<String, Settlement>` keyed by `externalTransactionId` is the right call: it's
+at all — a `HashMap\<String, Settlement>` keyed by `externalTransactionId` is the right call: it's
 faster on average, simpler, and paying for a red-black tree's O(log n) balance-maintenance on every
 insert buys you a sorted-iteration guarantee you're not using.
 
-</details>
+\</details>
 
 ### Interview Questions
 
-**Why can a class only have one `compareTo` implementation but unlimited Comparators, and when does that limitation actually bite?** `Comparable` is implemented directly on the class, so `compareTo` is part of that type's fixed API surface — there's exactly one method body, so exactly one natural ordering exists per class. It bites whenever a domain object genuinely needs to be sorted different ways in different contexts — a `Payment` sorted by ID in an audit log, by amount in a "largest transactions" report, and by timestamp in a settlement timeline — because you cannot express three different `compareTo` bodies on one class. `Comparator` solves this by living outside the class entirely: you write as many `Comparator<Payment>` instances (often just inline `Comparator.comparing(...)` chains at each call site) as you have use cases, without touching `Payment` itself, which is also why library and framework code that doesn't own the class it's sorting (sorting third-party or JDK types) has no choice but `Comparator` — you can't retrofit `Comparable` onto a class you don't control.
+**Why can a class only have one `compareTo` implementation but unlimited Comparators, and when does that limitation actually bite?** `Comparable` is implemented directly on the class, so `compareTo` is part of that type's fixed API surface — there's exactly one method body, so exactly one natural ordering exists per class. It bites whenever a domain object genuinely needs to be sorted different ways in different contexts — a `Payment` sorted by ID in an audit log, by amount in a "largest transactions" report, and by timestamp in a settlement timeline — because you cannot express three different `compareTo` bodies on one class. `Comparator` solves this by living outside the class entirely: you write as many `Comparator\<Payment>` instances (often just inline `Comparator.comparing(...)` chains at each call site) as you have use cases, without touching `Payment` itself, which is also why library and framework code that doesn't own the class it's sorting (sorting third-party or JDK types) has no choice but `Comparator` — you can't retrofit `Comparable` onto a class you don't control.
 
 **What specifically goes wrong if `compareTo` and `equals` disagree, beyond "it's against the contract"?** The concrete failure mode is in any collection that derives uniqueness from ordering rather than from `equals`/`hashCode` — `TreeSet` and the key set of `TreeMap` chiefly. Those structures never call `equals()`; a `compareTo` result of zero *is* their definition of "duplicate," so two objects that are meaningfully different by `equals()` but happen to compare as equal will collide on insertion, and the second one is silently discarded with no exception thrown. This is worse than a crash because it's silent data loss — a set that should hold N elements holds fewer, and the bug can lie dormant until a specific combination of "equal by compareTo, unequal by equals" values shows up in production data, often long after the code was written and reviewed. `List.sort` and `Collections.sort`, by contrast, don't care about this inconsistency at all since they never conflate ordering with identity — so a class can pass all its sorting unit tests while still carrying this bug, which is exactly why interviewers like this question: it separates people who've memorized "compareTo should be consistent with equals" from people who understand which specific collections make that a runtime correctness issue rather than a style nitpick.
 
@@ -1539,11 +1539,11 @@ insert buys you a sorted-iteration guarantee you're not using.
 
 **Can you use a `Comparator` with a `TreeSet`, and does that change how uniqueness is determined?** Yes — `TreeSet` and `TreeMap` both have constructors accepting an explicit `Comparator<? super T>`, and when one is supplied, it's used for *all* ordering and uniqueness decisions instead of the type's natural `compareTo`, even if the type also implements `Comparable`. This matters because it means you can hit the exact same "silent collision" bug described above purely through a poorly-written `Comparator`, on a class whose own `compareTo`/`equals` pair is perfectly consistent — the contract requirement shifts from "the class's compareTo must agree with its equals" to "this specific Comparator must agree with equals, for this specific TreeSet instance," which is a per-usage-site concern rather than a class-design concern, and easy to overlook when reviewing code that constructs a `TreeSet` with an inline lambda comparator.
 
-**Staff Engineer scenario:** A payments team stores `Merchant` objects, deduplicated by merchant legal entity, in a `TreeSet<Merchant>` ordered by `riskScore` so a fraud dashboard can efficiently pull the highest-risk merchants via `descendingIterator()` without a separate sort step on every page load. Over a few weeks, the on-call engineer notices the total merchant count reported by the dashboard is consistently a few hundred lower than the count from the source-of-truth database query. The root cause: `Merchant.compareTo` was written to order purely by `riskScore` (a double, frequently repeated across many merchants with similar profiles) with no tiebreaker, so any two merchants that happen to share an identical risk score compare as equal under `TreeSet`'s uniqueness check and the later one is silently dropped on insertion — despite being entirely distinct merchants with different `equals()`/`merchantId`. This is the textbook compareTo/equals-consistency violation: `equals()` was correctly defined on `merchantId`, but `compareTo` never consulted it, so the class satisfies neither the letter nor the spirit of the contract. The fix is adding `merchantId` as a tiebreaker in `compareTo` (`riskScore` first, then `merchantId` to break ties, mirroring `thenComparing`) so two merchants only ever compare as equal when they are, by identity, the same merchant — and as a general defensive practice, any `compareTo` used to back a `TreeSet`/`TreeMap` should end with a tiebreaker on a genuinely unique field precisely to prevent this class of silent collision, unless you've deliberately verified the primary sort key can never collide across distinct instances.
+**Staff Engineer scenario:** A payments team stores `Merchant` objects, deduplicated by merchant legal entity, in a `TreeSet\<Merchant>` ordered by `riskScore` so a fraud dashboard can efficiently pull the highest-risk merchants via `descendingIterator()` without a separate sort step on every page load. Over a few weeks, the on-call engineer notices the total merchant count reported by the dashboard is consistently a few hundred lower than the count from the source-of-truth database query. The root cause: `Merchant.compareTo` was written to order purely by `riskScore` (a double, frequently repeated across many merchants with similar profiles) with no tiebreaker, so any two merchants that happen to share an identical risk score compare as equal under `TreeSet`'s uniqueness check and the later one is silently dropped on insertion — despite being entirely distinct merchants with different `equals()`/`merchantId`. This is the textbook compareTo/equals-consistency violation: `equals()` was correctly defined on `merchantId`, but `compareTo` never consulted it, so the class satisfies neither the letter nor the spirit of the contract. The fix is adding `merchantId` as a tiebreaker in `compareTo` (`riskScore` first, then `merchantId` to break ties, mirroring `thenComparing`) so two merchants only ever compare as equal when they are, by identity, the same merchant — and as a general defensive practice, any `compareTo` used to back a `TreeSet`/`TreeMap` should end with a tiebreaker on a genuinely unique field precisely to prevent this class of silent collision, unless you've deliberately verified the primary sort key can never collide across distinct instances.
 
 ---
 
-<a id="topic-9"></a>
+\<a id="topic-9">\</a>
 
 ## Topic 9 — Thread Fundamentals & the Java Memory Model
 
@@ -1575,8 +1575,8 @@ This separates senior Java engineers from people who only know how to start a th
 Minimize shared mutable state first. When sharing is required, establish clear happens-before relationships using immutability, final fields, volatile, locks, concurrent collections, or message passing.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 A `Thread` in Java moves through a well-defined lifecycle, and the `Thread.State` enum names each
 stop along the way — knowing exactly what each state means, and being able to read it off a
@@ -1601,7 +1601,7 @@ thread cannot be restarted — a common newcomer mistake is calling `start()` tw
 `Thread` instance, which throws `IllegalThreadStateException` on the second call precisely because a
 terminated (or already-started) thread can't transition back to NEW.
 
-In a real thread dump (`jstack <pid>` or the equivalent via a profiler), seeing dozens of threads
+In a real thread dump (`jstack \<pid>` or the equivalent via a profiler), seeing dozens of threads
 stuck in `BLOCKED` waiting on the same lock tells you exactly where your contention is; seeing them
 in `WAITING` on a `CountDownLatch` or a thread pool's internal queue tells you they're idle, not
 fighting — the state name alone, without reading a single line of your own code, already narrows
@@ -1730,7 +1730,7 @@ visible too. This is a genuinely good interview example because it demonstrates,
 the fix is a single keyword whose absence causes a bug that's essentially impossible to reliably
 reproduce in a unit test.
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -1742,11 +1742,11 @@ reproduce in a unit test.
 
 **Is it ever correct to use double-checked locking without `volatile` in modern Java?** No — not for object references being lazily published across threads, on any JVM implementing the current JMM (Java 5 onward). It's sometimes claimed that "modern JVMs are smart enough" or that specific CPU architectures with stronger memory ordering guarantees (like x86) make it safe in practice — and it's true the reordering bug is genuinely harder to trigger on x86 than on, say, ARM, because x86's memory model is naturally stronger. But relying on a specific CPU architecture's incidental ordering behavior instead of the language-level guarantee is exactly the kind of fragile assumption that breaks the moment the code runs on different hardware, a different JIT compilation strategy, or under different optimization levels — and it's also just strictly worse engineering, since `volatile` costs essentially nothing here (the field is read rarely relative to how often it would be read without the double-checked pattern at all) while removing an entire class of intermittent, environment-dependent bugs. The safer modern alternative many teams reach for instead of hand-rolling double-checked locking is the initialization-on-demand holder idiom (a private static nested class whose static field is lazily initialized by the JVM's own class-loading guarantees) or simply an eagerly-initialized `static final` field if the construction cost is acceptable to pay at class-load time — both sidestep the need to get double-checked locking's subtleties right at all.
 
-**Staff Engineer scenario:** A payment gateway service has a `MerchantConfigCache` with a non-volatile `Map<String, MerchantConfig> currentConfig` field, refreshed wholesale (a new map built off-thread, then assigned to `currentConfig`) every 60 seconds by a background scheduler thread, and read on every incoming payment request by request-handling threads. In production, a subset of request-handling threads occasionally continue using a `MerchantConfig` map that's minutes stale — well past the 60-second refresh interval — even though logs confirm the background thread's assignment ran on schedule. The root cause: without `volatile` (or equivalent synchronization) on `currentConfig`, there is no happens-before edge between the background thread's write and the request threads' reads, so the JMM permits — and, on a long-running server thread that keeps a hot register-cached copy of the reference, actually produces — request threads never re-reading main memory for that field at all, effectively pinning them to whatever value they first cached. The fix is making `currentConfig` `volatile`: since the entire refresh is a single reference swap (a new, fully-built map is atomically substituted for the old one, never mutated in place), a plain volatile reference is sufficient — no lock is needed on the read path, because publishing a new immutable-after-construction map via a volatile write, and reading it via a volatile read, is exactly the happens-before-guaranteed pattern that makes the fully-constructed new map (and everything written before the volatile write) visible to every subsequent reader, with zero synchronization overhead on the hot read path that matters for request latency.
+**Staff Engineer scenario:** A payment gateway service has a `MerchantConfigCache` with a non-volatile `Map\<String, MerchantConfig> currentConfig` field, refreshed wholesale (a new map built off-thread, then assigned to `currentConfig`) every 60 seconds by a background scheduler thread, and read on every incoming payment request by request-handling threads. In production, a subset of request-handling threads occasionally continue using a `MerchantConfig` map that's minutes stale — well past the 60-second refresh interval — even though logs confirm the background thread's assignment ran on schedule. The root cause: without `volatile` (or equivalent synchronization) on `currentConfig`, there is no happens-before edge between the background thread's write and the request threads' reads, so the JMM permits — and, on a long-running server thread that keeps a hot register-cached copy of the reference, actually produces — request threads never re-reading main memory for that field at all, effectively pinning them to whatever value they first cached. The fix is making `currentConfig` `volatile`: since the entire refresh is a single reference swap (a new, fully-built map is atomically substituted for the old one, never mutated in place), a plain volatile reference is sufficient — no lock is needed on the read path, because publishing a new immutable-after-construction map via a volatile write, and reading it via a volatile read, is exactly the happens-before-guaranteed pattern that makes the fully-constructed new map (and everything written before the volatile write) visible to every subsequent reader, with zero synchronization overhead on the hot read path that matters for request latency.
 
 ---
 
-<a id="topic-10"></a>
+\<a id="topic-10">\</a>
 
 ## Topic 10 — Locks: synchronized vs ReentrantLock vs ReadWriteLock
 
@@ -1778,8 +1778,8 @@ They want to see practical concurrency trade-offs, not just API recall.
 Start with the simplest lock that preserves correctness. Move to `ReentrantLock`, read/write locks, atomics, or lock-free structures only when the contention profile and operational need justify the added complexity.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 `06-lld-foundations.md` already introduces `synchronized` and `ReentrantLock` as two ways to guard a
 critical section; this topic goes into what actually differs between them mechanically, when that
@@ -1971,7 +1971,7 @@ guaranteed self-deadlock. `ReentrantLock` explicitly preserves this same propert
 is in the name for exactly this reason — so it's a drop-in-compatible mental model with
 `synchronized` on this point, even though everything else about its API is more explicit.
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -1987,7 +1987,7 @@ is in the name for exactly this reason — so it's a drop-in-compatible mental m
 
 ---
 
-<a id="topic-11"></a>
+\<a id="topic-11">\</a>
 
 ## Topic 11 — java.util.concurrent: ExecutorService & Thread Pool Sizing
 
@@ -2019,8 +2019,8 @@ Thread pool misuse is a common cause of production outages in Java services.
 Design thread pools as production resources: bounded, observable, isolated by workload, and aligned with backpressure. Monitor active threads, queue depth, rejection count, latency, and saturation.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Spinning up a raw `new Thread(task).start()` for every unit of work doesn't scale past toy examples,
 for reasons that compound under real load: OS thread creation and teardown carry real, non-trivial
@@ -2154,7 +2154,7 @@ resource pool — is the same one at both layers, whether you're hand-rolling se
 `ThreadPoolExecutor`s or reaching for Resilience4j's bulkhead abstraction to get the same isolation
 with built-in metrics and configuration.
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -2170,7 +2170,7 @@ with built-in metrics and configuration.
 
 ---
 
-<a id="topic-12"></a>
+\<a id="topic-12">\</a>
 
 ## Topic 12 — CompletableFuture & Asynchronous Composition
 
@@ -2202,18 +2202,18 @@ They are checking whether you can write non-blocking orchestration without creat
 Use `CompletableFuture` for bounded async composition, especially independent downstream calls. Provide explicit executors, timeouts, fallbacks, and observability so the async graph does not become an invisible production failure amplifier.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
-The original `Future<T>` interface (`java.util.concurrent`, since Java 5) represents the result of
+The original `Future\<T>` interface (`java.util.concurrent`, since Java 5) represents the result of
 an asynchronous computation, but its only real interaction surface is `get()` — a blocking call that
 waits for the result — with no way to attach a callback, chain a follow-up computation, or combine
 it with another `Future` without manually blocking a thread to bridge them. That limitation forces
 exactly the kind of "block a thread just to wait on another thread's result" pattern that concurrent
 code is supposed to avoid, and it makes composing several async operations (do A, then B depending
 on A's result, then combine with C which ran independently) awkward and thread-hungry — each hand-
-off point needs its own blocking `get()` on its own thread. `CompletableFuture<T>` (Java 8)
-implements both `Future<T>` and `CompletionStage<T>`, and the `CompletionStage` half is what
+off point needs its own blocking `get()` on its own thread. `CompletableFuture\<T>` (Java 8)
+implements both `Future\<T>` and `CompletionStage\<T>`, and the `CompletionStage` half is what
 actually matters here: it lets you register what should happen *when* the computation completes, as
 a chain of composable stages, without any thread ever needing to block waiting on another.
 
@@ -2245,7 +2245,7 @@ CompletableFuture<RiskScore> riskFuture = paymentFuture.thenApplyAsync(
 
 `thenCompose` is the tool for chaining a *dependent* async call — one whose input is the previous
 stage's result — and it's the direct analog of `flatMap`: without it, chaining two async calls where
-the second depends on the first's output would produce a `CompletableFuture<CompletableFuture<T>>`,
+the second depends on the first's output would produce a `CompletableFuture\<CompletableFuture\<T>>`,
 a nested future that's awkward to work with (you'd need an extra unwrap step); `thenCompose`
 flattens that automatically by taking a function that itself returns a `CompletableFuture`, rather
 than a plain value:
@@ -2370,13 +2370,13 @@ CompletableFuture<RiskScore> riskFuture = paymentFuture.thenApplyAsync(
 );
 ```
 
-</details>
+\</details>
 
 ### Interview Questions
 
 **What specifically does `CompletableFuture` offer over plain `Future` that makes it worth the added API surface?** Plain `Future.get()` is a dead end — the only way to obtain the result is to block a thread until it's ready, with no way to register a callback, chain a dependent computation, combine it with another `Future`, or react to failure without that blocking call. `CompletableFuture` implements `CompletionStage`, which turns "wait for this result" into "declare what happens when this result (or failure) arrives," composable through `thenApply`/`thenCompose`/`thenCombine`/`exceptionally`/`handle` chains — none of which ever require a thread to sit blocked waiting on another thread's completion. This matters most exactly in multi-step async pipelines: chaining three dependent `Future.get()` calls means blocking three separate threads sequentially (or hand-rolling your own callback/notification mechanism on top of plain `Future`, which is effectively reinventing `CompletableFuture` badly), whereas the same pipeline expressed as a `CompletableFuture` chain uses no blocking threads at all until something actually needs the final synchronous result.
 
-**When should you use `thenCompose` versus `thenCombine`, and what happens if you mix them up?** `thenCompose` is for a dependent async call — the second call needs the first call's result as an input, so it structurally cannot start until the first finishes, and `thenCompose` expresses that sequential dependency while also flattening what would otherwise be a nested `CompletableFuture<CompletableFuture<T>>`. `thenCombine` is for two independent async calls that don't depend on each other's results at all and should run concurrently, only being joined together once both finish. Using `thenCompose` for two calls that are actually independent forces them to run sequentially, needlessly adding one call's full latency on top of the other's when they could have overlapped — a real, measurable performance regression in an I/O-heavy pipeline, and a common mistake because `thenCompose` "also works" in the sense that the code compiles and produces a correct result, just a slower one than necessary. Using `thenCombine` where the second call genuinely needs the first's output as an input doesn't even compile cleanly against the real dependency (you'd have to fake the first result's value before it's actually available), so that direction of the mistake tends to be self-correcting; the sequential-when-should-be-parallel direction is the one that actually ships and quietly costs latency.
+**When should you use `thenCompose` versus `thenCombine`, and what happens if you mix them up?** `thenCompose` is for a dependent async call — the second call needs the first call's result as an input, so it structurally cannot start until the first finishes, and `thenCompose` expresses that sequential dependency while also flattening what would otherwise be a nested `CompletableFuture\<CompletableFuture\<T>>`. `thenCombine` is for two independent async calls that don't depend on each other's results at all and should run concurrently, only being joined together once both finish. Using `thenCompose` for two calls that are actually independent forces them to run sequentially, needlessly adding one call's full latency on top of the other's when they could have overlapped — a real, measurable performance regression in an I/O-heavy pipeline, and a common mistake because `thenCompose` "also works" in the sense that the code compiles and produces a correct result, just a slower one than necessary. Using `thenCombine` where the second call genuinely needs the first's output as an input doesn't even compile cleanly against the real dependency (you'd have to fake the first result's value before it's actually available), so that direction of the mistake tends to be self-correcting; the sequential-when-should-be-parallel direction is the one that actually ships and quietly costs latency.
 
 **What's the practical difference between `handle` and `whenComplete`, and when would picking the wrong one cause a bug?** Both run unconditionally on success or failure and both receive the result and the exception, but `handle`'s return value *becomes* the new stage's outcome — so it can recover from a failure by returning a fallback value, turning what was a failed future into a successful one downstream — while `whenComplete`'s return value is discarded entirely, meaning it can observe the outcome (for logging, metrics, cleanup) but cannot change it; a failed upstream stage is still failed after a `whenComplete`, regardless of what the callback does. The bug shows up when someone uses `whenComplete` intending to supply a fallback value on failure: the callback runs, maybe even constructs the fallback value, but that value is silently thrown away, and the exception still propagates to the next stage exactly as if the `whenComplete` callback hadn't run at all — a subtle bug because the code looks like it's handling the failure, and might even pass a shallow code review, while the actual chain behavior is unaffected on the failure path.
 
@@ -2386,7 +2386,7 @@ CompletableFuture<RiskScore> riskFuture = paymentFuture.thenApplyAsync(
 
 ---
 
-<a id="topic-13"></a>
+\<a id="topic-13">\</a>
 
 ## Topic 13 — Atomic Classes, CAS, and Lock-Free Programming
 
@@ -2418,8 +2418,8 @@ They want to know whether you understand the machinery behind high-performance c
 Use atomics for small, well-defined state transitions or counters. For multi-step invariants, prefer locks, immutable snapshots, actors, database constraints, or proven concurrent data structures.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Every discussion of "lock-free" programming in Java ultimately bottoms out in a single hardware
 instruction: Compare-And-Swap. On x86, this is `cmpxchg` (compare-and-exchange); on ARM it's a pair
@@ -2595,7 +2595,7 @@ shared `AtomicLong`.
 | Composability | Poor — hard to combine multiple atomics atomically | Good — a critical section can span arbitrary logic |
 | Best fit | Single-variable updates, counters, flags, lock-free structures | Multi-step invariants, composite state changes |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -2603,7 +2603,7 @@ shared `AtomicLong`.
 
 **How do `AtomicInteger` and friends avoid using locks internally, mechanically?** They call into `sun.misc.Unsafe`'s CAS methods (or, on modern JDKs, `VarHandle`'s `compareAndSet`/`compareAndExchange`), which the JIT compiler recognizes as intrinsics and compiles directly into the underlying `cmpxchg`/`LDXR`-`STXR` instruction rather than a real method call with its own stack frame. `incrementAndGet()` is implemented as a loop — read the current value, compute current+1, attempt the CAS, and if it fails because another thread updated the value first, re-read and retry — with no monitor, no `Lock` object, and no blocking anywhere in the path.
 
-**Walk through a concrete case where the ABA problem causes real corruption, not just a theoretical concern.** In a lock-free stack built on `AtomicReference<Node>`, a thread performing `pop()` reads `top` as node A and is preempted before its CAS runs. While suspended, other threads pop A, pop the next node B, and then push a node that happens to reference-equal A back onto the stack — but that new top's `next` pointer now points to what's left of the stack, not to the original B. When the first thread resumes, `compareAndSet(A, computedNewHead)` succeeds because `top` really does equal A again, but `computedNewHead` was captured from the stale `A.next` observed before the swap — so the CAS overwrites `top` with a reference to a node that's no longer part of the actual current stack, silently dropping everything that was pushed in between. The fix is `AtomicStampedReference`, which pairs the reference with a monotonically increasing stamp so that even a reference that cycles back to the same identity fails the CAS because the stamp has moved on.
+**Walk through a concrete case where the ABA problem causes real corruption, not just a theoretical concern.** In a lock-free stack built on `AtomicReference\<Node>`, a thread performing `pop()` reads `top` as node A and is preempted before its CAS runs. While suspended, other threads pop A, pop the next node B, and then push a node that happens to reference-equal A back onto the stack — but that new top's `next` pointer now points to what's left of the stack, not to the original B. When the first thread resumes, `compareAndSet(A, computedNewHead)` succeeds because `top` really does equal A again, but `computedNewHead` was captured from the stale `A.next` observed before the swap — so the CAS overwrites `top` with a reference to a node that's no longer part of the actual current stack, silently dropping everything that was pushed in between. The fix is `AtomicStampedReference`, which pairs the reference with a monotonically increasing stamp so that even a reference that cycles back to the same identity fails the CAS because the stamp has moved on.
 
 **When would you deliberately choose a `synchronized` block or `ReentrantLock` over an `AtomicInteger`/CAS loop, even for something as simple as a counter?** Two cases. First, when the update isn't a single-variable operation — if incrementing a counter also needs to atomically update a related timestamp or append to a log, CAS can't express that as one operation without significant contortion (compare-and-swap on a single reference to an immutable composite object, which works but adds complexity and allocation), whereas a lock trivially covers an arbitrary multi-step critical section. Second, under genuinely extreme contention — hundreds of threads hitting the same atomic simultaneously — a lock's "block and get woken once" behavior can outperform a CAS loop's "keep spinning and failing," because the lock converts wasted CPU into idle CPU. In that specific high-contention counting scenario, though, the better answer than either is usually `LongAdder`, which sidesteps the contention entirely by striping the counter.
 
@@ -2611,7 +2611,7 @@ shared `AtomicLong`.
 
 ---
 
-<a id="topic-14"></a>
+\<a id="topic-14">\</a>
 
 ## Topic 14 — Deadlock, Livelock, and Starvation — Diagnosis and Prevention
 
@@ -2643,8 +2643,8 @@ These problems show whether you can diagnose real production hangs, not only wri
 Prevent deadlocks through simple lock design, consistent ordering, small critical sections, and avoiding blocking calls under locks. Diagnose production hangs with thread dumps, pool metrics, lock ownership, and request traces.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 A deadlock requires four conditions to hold **simultaneously**, a formalization known as the Coffman
 conditions: **mutual exclusion** (a resource can only be held by one thread at a time — true of any
@@ -2802,7 +2802,7 @@ dump after dump, forever.
 | Livelock | RUNNABLE, permanently | High, no progress | No — looks like healthy running threads | Symmetric, synchronized backoff/retry | Randomized backoff / breaking symmetry |
 | Starvation | RUNNABLE/WAITING intermittently | Normal-to-high | No | Unfair scheduling favors other threads | Fair lock (`ReentrantLock(true)`) or priority-aware queuing |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -2818,7 +2818,7 @@ dump after dump, forever.
 
 ---
 
-<a id="topic-15"></a>
+\<a id="topic-15">\</a>
 
 ## Topic 15 — Virtual Threads & Structured Concurrency (Project Loom)
 
@@ -2850,8 +2850,8 @@ They want to know whether your Java knowledge is current and whether you can sep
 Virtual threads are a strong fit for simplifying high-concurrency Java services that currently use complex async code only to avoid blocking. Keep external resource pools, backpressure, timeouts, and CPU limits explicit.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 A **platform thread**, the only kind of thread Java had before Project Loom, is a thin wrapper
 around an actual operating system thread — a 1:1 mapping where creating a `Thread` means the JVM
@@ -2972,7 +2972,7 @@ for free: no orphaned background work, and no possibility of the method returnin
 | Danger zone | N/A | `synchronized` around blocking I/O pins the carrier (fixed in JDK 24, JEP 491) |
 | Best fit | CPU-bound, low-concurrency work | High-concurrency, I/O-bound service code |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -2988,7 +2988,7 @@ for free: no orphaned background work, and no possibility of the method returnin
 
 ---
 
-<a id="topic-16"></a>
+\<a id="topic-16">\</a>
 
 ## Topic 16 — JVM Memory Areas & Object Layout
 
@@ -3020,8 +3020,8 @@ Senior Java roles often require production memory diagnosis, not just coding.
 When diagnosing memory issues, identify which memory pool is growing, then use the right tool: heap dump for object retention, native memory tracking for off-heap, thread dumps for stack pressure, and GC logs/JFR for allocation behavior.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 The JVM divides memory into a small number of distinct runtime areas, each with different lifetime
 and sharing characteristics, and knowing which one a given piece of state lives in is what separates
@@ -3074,7 +3074,7 @@ long[] amountsRaw = new long[1_000_000];
 ```
 
 For a batch payment-reconciliation job processing tens of millions of records, the difference
-between a `List<Long>` and a `long[]` (or a specialized library like Eclipse Collections' primitive-
+between a `List\<Long>` and a `long[]` (or a specialized library like Eclipse Collections' primitive-
 backed collections) isn't stylistic — it's the difference between the batch fitting comfortably in a
 modest heap and it triggering constant GC pressure from millions of small, individually-tracked
 boxed objects.
@@ -3083,7 +3083,7 @@ Beyond ordinary strong references, the JVM defines four reference strengths with
 garbage-collection semantics, exposed through `java.lang.ref`. A **strong reference** — an ordinary
 variable or field assignment — is what you use by default, and it unconditionally prevents
 collection: as long as any strong reference chain reaches an object from a GC root, that object is
-alive, full stop. A **soft reference** (`SoftReference<T>`) is collected only under memory pressure
+alive, full stop. A **soft reference** (`SoftReference\<T>`) is collected only under memory pressure
 — the JVM guarantees it will clear all soft references before throwing `OutOfMemoryError`, but
 otherwise is free to hold onto them as long as there's room, which makes `SoftReference` a
 reasonable building block for a memory-sensitive cache that should shrink under pressure rather than
@@ -3105,14 +3105,14 @@ public class ExchangeRateCache {
 }
 ```
 
-A **weak reference** (`WeakReference<T>`) is far more aggressive: it's eligible for collection at
+A **weak reference** (`WeakReference\<T>`) is far more aggressive: it's eligible for collection at
 the *next* GC cycle regardless of memory pressure, as soon as no strong reference to the object
 remains anywhere else. This is the mechanism behind `WeakHashMap` (whose keys are held weakly, so an
 entry disappears automatically once nothing outside the map still references the key) and much of
 the JDK's own internal bookkeeping — for example, `ThreadLocal`'s internal storage uses weak
 references to the `ThreadLocal` instance itself specifically so that a `ThreadLocal` that's gone out
 of scope doesn't get artificially kept alive just because a thread's per-thread map still has an
-entry keyed by it. A **phantom reference** (`PhantomReference<T>`) is the strangest of the four:
+entry keyed by it. A **phantom reference** (`PhantomReference\<T>`) is the strangest of the four:
 calling `.get()` on one always returns `null` — you can never actually retrieve the referent through
 it — and it exists purely to be **enqueued** onto a `ReferenceQueue` once the referent has been
 finalized and is about to be reclaimed, which makes it the basis for reliable post-mortem cleanup
@@ -3182,13 +3182,13 @@ eviction — a size cap, a time-to-live, or both — typically via a real cachin
 `maximumSize`/`expireAfterWrite`) rather than a bare `Map`, precisely because a bare `Map` has no
 eviction policy at all and will happily grow forever unless you build that policy yourself.
 
-</details>
+\</details>
 
 ### Interview Questions
 
 **Why did Java 8 replace PermGen with Metaspace, and what specific failure mode did it fix?** PermGen was a region of fixed maximum size (by default, a relatively small cap) that held class metadata, and any application generating large numbers of classes dynamically at runtime — the classic case being Spring's CGLIB-based AOP proxies and Hibernate's bytecode-enhanced entity proxies, where every proxied class is a distinct class loaded through its own classloader — could exhaust that fixed ceiling even while the regular heap had abundant free space, producing `OutOfMemoryError: PermGen space`. Metaspace moved class metadata storage into native, off-heap memory that grows dynamically by default rather than being capped at a small fixed size, which converted the common, non-leaking case of heavy dynamic-proxy generation from "guaranteed eventual crash" into "consumes more native memory, monitor if it grows unexpectedly." It's worth being precise that this doesn't eliminate genuine classloader leaks — an application that keeps creating classloaders that are never garbage collected (Topic 18) can still exhaust Metaspace — it just removed the artificially low, fixed ceiling that made routine dynamic-proxy-heavy applications hit trouble far too easily.
 
-**Why isn't an empty Java object zero bytes, and when does that actually matter in practice?** Every object on the heap carries a mandatory header — a mark word holding identity hash, GC age, and lock-state bits, plus a class pointer identifying its type — which on a typical 64-bit JVM with compressed pointers comes to roughly 12-16 bytes even before any declared fields, padded to 8-byte alignment. This is unavoidable per-object overhead, and it matters most when you allocate huge numbers of small objects: a `List<Long>` holding a million entries pays that header cost, plus the boxed value, plus a reference from the list's backing array, for every single element, versus a `long[]` of the same size paying only 8 bytes per element with one header for the whole array. For large-scale numeric processing — batch payment reconciliation over millions of records is the obvious example — that overhead difference is the practical reason to reach for primitive arrays or a primitive-collections library instead of boxed generic collections, not just a micro-optimization.
+**Why isn't an empty Java object zero bytes, and when does that actually matter in practice?** Every object on the heap carries a mandatory header — a mark word holding identity hash, GC age, and lock-state bits, plus a class pointer identifying its type — which on a typical 64-bit JVM with compressed pointers comes to roughly 12-16 bytes even before any declared fields, padded to 8-byte alignment. This is unavoidable per-object overhead, and it matters most when you allocate huge numbers of small objects: a `List\<Long>` holding a million entries pays that header cost, plus the boxed value, plus a reference from the list's backing array, for every single element, versus a `long[]` of the same size paying only 8 bytes per element with one header for the whole array. For large-scale numeric processing — batch payment reconciliation over millions of records is the obvious example — that overhead difference is the practical reason to reach for primitive arrays or a primitive-collections library instead of boxed generic collections, not just a micro-optimization.
 
 **Explain the difference between soft, weak, and phantom references with a concrete use case for each.** Soft references are collected only when the JVM is actually under memory pressure and would otherwise risk an `OutOfMemoryError`, which makes them suited to a cache you want to hold onto as long as there's spare heap but that should shrink automatically rather than crash the application when memory gets tight — an exchange-rate lookup cache is a reasonable example. Weak references are collected far more eagerly, at the very next GC cycle once nothing else strongly references the object, which is the mechanism `WeakHashMap` uses so that map entries disappear automatically once their keys go out of scope elsewhere, and it's also how the JDK avoids accidentally pinning objects alive through internal bookkeeping structures like `ThreadLocal`'s per-thread storage. Phantom references never let you retrieve the referent at all — `get()` always returns null — and exist solely to be enqueued after the referent has been finalized and is about to be reclaimed, which is the basis for `Cleaner`, used for last-resort cleanup of resources like native memory handles that really should have been closed explicitly but sometimes aren't.
 
@@ -3198,7 +3198,7 @@ eviction policy at all and will happily grow forever unless you build that polic
 
 ---
 
-<a id="topic-17"></a>
+\<a id="topic-17">\</a>
 
 ## Topic 17 — Garbage Collection Algorithms
 
@@ -3230,8 +3230,8 @@ They want to see whether you can reason about production latency and memory beha
 Choose GC based on service goals: throughput, latency, heap size, and operational tolerance. Before tuning, inspect allocation rate, live set, pause distribution, promotion behavior, and whether the issue is actually a leak or excessive allocation.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Almost every collector the JVM ships is built on the **generational hypothesis**: empirically, the
 overwhelming majority of objects die young, and a small minority live for a very long time, with
@@ -3299,7 +3299,7 @@ for only after ruling everything else out.
 -Xlog:gc*:file=/var/log/app/gc.log:time,level,tags
 ```
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -3315,7 +3315,7 @@ for only after ruling everything else out.
 
 ---
 
-<a id="topic-18"></a>
+\<a id="topic-18">\</a>
 
 ## Topic 18 — Class Loading & the Classloader Hierarchy
 
@@ -3347,8 +3347,8 @@ This matters in application servers, plugins, frameworks, fat jars, and classpat
 Class loading issues are usually dependency, packaging, or lifecycle problems. Diagnose with dependency trees, class loading logs, stack traces, and awareness that class identity is class name plus classloader.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Every class in a running JVM was loaded by some classloader, and classloaders themselves form a
 hierarchy with a strict **parent-delegation** model. At the top sits the **Bootstrap classloader**,
@@ -3486,7 +3486,7 @@ restart-on-deploy architectures became the norm.
 | Classloader leak risk | Real and historically common (stray threads, `ThreadLocal`s, `DriverManager` registrations pinning old classloaders) | Structurally impossible — there's no "old classloader" to leak, since every deploy is a fresh JVM |
 | Restart granularity | Per-application redeploy without full server/JVM restart | Full JVM restart is the deploy mechanism itself |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -3502,7 +3502,7 @@ restart-on-deploy architectures became the norm.
 
 ---
 
-<a id="topic-19"></a>
+\<a id="topic-19">\</a>
 
 ## Topic 19 — JIT Compilation: How the JVM Makes Java Fast
 
@@ -3534,8 +3534,8 @@ They want to know whether you understand warm-up, benchmarking, and production p
 For performance work, measure on realistic workloads after warm-up. Use JFR, async-profiler, and JMH where appropriate, and be careful with conclusions from small local tests.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 The single most important mental model correction for understanding JVM performance is this: every
 Java method starts life as **interpreted bytecode**. When your class file loads, the JVM does not
@@ -3649,7 +3649,7 @@ inlined and can't see into) defeats the optimization.
 
 **Deoptimization** is the failure mode of the JIT's more aggressive, speculative optimizations, and it's a genuine, sometimes-surprising performance cliff worth knowing by name. C2 doesn't just optimize based on what's provably always true — it also optimizes based on what has been *observed to always be true so far*, which is a weaker guarantee it has to be ready to walk back. The classic case is a virtual/interface method call site that, across all the profiling data gathered so far, has only ever dispatched to one concrete implementing class — say, every call to `PaymentValidator.validate()` observed at a particular call site has, so far, always resolved to `StandardPaymentValidator`. C2 can speculatively compile that call site as if it were a direct, non-virtual call to `StandardPaymentValidator.validate()` (skipping the vtable/itable lookup entirely, and potentially inlining the method body), guarded by a cheap type check — this is "monomorphic inline caching," and it's a significant real-world speedup versus a genuine virtual dispatch on every call. The moment a second concrete implementation actually reaches that call site at runtime — say a feature flag routes some traffic to a new `FraudAwarePaymentValidator` — the guard check fails, and the JVM must **deoptimize**: it discards the optimized native code for that call site (and potentially the whole enclosing compiled method), falls back to interpreting it, and starts the whole profiling-and-recompilation process over, this time gathering data that reflects the call site actually being polymorphic (or megamorphic, with three or more implementations, which C2 handles with a real virtual dispatch and gives up on inlining/monomorphic optimization altogether). The surprising part in production: a change that looks purely additive — deploying a new implementation of an existing interface behind a flag, or A/B testing two strategies — can cause a measurable, sometimes sharp latency regression on an otherwise-unrelated, previously-stable, already-warmed-up code path, purely because it flips a call site from monomorphic to polymorphic and forces a round of deoptimization and recompilation. This is a real, if second-order, argument for being deliberate about how many concrete implementations of a hot interface are actually live in production traffic at once, and it's a favorite "why did latency spike right after this deploy, and nothing in the diff touches the slow method" interview puzzle.
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -3667,7 +3667,7 @@ inlined and can't see into) defeats the optimization.
 
 ---
 
-<a id="topic-20"></a>
+\<a id="topic-20">\</a>
 
 ## Topic 20 — Generics, Type Erasure & PECS
 
@@ -3683,14 +3683,14 @@ Generics reveal API design maturity, especially for reusable libraries and colle
 
 - Type erasure removes most generic type information at runtime.
 - You cannot create `new T()` directly.
-- `List<String>` and `List<Integer>` share the same raw runtime class.
+- `List\<String>` and `List\<Integer>` share the same raw runtime class.
 - `? extends T` is for reading producers.
 - `? super T` is for writing consumers.
 
 ### Common traps
 
 - Using raw types.
-- Choosing invariant `List<T>` where wildcard bounds are needed.
+- Choosing invariant `List\<T>` where wildcard bounds are needed.
 - Confusing arrays covariance with generics invariance.
 - Overcomplicating APIs with unnecessary type parameters.
 
@@ -3699,19 +3699,19 @@ Generics reveal API design maturity, especially for reusable libraries and colle
 Use generics to make invalid states unrepresentable at compile time, but keep APIs readable. Reach for wildcard bounds when a method consumes or produces a family of types, and avoid exposing unnecessary generic complexity to callers.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Java generics are a compile-time-only feature, and understanding that single fact precisely — not
 approximately — resolves nearly every "why can't I do this" generics question a senior interview
-will throw at you. When you write `List<Payment>`, the compiler uses that type information to check,
+will throw at you. When you write `List\<Payment>`, the compiler uses that type information to check,
 at compile time, that you only ever put `Payment` objects into the list and that anything you take
 out is treated as a `Payment` without an explicit cast. But that type information does not survive
 into the compiled `.class` file or into the running JVM: **type erasure** replaces every type
-parameter with its bound — `Object` if the parameter is unbounded (`<T>`), or the leftmost bound if
-it's bounded (`<T extends Number>` erases to `Number`) — and the compiler inserts the necessary
+parameter with its bound — `Object` if the parameter is unbounded (`\<T>`), or the leftmost bound if
+it's bounded (`\<T extends Number>` erases to `Number`) — and the compiler inserts the necessary
 casts automatically at every point where erased code needs to treat a value as its original generic
-type. At runtime, `List<Payment>` and `List<Merchant>` are, quite literally, both just `List`; there
+type. At runtime, `List\<Payment>` and `List\<Merchant>` are, quite literally, both just `List`; there
 is exactly one `List.class` object, shared by every parameterization of `List` anywhere in the
 running JVM, and no runtime construct anywhere holds onto the fact that a particular `List` instance
 was declared as holding `Payment`s.
@@ -3722,11 +3722,11 @@ needs a real, concrete component type to stamp into the array's own runtime type
 unlike generic collections, are reified — they know their own element type at runtime, which is
 exactly why `ArrayStoreException` can exist), and after erasure there is no `T` left to stamp — only
 `Object`, which produces an `Object[]`, not the more specific array type the generic signature
-promised. You can't write `if (obj instanceof List<String>)`, because after erasure there's no way
+promised. You can't write `if (obj instanceof List\<String>)`, because after erasure there's no way
 to check "is this a `List` whose elements were declared as `String`" at runtime — the JVM can only
 check "is this a `List`" (`instanceof List<?>` is legal precisely because the wildcard makes no
 claim about a checkable element type). And you can't overload two methods that differ only in their
-generic type parameter — `void process(List<Payment> payments)` and `void process(List<Merchant>
+generic type parameter — `void process(List\<Payment> payments)` and `void process(List\<Merchant>
 merchants)` in the same class is a compile error, "erasure of method process(List) is the same as
 another method in type," because after erasure both signatures are literally `process(List)`, and
 the JVM's method resolution operates on erased signatures. None of these are isolated quirks;
@@ -3755,9 +3755,9 @@ public static <T extends Comparable<T>> T findMax(List<T> items) {
 Transaction largest = findMax(recentTransactions);
 ```
 
-`<T extends Comparable<T>>` erases to `Comparable`, but critically, the *compiler* still enforces,
+`\<T extends Comparable\<T>>` erases to `Comparable`, but critically, the *compiler* still enforces,
 at every call site, that whatever concrete type you pass in genuinely implements
-`Comparable<ThatSameType>` — the bound buys you compile-time safety even though it disappears at
+`Comparable\<ThatSameType>` — the bound buys you compile-time safety even though it disappears at
 runtime, which is the general pattern for how generics deliver value despite erasure: almost all of
 the benefit is in what the compiler refuses to let you write in the first place.
 
@@ -3765,16 +3765,16 @@ Wildcards, and the **PECS** mnemonic — **P**roducer **E**xtends, **C**onsumer 
 taught as something to memorize, but they follow directly and mechanically from a variance question
 any interviewer can push you to re-derive: if a method only reads values *out of* a collection (the
 collection is a "producer" of values, from that method's point of view), what's the most permissive
-type you can safely accept? `List<? extends Number>` accepts a `List<Integer>`, a
-`List<BigDecimal>`, a `List<Long>` — anything whose element type is `Number` or some subtype — and
+type you can safely accept? `List<? extends Number>` accepts a `List\<Integer>`, a
+`List\<BigDecimal>`, a `List\<Long>` — anything whose element type is `Number` or some subtype — and
 reading from it is always safe: whatever concrete subtype the list actually holds, you can always
 safely widen it to `Number` on the way out. But you cannot safely *add* anything to a `List<?
 extends Number>` (other than `null`), because the compiler only knows the element type is "some
 unknown subtype of `Number`," and it has no way to verify that an `Integer` you're trying to add is
-compatible with a list that, for all the compiler can prove, might actually be a `List<Long>` at
+compatible with a list that, for all the compiler can prove, might actually be a `List\<Long>` at
 runtime. Flip the direction: if a method only *writes into* a collection (the collection is a
-"consumer" of values you're handing it), `List<? super Integer>` accepts a `List<Integer>`, a
-`List<Number>`, a `List<Object>` — anything whose element type is `Integer` or some supertype — and
+"consumer" of values you're handing it), `List<? super Integer>` accepts a `List\<Integer>`, a
+`List\<Number>`, a `List\<Object>` — anything whose element type is `Integer` or some supertype — and
 writing an `Integer` into it is always safe, since any of those list types can genuinely hold an
 `Integer`. But reading from a `List<? super Integer>` only gives you back an `Object`, because the
 compiler has no idea how far up the hierarchy the list's real element type sits — it could be
@@ -3784,7 +3784,7 @@ compiler has no idea how far up the hierarchy the list's real element type sits 
 |---|---|---|---|
 | `List<? extends T>` | Safe — returns `T` | Unsafe — compile error (except `null`) | Only reads from / produces values out of the list |
 | `List<? super T>` | Unsafe — only `Object` | Safe — accepts `T` | Only writes into / consumes values you give it |
-| `List<T>` (no wildcard) | Safe | Safe | Both reads and writes at the exact same known type `T` |
+| `List\<T>` (no wildcard) | Safe | Safe | Both reads and writes at the exact same known type `T` |
 
 The canonical real-JDK illustration of PECS applied correctly is `Collections.copy`:
 
@@ -3796,39 +3796,39 @@ public static <T> void copy(List<? super T> dest, List<? extends T> src)
 copied — so it's declared `? extends T`, accepting any list whose elements are `T` or a subtype.
 `dest` is write-only — it's the consumer receiving those values — so it's declared `? super T`,
 accepting any list that can safely hold a `T`. This single method signature lets you call
-`Collections.copy(objectList, integerList)` (copying `Integer`s into a `List<Object>`) or
-`Collections.copy(numberList, longList)`, which a naive `copy(List<T> dest, List<T> src)` signature
+`Collections.copy(objectList, integerList)` (copying `Integer`s into a `List\<Object>`) or
+`Collections.copy(numberList, longList)`, which a naive `copy(List\<T> dest, List\<T> src)` signature
 would reject outright, forcing an unnecessary and pointless exact-type match between source and
 destination that the actual copy operation never needed.
 
-Generic method type inference is why you'll almost never see `Collections.<String>emptyList()`
+Generic method type inference is why you'll almost never see `Collections.\<String>emptyList()`
 written explicitly in real code — the compiler performs target-type inference, working backward from
 the context the call result is assigned into (a variable declaration, a method parameter, a return
-type) to infer the type argument automatically, so `List<String> names = Collections.emptyList();`
+type) to infer the type argument automatically, so `List\<String> names = Collections.emptyList();`
 compiles with the type argument inferred as `String` with zero explicit annotation needed. The
-explicit `<String>` syntax exists for the comparatively rare cases where there's genuinely no usable
+explicit `\<String>` syntax exists for the comparatively rare cases where there's genuinely no usable
 target-type context — passing the result directly into a varargs method or an overloaded call the
 compiler can't disambiguate without help — but writing it as a matter of habit on ordinary
 assignments is a tell of someone who hasn't internalized how much inference the compiler actually
 does in idiomatic modern Java.
 
-</details>
+\</details>
 
 ### Interview Questions
 
-**What exactly does type erasure do, and why does the JVM implement generics this way instead of reifying them like arrays?** Erasure removes generic type parameter information after compile-time type checking is complete, replacing each type parameter with its bound (`Object` for an unbounded parameter) in the compiled bytecode, and inserting compiler-generated casts wherever erased code needs to treat a value as its original type. Generics were added to the language in Java 5, well after arrays and reflection were already load-bearing, widely-used runtime features — a reified generics design (where `List<Payment>` and `List<Merchant>` are genuinely different runtime types) would have required either breaking binary compatibility with every pre-generics `.class` file on the JVM, or a parallel non-generic and generic type system running side by side. Erasure was the design that let existing bytecode, existing libraries, and existing reflection-based tools keep working unmodified while still gaining compile-time generic type safety for new code — a real, deliberate backward-compatibility trade-off, not an oversight.
+**What exactly does type erasure do, and why does the JVM implement generics this way instead of reifying them like arrays?** Erasure removes generic type parameter information after compile-time type checking is complete, replacing each type parameter with its bound (`Object` for an unbounded parameter) in the compiled bytecode, and inserting compiler-generated casts wherever erased code needs to treat a value as its original type. Generics were added to the language in Java 5, well after arrays and reflection were already load-bearing, widely-used runtime features — a reified generics design (where `List\<Payment>` and `List\<Merchant>` are genuinely different runtime types) would have required either breaking binary compatibility with every pre-generics `.class` file on the JVM, or a parallel non-generic and generic type system running side by side. Erasure was the design that let existing bytecode, existing libraries, and existing reflection-based tools keep working unmodified while still gaining compile-time generic type safety for new code — a real, deliberate backward-compatibility trade-off, not an oversight.
 
 **Why can't you create a generic array (`new T[10]`) inside a generic class?** Arrays in Java are reified — unlike generic collections, an array instance carries its own component type at runtime, which is what makes `ArrayStoreException` possible (the JVM can check, on every store, whether the value being stored matches the array's actual runtime component type). After erasure, there is no `T` left at the point `new T[10]` would execute — only `Object` — so the array the JVM would actually create is an `Object[]`, which is not implicitly the more specific array type the generic signature claims, and the language forbids the mismatch outright rather than letting it surface later as a confusing `ClassCastException` on first array access.
 
-**Explain PECS with a concrete example, and derive — don't just recite — why the read/write restrictions exist.** Producer Extends: a `List<? extends Number>` might, at runtime, actually be a `List<Integer>` or a `List<BigDecimal>` — the compiler only knows "some subtype of `Number`," so reading is always safe (any subtype of `Number` is safely widenable to `Number`), but writing is unsafe because the compiler can't verify an arbitrary `Number` you're adding is actually compatible with whichever specific subtype the list really holds. Consumer Super: a `List<? super Integer>` might actually be a `List<Number>` or a `List<Object>` — writing an `Integer` is always safe since every supertype of `Integer` in the bound can hold one, but reading only yields `Object`, since the compiler has no way to know how far up the hierarchy the list's real element type sits. The mnemonic just names the pattern; the actual justification in both directions is exactly this type-safety reasoning about what the compiler can and can't prove about the unknown concrete type behind the wildcard.
+**Explain PECS with a concrete example, and derive — don't just recite — why the read/write restrictions exist.** Producer Extends: a `List<? extends Number>` might, at runtime, actually be a `List\<Integer>` or a `List\<BigDecimal>` — the compiler only knows "some subtype of `Number`," so reading is always safe (any subtype of `Number` is safely widenable to `Number`), but writing is unsafe because the compiler can't verify an arbitrary `Number` you're adding is actually compatible with whichever specific subtype the list really holds. Consumer Super: a `List<? super Integer>` might actually be a `List\<Number>` or a `List\<Object>` — writing an `Integer` is always safe since every supertype of `Integer` in the bound can hold one, but reading only yields `Object`, since the compiler has no way to know how far up the hierarchy the list's real element type sits. The mnemonic just names the pattern; the actual justification in both directions is exactly this type-safety reasoning about what the compiler can and can't prove about the unknown concrete type behind the wildcard.
 
-**Why does `Collections.copy` use two different wildcards, `List<? super T> dest` and `List<? extends T> src`, instead of a single type parameter for both?** `src` only needs to be read from — it produces the values being copied — so it's declared as a producer, `? extends T`, letting it accept any list of `T` or a subtype of `T`. `dest` only needs to be written to — it consumes the values being copied into it — so it's declared as a consumer, `? super T`, letting it accept any list that can safely hold `T` values, including a list of some supertype of `T`. A single shared type parameter (`List<T> dest, List<T> src`) would force `dest` and `src` to have the exact same element type, which is an unnecessarily strict requirement the actual copy operation doesn't need — PECS lets the signature accept the full range of legitimately safe combinations instead.
+**Why does `Collections.copy` use two different wildcards, `List<? super T> dest` and `List<? extends T> src`, instead of a single type parameter for both?** `src` only needs to be read from — it produces the values being copied — so it's declared as a producer, `? extends T`, letting it accept any list of `T` or a subtype of `T`. `dest` only needs to be written to — it consumes the values being copied into it — so it's declared as a consumer, `? super T`, letting it accept any list that can safely hold `T` values, including a list of some supertype of `T`. A single shared type parameter (`List\<T> dest, List\<T> src`) would force `dest` and `src` to have the exact same element type, which is an unnecessarily strict requirement the actual copy operation doesn't need — PECS lets the signature accept the full range of legitimately safe combinations instead.
 
-**Staff Engineer scenario:** A junior engineer on your team writes a utility method `public static void addAll(List<Object> target, List<String> source)` intended to be a generic helper for merging string-typed lists into an object-typed accumulator list used across several reporting services, and is confused why calling `addAll(paymentIds, someListOfString)` — where `paymentIds` is declared `List<String>`, not `List<Object>` — fails to compile with "incompatible types," even though every `String` is-a `Object`. How do you explain the root cause, and what's the actual fix? The root cause is that Java generics are invariant, not covariant, despite arrays behaving covariantly — `List<String>` is not a subtype of `List<Object>` even though `String` is a subtype of `Object`, because if it were allowed, you could pass a `List<String>` where a `List<Object>` is expected, and code on the other side could then legally insert an `Integer` into what is, underneath, actually a `List<String>`, silently corrupting it in a way that would only surface as a `ClassCastException` far away from the actual bug, at the point something reads the list back out expecting a `String`. This is exactly the failure mode arrays have (`Object[] arr = new String[3]; arr[0] = 42;` compiles but throws `ArrayStoreException` at runtime) that generics were specifically designed to catch at compile time instead. The real fix is not to fight invariance but to use PECS correctly: if `addAll`'s `target` parameter genuinely needs to accept lists of any `Object` subtype for reading purposes only, or if the method is meant to generically merge "a list of some type into a list of that type or a supertype," the signature should be `public static <T> void addAll(List<? super T> target, List<? extends T> source)`, which now correctly accepts `addAll(paymentIds, ...)`-style calls across compatible type hierarchies while still preventing the actual unsafe case the invariance rule exists to catch.
+**Staff Engineer scenario:** A junior engineer on your team writes a utility method `public static void addAll(List\<Object> target, List\<String> source)` intended to be a generic helper for merging string-typed lists into an object-typed accumulator list used across several reporting services, and is confused why calling `addAll(paymentIds, someListOfString)` — where `paymentIds` is declared `List\<String>`, not `List\<Object>` — fails to compile with "incompatible types," even though every `String` is-a `Object`. How do you explain the root cause, and what's the actual fix? The root cause is that Java generics are invariant, not covariant, despite arrays behaving covariantly — `List\<String>` is not a subtype of `List\<Object>` even though `String` is a subtype of `Object`, because if it were allowed, you could pass a `List\<String>` where a `List\<Object>` is expected, and code on the other side could then legally insert an `Integer` into what is, underneath, actually a `List\<String>`, silently corrupting it in a way that would only surface as a `ClassCastException` far away from the actual bug, at the point something reads the list back out expecting a `String`. This is exactly the failure mode arrays have (`Object[] arr = new String[3]; arr[0] = 42;` compiles but throws `ArrayStoreException` at runtime) that generics were specifically designed to catch at compile time instead. The real fix is not to fight invariance but to use PECS correctly: if `addAll`'s `target` parameter genuinely needs to accept lists of any `Object` subtype for reading purposes only, or if the method is meant to generically merge "a list of some type into a list of that type or a supertype," the signature should be `public static \<T> void addAll(List<? super T> target, List<? extends T> source)`, which now correctly accepts `addAll(paymentIds, ...)`-style calls across compatible type hierarchies while still preventing the actual unsafe case the invariance rule exists to catch.
 
 ---
 
-<a id="topic-21"></a>
+\<a id="topic-21">\</a>
 
 ## Topic 21 — Exception Handling & Resource Management Done Right
 
@@ -3860,8 +3860,8 @@ Production Java systems fail through bad error handling as often as bad algorith
 Design error handling as part of the contract. At service boundaries, translate internal failures into stable error responses, preserve diagnostic context, and ensure resource cleanup, retries, and alerts align with business impact.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Java's split between checked and unchecked exceptions is one of the language's most argued-over
 design decisions, and it's still relevant to a senior interview not because the debate is settled
@@ -3877,7 +3877,7 @@ funding source, queue for retry), and the compiler refusing to let a caller sile
 obligation is a genuine safety net in a domain where silently ignoring "the payment didn't actually
 go through" is a serious defect. The well-known practical problem is that checked exceptions compose
 badly with the functional-interface-and-streams style covered in your Kafka and general Java-
-fundamentals material: `Function<T, R>`, `Consumer<T>`, `Supplier<T>` and the rest of
+fundamentals material: `Function\<T, R>`, `Consumer\<T>`, `Supplier\<T>` and the rest of
 `java.util.function` don't declare any checked exceptions in their abstract method signatures, so a
 lambda whose body needs to call something that throws a checked exception won't compile unless you
 catch it locally and either swallow it or rewrap it as unchecked right there inside the lambda — a
@@ -4018,7 +4018,7 @@ decide which HTTP status applies.
 | Lambda/stream compatibility | Poor — forces local catch-and-wrap inside functional interfaces | Native — propagates through lambdas with no extra ceremony |
 | Typical large-codebase usage | Small, deliberate set of genuine business-rule exceptions | The overwhelming majority of exception types in practice |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -4028,13 +4028,13 @@ decide which HTTP status applies.
 
 **Why does exception chaining matter so much in practice, and what's the one-line discipline that prevents the problem?** A wrapped exception constructed without its original cause loses the entire original stack trace, type, and message — anyone debugging from the wrapped exception alone sees only "payment processing failed," with zero information about whether that was a timeout, a validation failure, or a null pointer bug three layers down. The fix costs nothing: always pass the caught exception as the `cause` argument when constructing the wrapping exception (`new PaymentProcessingException(message, e)`), which preserves the full original cause chain and makes it visible in any stack trace dump or structured log that includes cause chains — a habit worth enforcing in code review specifically because it's invisible until the one time you desperately need it during an incident.
 
-**Why do checked exceptions compose badly with the Streams API, and what are the practical workarounds?** Functional interfaces like `Function<T, R>` and `Consumer<T>` don't declare any checked exceptions in their single abstract method's signature, so a lambda implementing one of them can't directly call a method that throws a checked exception without handling it locally — the lambda body must catch it and either swallow it (dangerous — silently losing failures) or rewrap it as an unchecked exception before it can propagate out of the lambda. Common practical workarounds include writing small private wrapper methods that catch the checked exception and rethrow it wrapped in an unchecked type, or defining a custom functional interface variant whose method signature does declare the checked exception, used only at the specific call sites that need it. This is itself one of the strongest practical arguments, beyond stylistic preference, for favoring unchecked exceptions in code that's likely to be used inside stream pipelines or lambda-heavy code.
+**Why do checked exceptions compose badly with the Streams API, and what are the practical workarounds?** Functional interfaces like `Function\<T, R>` and `Consumer\<T>` don't declare any checked exceptions in their single abstract method's signature, so a lambda implementing one of them can't directly call a method that throws a checked exception without handling it locally — the lambda body must catch it and either swallow it (dangerous — silently losing failures) or rewrap it as an unchecked exception before it can propagate out of the lambda. Common practical workarounds include writing small private wrapper methods that catch the checked exception and rethrow it wrapped in an unchecked type, or defining a custom functional interface variant whose method signature does declare the checked exception, used only at the specific call sites that need it. This is itself one of the strongest practical arguments, beyond stylistic preference, for favoring unchecked exceptions in code that's likely to be used inside stream pipelines or lambda-heavy code.
 
 **Staff Engineer scenario:** Your team's incident postmortem for a failed batch settlement run shows the on-call engineer spent forty minutes chasing a red herring: the exception in the alert and the logs was `java.sql.SQLException: Connection is closed`, but the actual root cause — eventually found by reading raw application logs on the affected pod rather than the aggregated alert — was a `DataIntegrityViolationException` thrown while writing a settlement row, which happened while a connection pool health-check thread was independently, concurrently closing the same connection due to an unrelated pool-eviction policy kicking in. Diagnose why the wrong exception ended up in the alert, and what code-level change prevents this recurring. This is almost certainly the suppressed-exception problem playing out through hand-written resource cleanup rather than try-with-resources: somewhere in the settlement write path, a `finally` block (or equivalent manual cleanup) is closing a `Connection` or `Statement` directly rather than using try-with-resources, and when the connection's own concurrent closure throws while the `finally` block's close call is also executing, that second exception replaces the original `DataIntegrityViolationException` that was already propagating — the alerting and logging infrastructure never even saw the real exception, because it was silently discarded by the language-level `finally` overwrite behavior before it reached any logging code. The fix is mechanical but has to be applied consistently: audit the write path for any manual `try/finally` resource cleanup and convert it to try-with-resources, which would have preserved the original `DataIntegrityViolationException` as the primary exception and attached the connection-closure `SQLException` as a suppressed exception instead — visible in a full stack trace dump, and correctly pointing whoever's debugging at the actual root cause first, with the secondary connection issue available as useful supporting context rather than as a misleading red herring that consumed forty minutes of an on-call engineer's time.
 
 ---
 
-<a id="topic-22"></a>
+\<a id="topic-22">\</a>
 
 ## Topic 22 — Blocking I/O vs NIO vs NIO.2
 
@@ -4066,8 +4066,8 @@ They want to see whether you can choose I/O models for servers, clients, file pr
 Choose the I/O model based on concurrency, latency, team skill, and operational simplicity. Blocking code with virtual threads may be the best modern answer for many services, while Netty/reactive remains valuable for event-loop-oriented high-throughput infrastructure.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Classic `java.io` — `InputStream`, `OutputStream`, `Reader`, `Writer`, and everything built on them
 — implements a **blocking** model: a thread that calls `read()` on a socket's input stream sits
@@ -4179,7 +4179,7 @@ partner bank dropping a new settlement file without resorting to a polling loop.
 | Framework-managed NIO | Selector-based non-blocking I/O, hidden from your code | Spring MVC's servlet container (thread-per-request over NIO internals) or Spring WebFlux/Netty (fully reactive) — the framework owns this layer |
 | Hand-written `Selector`/`Channel` code | Manual non-blocking multiplexed I/O | Rare in application code today — mostly library/framework-internals work (writing a Netty handler, building custom protocol infrastructure), not typical service code |
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -4197,7 +4197,7 @@ partner bank dropping a new settlement file without resorting to a polling loop.
 
 ---
 
-<a id="topic-23"></a>
+\<a id="topic-23">\</a>
 
 ## Topic 23 — Serialization Pitfalls & Reflection Mechanics
 
@@ -4229,8 +4229,8 @@ Architects must design safe contracts across services and understand framework b
 Treat serialization as an external contract. Version it, test compatibility, avoid native Java serialization for untrusted or long-lived contracts, and understand how reflection-heavy frameworks affect startup, native images, and runtime diagnostics.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Java's built-in serialization mechanism — a class implementing the marker interface `Serializable`,
 written and read via `ObjectOutputStream`/`ObjectInputStream` — is largely avoided by modern
@@ -4400,7 +4400,7 @@ reflection, at real per-call cost, versus `MethodHandle`/`VarHandle`, versus com
 time code generation entirely avoiding runtime reflection — is exactly the kind of nuance that
 separates "reflection is slow, avoid it" (true but shallow) from a genuinely informed answer.
 
-</details>
+\</details>
 
 ### Interview Questions
 
@@ -4416,7 +4416,7 @@ separates "reflection is slow, avoid it" (true but shallow) from a genuinely inf
 
 ---
 
-<a id="topic-24"></a>
+\<a id="topic-24">\</a>
 
 ## Topic 24 — JMH Benchmarking & Production Profiling
 
@@ -4448,8 +4448,8 @@ They want to know whether you can prove performance claims instead of guessing.
 Use JMH for isolated code questions and production profilers for real bottlenecks. Good performance work starts with a symptom, a measurement, a hypothesis, a targeted change, and a before/after comparison.
 
 
-<details>
-<summary><strong>Deep dive notes</strong></summary>
+\<details>
+\<summary>\<strong>Deep dive notes\</strong>\</summary>
 
 Hand-rolled Java micro-benchmarks — the instinctive `long start = System.currentTimeMillis();
 doThing(); long elapsed = System.currentTimeMillis() - start;` pattern — lie, consistently and in
@@ -4550,7 +4550,7 @@ to be safe to leave enabled continuously, at low single-digit-percent overhead, 
 be capturing data *when* an incident happens rather than requiring you to reproduce the problem
 after attaching a heavier tool. A concrete production workflow: during a live P99 latency spike on
 `payment-service`, you trigger (or already have continuously running) a JFR recording covering the
-incident window — `jcmd <pid> JFR.start duration=120s filename=incident.jfr` — and the resulting
+incident window — `jcmd \<pid> JFR.start duration=120s filename=incident.jfr` — and the resulting
 recording, opened in JDK Mission Control, reveals several categories of data relevant to exactly the
 topics your other performance docs already cover: CPU-hot methods (which code is actually consuming
 CPU time during the spike, via the sampling data), GC pause events (tying directly back to your
@@ -4594,7 +4594,7 @@ goes untouched.
 | JFR | Low-overhead, continuous or on-demand production profiling | Low (safe to run continuously) | Diagnosing a real production latency/CPU/GC/lock incident as it happens or shortly after |
 | async-profiler | Visual flame-graph CPU/allocation/lock profiling | Low-to-moderate | Deep-dive analysis needing a visual call-path breakdown, often alongside or after JFR |
 
-</details>
+\</details>
 
 ### Interview Questions
 

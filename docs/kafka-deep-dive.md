@@ -126,7 +126,7 @@ LEVEL 7 - Architecture
 
 ---
 
-<a id="lesson-1"></a>
+\<a id="lesson-1">\</a>
 
 ## Lesson 1 — Why Kafka Exists
 
@@ -831,7 +831,7 @@ Streams—all become much easier.
 
 ---
 
-<a id="lesson-2"></a>
+\<a id="lesson-2">\</a>
 
 ## Lesson 2 — What is an Event?
 
@@ -1362,7 +1362,7 @@ architectures.
 
 ---
 
-<a id="lesson-3"></a>
+\<a id="lesson-3">\</a>
 
 ## Lesson 3 — Topics & Partitions (The Heart of Kafka)
 
@@ -2097,7 +2097,7 @@ a system scales from 1,000 events/sec to 1 million events/sec.
 
 ---
 
-<a id="lesson-4"></a>
+\<a id="lesson-4">\</a>
 
 ## Lesson 4 – Producer, Broker, Topic, Partition, Consumer (End-to-End Journey)
 
@@ -2327,7 +2327,7 @@ the record.
 
 ---
 
-<a id="lesson-5"></a>
+\<a id="lesson-5">\</a>
 
 ## Lesson 5 – Offsets (The Secret Behind Kafka)
 
@@ -2414,7 +2414,7 @@ each other.
 
 ---
 
-<a id="lesson-6"></a>
+\<a id="lesson-6">\</a>
 
 ## Lesson 6 – Consumer Groups
 
@@ -2490,7 +2490,7 @@ processing without duplicate work.
 
 ---
 
-<a id="lesson-7"></a>
+\<a id="lesson-7">\</a>
 
 ## Lesson 7 – Brokers, Replication, Leader & Followers
 
@@ -2535,7 +2535,7 @@ This is exactly why Kafka's **acknowledgment (acks) configuration** exists — c
 
 ---
 
-<a id="lesson-8"></a>
+\<a id="lesson-8">\</a>
 
 ## Lesson 8 – ACKs & ISR (How Kafka Prevents Data Loss)
 
@@ -2588,7 +2588,7 @@ enable.idempotence=true
 
 **Q4 (common trick question): Does `acks=all` wait for every replica?** No — only for replicas in the ISR, not necessarily every configured replica.
 
-**Staff Engineer scenario:** RF=3, `acks=all`, `min.insync.replicas=2`. Broker2 crashes, leaving ISR = {Leader, Broker3} — count 2, so writes still succeed. Then Broker3 also loses connectivity, ISR shrinks to {Leader only} — count 1, below the minimum, so Kafka now **rejects** writes rather than risk them.
+**Staff Engineer scenario:** RF=3, `acks=all`, `min.insync.replicas=2`. Broker2 crashes, leaving ISR = \{Leader, Broker3\} — count 2, so writes still succeed. Then Broker3 also loses connectivity, ISR shrinks to \{Leader only\} — count 1, below the minimum, so Kafka now **rejects** writes rather than risk them.
 
 ### Recovering From an "Acknowledged but Lost" Message
 
@@ -2630,7 +2630,7 @@ a "just set `acks=all`" answer.
 
 ---
 
-<a id="lesson-9"></a>
+\<a id="lesson-9">\</a>
 
 ## Lesson 9 – Leader Election
 
@@ -2656,7 +2656,7 @@ Controller performs leader election.
 
 ---
 
-<a id="lesson-10"></a>
+\<a id="lesson-10">\</a>
 
 ## Lesson 10 – Producer Internals
 
@@ -2726,7 +2726,7 @@ millions of messages per second."
 
 ---
 
-<a id="lesson-11"></a>
+\<a id="lesson-11">\</a>
 
 ## Lesson 11 – KRaft vs ZooKeeper
 
@@ -2787,7 +2787,7 @@ ZooKeeper` becomes `Producer → Broker → Metadata Log`, all inside one system
 
 ---
 
-<a id="lesson-13"></a>
+\<a id="lesson-13">\</a>
 
 ## Lesson 13 – Consumer Internals
 
@@ -2867,7 +2867,7 @@ right now."
 
 ---
 
-<a id="lesson-14"></a>
+\<a id="lesson-14">\</a>
 
 ## Lesson 14 – Log Segments
 
@@ -2923,7 +2923,7 @@ grows into the terabytes.
 
 ---
 
-<a id="lesson-15"></a>
+\<a id="lesson-15">\</a>
 
 ## Lesson 15 – Page Cache (Kafka's Secret Weapon)
 
@@ -2965,7 +2965,7 @@ per second, collapsing throughput); it lets Linux batch and optimize flushes int
 
 ---
 
-<a id="lesson-16"></a>
+\<a id="lesson-16">\</a>
 
 ## Lesson 16 – Zero Copy
 
@@ -3004,7 +3004,7 @@ implement this itself — it just calls the OS primitive built for exactly this.
 
 ---
 
-<a id="lesson-17"></a>
+\<a id="lesson-17">\</a>
 
 ## Lesson 17 – Batching (Deep Dive)
 
@@ -3050,7 +3050,7 @@ it's just one record.
 
 ---
 
-<a id="lesson-18"></a>
+\<a id="lesson-18">\</a>
 
 ## Lesson 18 – Compression (The Final Performance Piece)
 
@@ -3152,7 +3152,7 @@ unnecessary memory copies. None of them alone explains Kafka's throughput; toget
 
 ---
 
-<a id="lesson-19"></a>
+\<a id="lesson-19">\</a>
 
 ## Lesson 19 – Idempotent Producer
 
@@ -3296,7 +3296,7 @@ idempotent-producer mechanism alone.
 
 ---
 
-<a id="lesson-20"></a>
+\<a id="lesson-20">\</a>
 
 ## Lesson 20 – Transactions & Exactly-Once Semantics
 
@@ -3488,7 +3488,7 @@ idempotency/atomicity engineered so the observable outcome looks exactly-once.
 
 ---
 
-<a id="lesson-21"></a>
+\<a id="lesson-21">\</a>
 
 ## Lesson 21 – Kafka Connect
 
@@ -3612,7 +3612,7 @@ generic connector, so a custom consumer is the right call.
 
 ---
 
-<a id="lesson-22"></a>
+\<a id="lesson-22">\</a>
 
 ## Lesson 22 – Schema Registry (Avro, Protobuf, JSON Schema)
 
@@ -3636,7 +3636,7 @@ independently, on independent timelines, and the topic itself enforces nothing.*
 Schema Registry is a separate service (commonly Confluent's, though the pattern is broader) that
 sits alongside the Kafka cluster and does three things:
 
-1. **Stores schemas centrally** — every distinct schema version for every topic (by convention, per-subject, typically `<topic>-value` and `<topic>-key`) lives in Schema Registry's own storage, itself backed by an internal Kafka topic.
+1. **Stores schemas centrally** — every distinct schema version for every topic (by convention, per-subject, typically `\<topic>-value` and `\<topic>-key`) lives in Schema Registry's own storage, itself backed by an internal Kafka topic.
 2. **Assigns a schema ID to each registered schema version** — when a producer serializes a record, it doesn't embed the full schema in every message (wasteful — the schema is far larger than most individual records); instead it looks up (or registers) the schema with Schema Registry, gets back a small integer ID, and prefixes the serialized bytes with that ID. A consumer reads the ID, fetches (and caches) the corresponding schema from Schema Registry, and uses it to deserialize the rest of the bytes correctly.
 3. **Validates compatibility on registration** — before accepting a *new* version of a schema for a subject, Schema Registry checks it against the configured compatibility rule for that subject, and **rejects the registration outright** if the new schema would break that rule. This is the actual enforcement mechanism — it turns "we hope everyone coordinates schema changes" into a build-time or deploy-time gate that fails loudly instead of corrupting data silently at runtime.
 
@@ -3753,7 +3753,7 @@ what Schema Registry's compatibility checking is built around.
 
 ---
 
-<a id="lesson-23"></a>
+\<a id="lesson-23">\</a>
 
 ## Lesson 23 – Kafka Streams
 
@@ -3920,7 +3920,7 @@ outgrows "just another microservice," not by default because Flink is more power
 
 ---
 
-<a id="lesson-24"></a>
+\<a id="lesson-24">\</a>
 
 ## Lesson 24 – ksqlDB
 
@@ -3998,7 +3998,7 @@ business-critical into proper Streams code.
 
 ---
 
-<a id="lesson-25"></a>
+\<a id="lesson-25">\</a>
 
 ## Lesson 25 – Dead Letter Queues (DLQ)
 
@@ -4020,7 +4020,7 @@ bad record, which is a wildly disproportionate blast radius for one malformed pa
 ### The DLQ Pattern
 
 The fix: after a bounded number of failed processing attempts, don't retry forever and don't crash —
-**route the poison record to a separate topic** (conventionally `<topic>.DLQ` or `<topic>.dlt`, e.g.
+**route the poison record to a separate topic** (conventionally `\<topic>.DLQ` or `\<topic>.dlt`, e.g.
 `payment.completed.DLQ`), commit the original offset, and move on. The main partition keeps flowing
 for every payment behind the bad one; the bad one is quarantined somewhere a human or a separate
 remediation process can look at it later without holding up production traffic.
@@ -4110,7 +4110,7 @@ grow unbounded. A DLQ nobody drains is just a bug graveyard with extra steps.
 
 ---
 
-<a id="lesson-26"></a>
+\<a id="lesson-26">\</a>
 
 ## Lesson 26 – Retry Topics
 
@@ -4233,7 +4233,7 @@ topic names and consumer groups yourself.
 
 ---
 
-<a id="lesson-27"></a>
+\<a id="lesson-27">\</a>
 
 ## Lesson 27 – Outbox Pattern (Kafka-Specific Implementation)
 
@@ -4378,7 +4378,7 @@ publisher.
 
 ---
 
-<a id="lesson-28"></a>
+\<a id="lesson-28">\</a>
 
 ## Lesson 28 – Saga Pattern (Kafka-Specific Implementation)
 
@@ -4569,7 +4569,7 @@ new, critical, stateful piece of infrastructure that every step now depends on.
 
 ---
 
-<a id="lesson-29"></a>
+\<a id="lesson-29">\</a>
 
 ## Lesson 29 – Event Sourcing
 
@@ -4741,7 +4741,7 @@ cost to "since the last snapshot" instead of "since the beginning of time."
 
 ---
 
-<a id="lesson-30"></a>
+\<a id="lesson-30">\</a>
 
 ## Lesson 30 – Change Data Capture (CDC) with Debezium
 
@@ -4865,7 +4865,7 @@ polling interval — an insert-then-delete between two poll cycles, for example.
 
 ---
 
-<a id="lesson-31"></a>
+\<a id="lesson-31">\</a>
 
 ## Lesson 31 – MirrorMaker 2
 
@@ -4931,7 +4931,7 @@ region-local concept.
 
 ---
 
-<a id="lesson-32"></a>
+\<a id="lesson-32">\</a>
 
 ## Lesson 32 – Multi-Region Kafka
 
@@ -5074,7 +5074,7 @@ incident, rather than as a deliberate design choice made in advance.
 
 ---
 
-<a id="lesson-33"></a>
+\<a id="lesson-33">\</a>
 
 ## Lesson 33 – Kafka Security (SSL/TLS, SASL, ACLs)
 
@@ -5223,7 +5223,7 @@ else. This bounds the blast radius of a compromised service to exactly what its 
 
 ---
 
-<a id="lesson-34"></a>
+\<a id="lesson-34">\</a>
 
 ## Lesson 34 – Kafka Monitoring & Performance Tuning
 
@@ -5253,7 +5253,7 @@ a Kafka operator actually watches.
 The standard operational stack exports Kafka's built-in **JMX metrics** into **Prometheus**,
 visualized in **Grafana** — this is how the metrics above actually get watched continuously and
 alerted on, rather than checked manually. For ad-hoc investigation, Kafka ships `kafka-consumer-
-groups.sh --describe --group <group> --bootstrap-server <broker>`, which prints exactly the current-
+groups.sh --describe --group \<group> --bootstrap-server \<broker>`, which prints exactly the current-
 offset, log-end-offset, and lag per partition for a given consumer group — the fastest way to answer
 "how far behind is this specific group, right now, per partition" without waiting on a dashboard.
 For teams wanting a GUI rather than CLI/Grafana, **Confluent Control Center** (or open-source
@@ -5315,7 +5315,7 @@ real broker failure, you want to already know whether the ISR was healthy going 
 
 ---
 
-<a id="lesson-35"></a>
+\<a id="lesson-35">\</a>
 
 ## Lesson 35 – Real Production Case Studies (PayPal, Uber, Netflix, LinkedIn)
 

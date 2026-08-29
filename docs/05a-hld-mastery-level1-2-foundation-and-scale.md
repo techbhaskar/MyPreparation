@@ -38,7 +38,7 @@ building blocks did they reach for, and why not the other one?*
 
 **Non-functional**
 - Read-heavy: redirects vastly outnumber creations (~100:1 typical).
-- Redirect latency should be <100ms p99 — it's on the critical path of someone's click.
+- Redirect latency should be \<100ms p99 — it's on the critical path of someone's click.
 - High availability for redirects (a dead shortener breaks every link that ever used it) — some staleness on analytics is fine.
 - Aliases must not collide; system should not be guessable/enumerable easily (avoid sequential IDs exposed raw).
 
@@ -116,7 +116,7 @@ urls
 
 **Write path:** Client POSTs long URL → app server requests a unique ID from the ID generation service → encodes ID as base62 → writes `{short_code, long_url}` to DB → returns short URL. Custom aliases skip ID generation and do a conditional-write (`INSERT ... IF NOT EXISTS`) to catch collisions.
 
-**Read path (the hot path):** Client hits `GET /{short_code}` → app server checks Redis cache first → on hit, returns 301 in <10ms → on miss, reads from DB, populates cache with TTL, returns 301. Click event is fired asynchronously onto a queue (Kafka/SQS) so it never blocks the redirect — analytics consumer aggregates click counts in the background.
+**Read path (the hot path):** Client hits `GET /{short_code}` → app server checks Redis cache first → on hit, returns 301 in \<10ms → on miss, reads from DB, populates cache with TTL, returns 301. Click event is fired asynchronously onto a queue (Kafka/SQS) so it never blocks the redirect — analytics consumer aggregates click counts in the background.
 
 ### Deep Dive: ID Generation / Encoding Strategy
 
@@ -316,7 +316,7 @@ problem — job queues, ticket reservation, etc.
 ### Scale/Capacity Estimation
 
 - Assume this is a shared limiter fronting 50,000 req/sec across all API traffic.
-- Every request needs a limiter check → limiter itself must handle 50K decisions/sec, each ideally <5ms.
+- Every request needs a limiter check → limiter itself must handle 50K decisions/sec, each ideally \<5ms.
 - Number of distinct rate-limit keys (unique client_id+resource pairs): assume 1M active clients × ~5 resources = 5M keys.
 - Each key's counter state: ~50-100 bytes (count + window timestamp, or a small sliding log). 5M × 100 bytes = **500MB** — comfortably fits in a single Redis instance's memory, though sharded for HA/throughput.
 
@@ -597,7 +597,7 @@ Direct upload/download to Object Storage via pre-signed URLs
 - Post creation (text/image/video), like/comment, and those actions should (eventually) reflect back into feeds.
 
 **Non-functional**
-- Feed read latency <200ms p99 — this is the primary product surface, opened dozens of times a day per user.
+- Feed read latency \<200ms p99 — this is the primary product surface, opened dozens of times a day per user.
 - Extreme read:write skew — feed views vastly outnumber posts (easily 1000:1 or more).
 - Must handle **celebrity/hot users** with 50M+ followers without melting the system on every post they make — this asymmetry is the crux of the entire design.
 
@@ -741,7 +741,7 @@ treatment.
 - Support personalization as a stretch goal (user's own search history weighted higher).
 
 **Non-functional**
-- Latency budget is brutally tight: <50-100ms end-to-end per keystroke, because it fires on *every character typed*, not just on submit.
+- Latency budget is brutally tight: \<50-100ms end-to-end per keystroke, because it fires on *every character typed*, not just on submit.
 - Read-to-write ratio is enormous — millions of autocomplete lookups per single query-log update.
 - Data staleness of minutes-to-hours is fine (trending topics don't need sub-second freshness) — this is a "read-optimized, eventually-consistent write" system.
 
@@ -820,7 +820,7 @@ Offline aggregation store (batch-computed, e.g. from Spark/Flink job over query 
 
 ### Deep Dive: Precomputed Top-K at Each Trie Node
 
-**The naive approach** — walk to the prefix node, then DFS the entire subtree collecting all completions and sorting by score — is O(subtree size × log K), which is fine for rare prefixes but catastrophic for a popular short prefix like "a" or "the" with millions of descendant queries. This blows the <50ms budget badly.
+**The naive approach** — walk to the prefix node, then DFS the entire subtree collecting all completions and sorting by score — is O(subtree size × log K), which is fine for rare prefixes but catastrophic for a popular short prefix like "a" or "the" with millions of descendant queries. This blows the \<50ms budget badly.
 
 **The standard fix:** precompute and cache the top-K completions *at every node*, not just at leaves. When the trie is built (offline), do a bottom-up pass: each leaf's top-K is just itself; each internal node's top-K is the merge of its children's top-K lists (a K-way merge, keeping only the best K overall) — this is O(nodes × K log K) total build cost, done once offline, not per-query.
 
@@ -840,7 +840,7 @@ def merge_top_k(list_a, list_b, K):
 ```
 
 At read time, the lookup is purely: walk down to the node matching the typed prefix (O(prefix
-length), typically <20 char comparisons), then return `node.top_k` directly — no subtree traversal
+length), typically \<20 char comparisons), then return `node.top_k` directly — no subtree traversal
 at request time at all. This shift-the-cost-to-build-time-not-query-time pattern is the
 generalizable lesson: **any read path with a brutal latency SLA should be asking "what can I
 precompute offline so the hot path becomes a lookup, not a computation."**
@@ -1147,7 +1147,7 @@ Rollup tables (pre-aggregated, written by a background downsampling job):
 **The genuinely hard part: percentiles don't merge trivially.** You cannot average p99s or take the p99 of a set of pre-computed p99s and get a mathematically correct answer — percentiles are not associative/mergeable the way sum or max are. Two approaches:
 
 1. **Store enough raw data to recompute percentiles exactly on demand** — expensive, defeats the purpose of rollups for long time ranges.
-2. **Use a mergeable approximate percentile sketch** (t-digest or HDRHistogram are the industry-standard answers) — these data structures maintain a compressed, approximate representation of the distribution that *can* be merged across time windows while bounding error. When ingesting, each 1-minute bucket stores a small t-digest sketch (a few KB) instead of raw points; to compute a p99 over a 1-hour range, merge the 60 one-minute sketches into one and query it for p99 — the error introduced is small and bounded (typically <1-2% relative error near the tails, which is what t-digest specifically optimizes for, unlike naive fixed-bucket histograms which lose accuracy exactly where percentile queries usually care most).
+2. **Use a mergeable approximate percentile sketch** (t-digest or HDRHistogram are the industry-standard answers) — these data structures maintain a compressed, approximate representation of the distribution that *can* be merged across time windows while bounding error. When ingesting, each 1-minute bucket stores a small t-digest sketch (a few KB) instead of raw points; to compute a p99 over a 1-hour range, merge the 60 one-minute sketches into one and query it for p99 — the error introduced is small and bounded (typically \<1-2% relative error near the tails, which is what t-digest specifically optimizes for, unlike naive fixed-bucket histograms which lose accuracy exactly where percentile queries usually care most).
 
 ```
 # conceptual: t-digest supports mergeable, streaming percentile estimation

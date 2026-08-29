@@ -178,7 +178,7 @@ while the heavy embedding models retrain offline (daily/hourly batches).
 - **Storage**: shard by `video_id` hash across blob store partitions; cold/rarely-watched content moves to cheaper storage tiers (infrequent access / glacier-class) automatically via lifecycle policies — most videos are watched heavily only in the first days after upload ("recency bias" in view distribution).
 - **Transcoding**: horizontally scale the worker fleet; use spot/preemptible compute for the (interruptible, retryable) transcode jobs since they're not latency-critical for already-published content.
 - **Metadata**: shard the video metadata store by `video_id`; view counters use a CRDT/HLL-based approximate counter sharded independently to avoid hot-row contention on viral videos (a single row taking millions of increments/sec would melt under naive `UPDATE ... SET count = count+1`).
-- **CDN**: this *is* the scaling strategy for delivery — without it, no origin fleet at any size could serve peak egress. Push as much as possible to the edge; origin should ideally see <5% of total playback traffic.
+- **CDN**: this *is* the scaling strategy for delivery — without it, no origin fleet at any size could serve peak egress. Push as much as possible to the edge; origin should ideally see \<5% of total playback traffic.
 
 ### Failure Handling
 
@@ -765,12 +765,12 @@ global user both violate the stated targets independently.
 - **Fencing tokens**: even with leader election, a "zombie" former leader might still have in-flight requests; attach a monotonically increasing fencing token to leadership terms so downstream systems (e.g., storage) can reject writes carrying a stale token, guaranteeing an old leader can't corrupt state even if it hasn't yet realized it lost leadership.
 - **Idempotency as a backstop**: regardless of how well split-brain is prevented, idempotency keys on writes (Section 4/Payment System Design pattern) mean that even a duplicate-processed request is a no-op the second time, turning a potential double-charge into a harmless retry — defense in depth rather than relying on any single mechanism to be perfect.
 
-**(d) Worked example against the stated SLA (99.99% availability, <150ms p99 for 90% of global users).**
+**(d) Worked example against the stated SLA (99.99% availability, \<150ms p99 for 90% of global users).**
 - Deploy 5 active regions positioned to cover major population centers within ~50-70ms (e.g., US-East, US-West, EU-West, APAC-Southeast, APAC-Northeast).
 - GeoDNS/anycast with health-check-based routing (not pure geographic) — a region failing health checks is pulled from rotation within seconds, not minutes.
 - Per-dataset strategy: user profile/account data uses home-region routing (Strategy 1) with async cross-region read replicas; shopping-cart-style ephemeral collaborative state uses CRDTs (Strategy 2); session/cache data is region-local only (Strategy 3).
 - 99.99% (52 min/year) is achieved not by any single region being that reliable (no region needs to individually hit 99.99% — a single cloud region typically offers ~99.9% at best), but by the *fleet* of active regions meaning a single-region outage doesn't remove the *service* from availability, only that region's share of users, who are then routed to the next-nearest healthy region within the GeoDNS health-check interval (typically tens of seconds) — so the effective customer-facing availability is much higher than any one region's number, provided failover is truly automatic and requires no manual intervention.
-- The <150ms target for 90% of users is met structurally by regional placement (physics — speed of light — is the actual constraint, not server processing time); the remaining 10% (users far from any region, e.g., a user in a location without a nearby PoP) may exceed the target, which is why the SLA is worded "for 90% of users," not "for all users" — an honest, common way real SLAs are scoped.
+- The \<150ms target for 90% of users is met structurally by regional placement (physics — speed of light — is the actual constraint, not server processing time); the remaining 10% (users far from any region, e.g., a user in a location without a nearby PoP) may exceed the target, which is why the SLA is worded "for 90% of users," not "for all users" — an honest, common way real SLAs are scoped.
 
 ### Scaling the Design
 

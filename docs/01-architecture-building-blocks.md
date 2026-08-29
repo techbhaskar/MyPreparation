@@ -61,7 +61,7 @@ balancing, before a single request even reaches a data center.
 - **TTL tuning is a trade-off between propagation speed and load.** Low TTL (e.g. 30s) lets you fail over or repoint traffic fast, but multiplies query volume on your authoritative servers and increases latency variance. High TTL (e.g. 24h) is cheap and fast for clients but means a bad record propagates slowly to fix — this is why "just repoint DNS" is a slow failover lever, not an instant one, and many outages are prolonged by stale client-side or resolver-side caches ignoring TTLs.
 - **DNS is a single point of dependency.** The Dyn DDoS attack (2016) took down Twitter, Netflix, Reddit, etc., not because those services were down, but because their DNS provider was.
 - **No built-in health awareness** unless you pay for a smart DNS product (Route 53 health checks, NS1) that removes unhealthy endpoints from rotation.
-- DNS resolution adds latency (tens to hundreds of ms on cold cache) — mitigated by client-side caching, connection reuse (keep-alive), and prefetching (`<link rel="dns-prefetch">`).
+- DNS resolution adds latency (tens to hundreds of ms on cold cache) — mitigated by client-side caching, connection reuse (keep-alive), and prefetching (`\<link rel="dns-prefetch">`).
 
 **Real systems.** PayPal-scale enterprises use multi-provider DNS (e.g., Route 53 + secondary) for redundancy, GeoDNS for routing EU traffic to EU data centers (also a data-residency/GDPR requirement), and weighted routing records for canary/blue-green traffic shifting at the DNS layer.
 

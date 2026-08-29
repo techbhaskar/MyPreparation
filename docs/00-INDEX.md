@@ -1,3 +1,7 @@
+---
+slug: /
+---
+
 # Senior/Staff System Design — Study Guide Index
 Last updated: 2026-08-27
 
