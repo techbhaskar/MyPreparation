@@ -1,6 +1,6 @@
 /**
- * MyPreparation — Cyber Electric Theme (Enhanced Readability Edition)
- * Modern high-tech aesthetics with high-contrast, WCAG-compliant typography
+ * MyPreparation — Cyber Electric Design System
+ * Polished for both Light & Dark Theme modes with high-contrast accessibility
  */
 
 /* ==========================================================================
@@ -8,44 +8,45 @@
    ========================================================================== */
 
 :root {
-  /* Fonts */
+  /* Typography */
   --ifm-font-family-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
   --ifm-heading-font-weight: 800;
   --ifm-line-height-base: 1.7;
   --ifm-code-font-size: 90%;
 
-  /* Light Theme — High Contrast Deep Slate & Indigo */
-  --ifm-color-primary: #0284c7;
-  --ifm-color-primary-dark: #0369a1;
-  --ifm-color-primary-darker: #075985;
-  --ifm-color-primary-darkest: #0c4a6e;
-  --ifm-color-primary-light: #0284c7;
-  --ifm-color-primary-lighter: #38bdf8;
-  --ifm-color-primary-lightest: #7dd3fc;
+  /* Light Theme Tokens — Vibrant Indigo & Royal Blue */
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #4338ca;
+  --ifm-color-primary-darker: #3730a3;
+  --ifm-color-primary-darkest: #312e81;
+  --ifm-color-primary-light: #6366f1;
+  --ifm-color-primary-lighter: #818cf8;
+  --ifm-color-primary-lightest: #a5b4fc;
 
   --ifm-background-color: #f8fafc;
   --ifm-background-surface-color: #ffffff;
   --ifm-font-color-base: #1e293b;
   --ifm-heading-color: #0f172a;
 
-  /* Glassmorphism & Accent Tokens (Light) */
-  --bg-gradient-radial: radial-gradient(circle at 50% -10%, rgba(2, 132, 199, 0.08), transparent 60%),
-                        radial-gradient(circle at 90% 50%, rgba(99, 102, 241, 0.06), transparent 50%);
-  --glass-bg: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(203, 213, 225, 0.8);
-  --glass-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
-  --cyber-accent-gradient: linear-gradient(135deg, #0284c7 0%, #4f46e5 50%, #7c3aed 100%);
-  --cyber-badge-bg: rgba(2, 132, 199, 0.1);
-  --cyber-badge-border: rgba(2, 132, 199, 0.25);
-  --cyber-badge-text: #0369a1;
+  /* Ambient Glassmorphism Light Tokens */
+  --bg-gradient-radial: radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.09), transparent 60%),
+                        radial-gradient(circle at 90% 50%, rgba(6, 182, 212, 0.08), transparent 50%),
+                        radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.06), transparent 50%);
+  --glass-bg: #ffffff;
+  --glass-border: rgba(226, 232, 240, 0.95);
+  --glass-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 1px rgba(15, 23, 42, 0.12);
+  --cyber-accent-gradient: linear-gradient(135deg, #2563eb 0%, #6366f1 50%, #8b5cf6 100%);
+  --cyber-badge-bg: rgba(99, 102, 241, 0.08);
+  --cyber-badge-border: rgba(99, 102, 241, 0.25);
+  --cyber-badge-text: #3730a3;
 
-  --ifm-navbar-background-color: rgba(255, 255, 255, 0.9);
-  --ifm-navbar-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.92);
+  --ifm-navbar-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
   --ifm-footer-background-color: #0f172a;
 }
 
-/* Dark Mode Tokens — Cyber Electric (High-Contrast AAA Readability) */
+/* Dark Theme Tokens — Cyber Electric Slate */
 html[data-theme='dark'] {
   --ifm-color-primary: #22d3ee;
   --ifm-color-primary-dark: #06b6d4;
@@ -55,26 +56,24 @@ html[data-theme='dark'] {
   --ifm-color-primary-lighter: #a5f3fc;
   --ifm-color-primary-lightest: #cffaff;
 
-  /* Deep slate base for optimal eye comfort and maximum contrast */
   --ifm-background-color: #0b0f17;
   --ifm-background-surface-color: #111827;
   --ifm-font-color-base: #f1f5f9;
   --ifm-heading-color: #ffffff;
 
-  /* Ambient Glow & Cards */
   --bg-gradient-radial: radial-gradient(circle at 50% -10%, rgba(34, 211, 238, 0.14), transparent 60%),
                         radial-gradient(circle at 90% 40%, rgba(139, 92, 246, 0.12), transparent 50%),
                         radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.1), transparent 50%);
   
   --glass-bg: rgba(17, 24, 39, 0.88);
   --glass-border: rgba(255, 255, 255, 0.14);
-  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --glass-shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
   --cyber-accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
   --cyber-badge-bg: rgba(34, 211, 238, 0.14);
   --cyber-badge-border: rgba(34, 211, 238, 0.35);
   --cyber-badge-text: #38bdf8;
 
-  --ifm-navbar-background-color: rgba(11, 15, 23, 0.9);
+  --ifm-navbar-background-color: rgba(11, 15, 23, 0.92);
   --ifm-navbar-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
   --ifm-toc-border-color: rgba(255, 255, 255, 0.12);
 }
@@ -184,11 +183,11 @@ html[data-theme='dark'] .theme-doc-sidebar-container {
   color: var(--ifm-color-primary) !important;
   font-weight: 800 !important;
   border-left: 4px solid var(--ifm-color-primary);
-  box-shadow: 0 2px 12px rgba(34, 211, 238, 0.2);
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2);
 }
 
 /* ==========================================================================
-   4. CONTENT & MARKDOWN TYPOGRAPHY (HIGH READABILITY)
+   4. MARKDOWN & DOCUMENTATION CONTENT
    ========================================================================== */
 
 .markdown {
@@ -246,7 +245,7 @@ html[data-theme='dark'] .theme-doc-sidebar-container {
 }
 
 .markdown th {
-  background: rgba(34, 211, 238, 0.12);
+  background: var(--cyber-badge-bg);
   color: var(--ifm-heading-color);
   font-weight: 800;
   text-transform: uppercase;
@@ -268,11 +267,15 @@ html[data-theme='dark'] .theme-doc-sidebar-container {
 }
 
 .markdown tr:nth-child(even) td {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+html[data-theme='dark'] .markdown tr:nth-child(even) td {
   background: rgba(255, 255, 255, 0.02);
 }
 
 .markdown tr:hover td {
-  background: rgba(34, 211, 238, 0.06);
+  background: var(--cyber-badge-bg);
 }
 
 /* Styled Blockquotes & Callouts */
@@ -311,44 +314,15 @@ code {
   font-weight: 600;
 }
 
-/* Docusaurus Admonitions */
-.alert {
-  border-radius: 12px;
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--glass-shadow);
-  color: var(--ifm-font-color-base);
-}
-
-.alert--info {
-  background: rgba(34, 211, 238, 0.1);
-  border-left: 4px solid #22d3ee;
-}
-
-.alert--success {
-  background: rgba(16, 185, 129, 0.1);
-  border-left: 4px solid #10b981;
-}
-
-.alert--warning {
-  background: rgba(245, 158, 11, 0.1);
-  border-left: 4px solid #f59e0b;
-}
-
-.alert--danger {
-  background: rgba(239, 68, 68, 0.1);
-  border-left: 4px solid #ef4444;
-}
-
 /* Footer */
 .footer {
   border-top: 1px solid var(--glass-border);
-  background: #090d16 !important;
+  background: #0f172a !important;
   padding: 3rem 1.5rem;
 }
 
 .footer__title {
-  color: #38bdf8;
+  color: #818cf8;
   font-weight: 800;
   font-size: 0.98rem;
   letter-spacing: 0.02em;
@@ -361,6 +335,6 @@ code {
 }
 
 .footer__link-item:hover {
-  color: var(--ifm-color-primary);
+  color: #38bdf8;
   text-decoration: none;
 }

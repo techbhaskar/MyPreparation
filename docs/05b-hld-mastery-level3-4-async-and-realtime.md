@@ -30,7 +30,7 @@ you assemble the primitives, justify each choice with a number, and know exactly
 
 ---
 
-# 1. Notification Platform
+## 1. Notification Platform
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -155,7 +155,7 @@ through the single-notification API.
 
 ---
 
-# 2. Logging Platform
+## 2. Logging Platform
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -261,7 +261,7 @@ count by orders of magnitude.
 
 ---
 
-# 3. Job Scheduler
+## 3. Job Scheduler
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -375,7 +375,7 @@ Two different access patterns need two different structures:
 
 ---
 
-# 4. Webhook Delivery Platform
+## 4. Webhook Delivery Platform
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -494,7 +494,7 @@ guarantees the receiver *will* see duplicates eventually.
 
 ---
 
-# 5. Chat / WhatsApp-style Messaging
+## 5. Chat / WhatsApp-style Messaging
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -607,7 +607,7 @@ resends if it doesn't get an ack within a timeout).
 
 ---
 
-# 6. Presence System
+## 6. Presence System
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -710,7 +710,7 @@ itself a major fan-out mitigation baked into the API contract.
 
 ---
 
-# 7. Live Location (Uber-style)
+## 7. Live Location (Uber-style)
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
@@ -816,7 +816,7 @@ confirmation, and minimizing round-trip chatter matters for battery/bandwidth.
 
 ---
 
-# 8. Collaborative Editing (OT vs CRDT)
+## 8. Collaborative Editing (OT vs CRDT)
 Last updated: 2026-08-27
 _Overview and notes._
 Last updated: 2026-08-27
