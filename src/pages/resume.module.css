@@ -1,0 +1,162 @@
+.page {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 3.5rem 0 5rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 2rem;
+  align-items: end;
+  padding: 2.5rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--ifm-color-primary);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5rem);
+  font-weight: 850;
+  line-height: 1;
+  background: var(--cyber-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  max-width: 760px;
+  margin: 1rem 0 0;
+  color: var(--ifm-font-color-base);
+  font-size: 1.2rem;
+  line-height: 1.65;
+}
+
+.stackLine {
+  margin: 0.75rem 0 0;
+  color: var(--ifm-color-primary);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.contactCard {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1.25rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 700;
+}
+
+.section {
+  margin-top: 2rem;
+  padding: 2rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+}
+
+.section h2 {
+  margin: 0 0 1rem;
+  color: var(--ifm-heading-color);
+  font-size: 1.55rem;
+}
+
+.section p {
+  margin: 0;
+  font-size: 1.03rem;
+  line-height: 1.75;
+}
+
+.skillGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.skillGrid span {
+  padding: 0.48rem 0.75rem;
+  border: 1px solid var(--cyber-badge-border);
+  border-radius: 999px;
+  background: var(--cyber-badge-bg);
+  color: var(--cyber-badge-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.timeline {
+  display: grid;
+  gap: 1rem;
+}
+
+.timelineItem {
+  padding: 1.25rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.timelineItem h3,
+.projectCard h3 {
+  margin: 0;
+  font-size: 1.16rem;
+}
+
+.meta {
+  margin-top: 0.25rem !important;
+  color: var(--ifm-color-primary);
+  font-weight: 750;
+}
+
+.timelineItem ul,
+.focusList {
+  margin: 0.85rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.timelineItem li,
+.focusList li {
+  margin: 0.4rem 0;
+}
+
+.projectGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.projectCard {
+  padding: 1.25rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.projectCard p {
+  margin: 0.65rem 0 1rem;
+}
+
+@media (max-width: 820px) {
+  .hero,
+  .projectGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero,
+  .section {
+    padding: 1.35rem;
+  }
+}

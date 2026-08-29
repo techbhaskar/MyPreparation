@@ -86,6 +86,11 @@ const config = {
           label: '⚡ Quick Revision',
         },
         {
+          to: '/resume',
+          position: 'right',
+          label: 'Resume',
+        },
+        {
           href: 'https://github.com/techbhaskar/MyPreparation',
           label: 'GitHub',
           position: 'right',
